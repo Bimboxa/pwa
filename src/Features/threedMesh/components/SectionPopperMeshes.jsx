@@ -4,10 +4,10 @@ import useMeshes3dRows from "../hooks/useMeshes3dRows";
 
 import SectionMeshes3dList from "./SectionMeshes3dList";
 import SwitchMesh3dGroupByOrientation from "./SwitchMesh3dGroupByOrientation";
-import SwitchMesh3dHideAnnotations from "./SwitchMesh3dHideAnnotations";
+import SwitchMesh3dHideMeshes from "./SwitchMesh3dHideMeshes";
 
 // "Maillage" side of the annotations popper (Maillage module, mailles drawer
-// closed): the mailles list of the drawer with its "Masquer les annotations"
+// closed): the mailles list of the drawer with its "Masquer les mailles"
 // and "Grouper par orientation" switches. The « Lignes de coupe » row stays on the "Annotations" side.
 export default function SectionPopperMeshes() {
   // data
@@ -37,7 +37,7 @@ export default function SectionPopperMeshes() {
           borderColor: "divider",
         }}
       >
-        <SwitchMesh3dHideAnnotations />
+        <SwitchMesh3dHideMeshes />
         {rows.length > 0 && <SwitchMesh3dGroupByOrientation />}
       </Box>
 

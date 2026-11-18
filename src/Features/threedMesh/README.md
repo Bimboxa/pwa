@@ -17,9 +17,9 @@ prepare them are documented in `Features/threedCutLines/README.md`.
   directly any more — the cells are prepared with cut lines.
 - Left drawer (`PanelMeshesViewer`): the mailles list + export, no tabs.
   Above the list, like on the « Maillage » side of the annotations popper
-  (`SectionPopperMeshes`): the « Masquer les annotations » switch
-  (`threedEditor.hideAnnotationsIn3d`, shared with the settings card) and
-  « Grouper par orientation ».
+  (`SectionPopperMeshes`): the « Masquer les mailles » switch
+  (`threedEditor.hideMeshes3d`: `ThreedMeshes` renders no maille while on,
+  so they are not pickable either) and « Grouper par orientation ».
 - Module properties panel (`PanelPropertiesMeshesModule`, empty selection —
   `selection/utils/getModuleRootPanelType` → `MESHES_MODULE`): description
   and the settings cards (`SectionMeshes3dSettings`).

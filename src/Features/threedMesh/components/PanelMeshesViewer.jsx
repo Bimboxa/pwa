@@ -7,7 +7,7 @@ import useMeshes3dRows from "../hooks/useMeshes3dRows";
 
 import SectionMeshes3dList from "./SectionMeshes3dList";
 import SwitchMesh3dGroupByOrientation from "./SwitchMesh3dGroupByOrientation";
-import SwitchMesh3dHideAnnotations from "./SwitchMesh3dHideAnnotations";
+import SwitchMesh3dHideMeshes from "./SwitchMesh3dHideMeshes";
 
 // Drawer content of the MESHES viewer (left panel next to the 3D editor):
 // the mailles list. The module settings live in the module properties panel
@@ -37,7 +37,7 @@ export default function PanelMeshesViewer() {
             borderColor: "divider",
           }}
         >
-          <SwitchMesh3dHideAnnotations />
+          <SwitchMesh3dHideMeshes />
           {rows.length > 0 && <SwitchMesh3dGroupByOrientation />}
         </Box>
         <BoxFlexVStretch sx={{ overflow: "auto" }}>

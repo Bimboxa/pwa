@@ -51,9 +51,11 @@ export default function ThreedMeshes() {
   const { prefix } = useMesh3dLabelPrefix();
   const { surfaceDecimals } = useMesh3dSurfaceDecimals();
   // Mailles are confined to the MESHES viewer: never displayed (nor raycast
-  // targetable) in the plain THREED viewer.
+  // targetable) in the plain THREED viewer. In the MESHES viewer, the
+  // "Masquer les mailles" switch hides them all (threedEditor.hideMeshes3d).
   const hideMeshes3d = useSelector(
-    (s) => s.viewers.selectedViewerKey !== "MESHES"
+    (s) =>
+      s.viewers.selectedViewerKey !== "MESHES" || s.threedEditor.hideMeshes3d
   );
   const labelsOptions = useSelector((s) => s.threedEditor.mesh3dLabels);
   // Mailles of these orientations are skipped entirely by the rebuild (no
