@@ -212,6 +212,7 @@ import buildMeshPaintHoverHelper from "Features/meshPaint/services/buildMeshPain
 import PopperEditMesh3d from "Features/threedMesh/components/PopperEditMesh3d";
 import PopperEditMeshes3d from "Features/threedMesh/components/PopperEditMeshes3d";
 import useMeshingPointerHandlers from "Features/threedMesh/hooks/useMeshingPointerHandlers";
+import useSelectAllVisibleHotkey from "Features/threedMesh/hooks/useSelectAllVisibleHotkey";
 import useMesh3dLabelDragHandlers from "Features/threedMesh/hooks/useMesh3dLabelDragHandlers";
 import { isMesh3dLabelGestureActive } from "Features/threedMesh/services/mesh3dLabelGestureStore";
 import ExtrudeToolbarThreed from "Features/threedExtrude/components/ExtrudeToolbarThreed";
@@ -771,6 +772,8 @@ export default function MainThreedEditor() {
 
   useDrawingPointerHandlers();
   useMeshingPointerHandlers({ tooltipApiRef, rendererIsReady });
+  // Maillage module: Ctrl/Cmd+A selects everything displayed.
+  useSelectAllVisibleHotkey({ enabled: isMeshesViewer });
   useExtrudePointerHandlers();
   useVertexOffsetPointerHandlers();
   // Mesh annotations: Delete on the selected faces / edges (before the
@@ -2511,11 +2514,10 @@ export default function MainThreedEditor() {
       });
     });
 
-    // Only annotations OR only mailles — a mixed selection would confuse the
-    // edit toolbars (each popper requires a homogeneous selection). Mailles
-    // win: in the Maillage viewer they overlay the annotations they were
-    // built from, so they are the primary lasso target there.
-    const newItems = mesh3dItems.length > 0 ? mesh3dItems : annotationItems;
+    // Annotations AND mailles: a mixed lasso keeps both. The multi-selection
+    // popper then shows one section per kind (PopperEditAnnotations +
+    // its « Mailles » section, see ThreedPopperEditAnnotations).
+    const newItems = [...annotationItems, ...mesh3dItems];
 
     // Lasso replaces the selection (matches the 2D editor).
     dispatch(setSelectedItems(newItems));
@@ -3574,7 +3576,16 @@ export default function MainThreedEditor() {
       {isThreedViewer && sweepPickActive && (
         <PopperSweepAlongLineHelper targetBaseMapId={sweepTargetBaseMapId} />
       )}
-      {isThreedViewer && <PopperEditAnnotation viewerKey="THREED" />}
+      {/* Edit toolbars: in the layout-level host (like the listings popper),
+          so they can be dragged over the top bar and the commands toolbar. */}
+      {isThreedViewer && (
+        <PortalEditorFloatingPanels>
+          <PopperEditAnnotation viewerKey="THREED" />
+          <ThreedPopperEditAnnotations />
+          <PopperEditMesh3d viewerKey="THREED" />
+          <PopperEditMeshes3d viewerKey="THREED" />
+        </PortalEditorFloatingPanels>
+      )}
       {/* Quick-action row above the selected annotation (Dupliquer / Evider /
           Plus d'outils), like the 2D editor */}
       {/* Right click on an annotation: "change template" menu */}
@@ -3585,7 +3596,6 @@ export default function MainThreedEditor() {
           threedAnnotations={annotations ?? []}
         />
       )}
-      {isThreedViewer && <ThreedPopperEditAnnotations />}
       {isThreedViewer && <ThreedImageModeOverlay annotations={annotations} />}
       {isThreedViewer && <ThreedHoverTooltip ref={tooltipApiRef} />}
       {/* Altimetry under the cursor (same preference / badge as the 2D
@@ -3760,8 +3770,6 @@ export default function MainThreedEditor() {
       {isThreedViewer && <RevolutionAxisCutOverlayThreed />}
       {isThreedViewer && <VertexOffsetOverlayThreed />}
       {isThreedViewer && <ShootLanceOverlayThreed />}
-      {isThreedViewer && <PopperEditMesh3d viewerKey="THREED" />}
-      {isThreedViewer && <PopperEditMeshes3d viewerKey="THREED" />}
     </Box>
   );
 }

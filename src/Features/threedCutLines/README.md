@@ -40,6 +40,15 @@ A regular annotation (`db.annotations` + `db.points`), template-less:
 - Not in 2D (no `NodeAnnotationStatic` case), no quantities, not exported to
   DXF, never a duplicate candidate.
 
+## Multi-selection
+
+In the 3D multi-selection popper (`ThreedPopperEditAnnotations`) the cut
+lines are kept out of the annotations section: `ToolbarEditCutLines` lists
+them in their own « Lignes de coupe » section (one chip per line, clear,
+delete), next to the « Mailles » one. In the Maillage module Ctrl/Cmd+A
+selects everything displayed — annotations, cut lines, mailles
+(`threedMesh/hooks/useSelectAllVisibleHotkey`).
+
 ## Drawing
 
 - Command `DRAW_CUT_LINE` (`commandsToolbar/commands/drawCutLine`, MESHES
