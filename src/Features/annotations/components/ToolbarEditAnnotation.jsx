@@ -83,6 +83,7 @@ import ToolbarEditHeightCut from "Features/heightCuts/components/ToolbarEditHeig
 import ToolbarEditPoint from "./ToolbarEditPoint";
 import ToolbarEditCutLine from "Features/threedCutLines/components/ToolbarEditCutLine";
 import ToolbarEditCutLinePoint from "Features/threedCutLines/components/ToolbarEditCutLinePoint";
+import { CUT_LINE_LABEL } from "Features/threedCutLines/constants/cutLineStyle";
 import ToolbarEditMesh3dParts from "Features/annotationMesh3d/components/ToolbarEditMesh3dParts";
 import ToolbarEditSurfacePieces from "Features/threedFaceCut/components/ToolbarEditSurfacePieces";
 import useSelectedSurfacePieces from "Features/threedFaceCut/hooks/useSelectedSurfacePieces";
@@ -516,39 +517,55 @@ export default function ToolbarEditAnnotation({ onDragStart }) {
                 size={16}
               />
 
-              <Tooltip title="Changer le modèle">
-                <ButtonBase
-                  onClick={handleTemplateDropdownClick}
-                  onMouseDown={(e) => e.stopPropagation()}
-                  sx={{
-                    minWidth: 0,
-                    justifyContent: "flex-start",
-                    gap: 0.5,
-                    px: 0.5,
-                    py: 0.25,
-                    borderRadius: 1,
-                    "&:hover": { bgcolor: "action.hover" },
-                  }}
+              {isCutLine ? (
+                // A cut line has no template: its own label ("L-01"), no
+                // template selector.
+                <Typography
+                  variant="body2"
+                  noWrap
+                  sx={{ fontWeight: 600, fontSize: "0.8rem", px: 0.5 }}
                 >
-                  <Typography
-                    variant="body2"
+                  {selectedAnnotation?.label || CUT_LINE_LABEL}
+                </Typography>
+              ) : (
+                <Tooltip title="Changer le modèle">
+                  <ButtonBase
+                    onClick={handleTemplateDropdownClick}
+                    onMouseDown={(e) => e.stopPropagation()}
                     sx={{
-                      fontWeight: 600,
-                      fontSize: "0.8rem",
-                      whiteSpace: "nowrap",
-                      overflow: "hidden",
-                      textOverflow: "ellipsis",
                       minWidth: 0,
+                      justifyContent: "flex-start",
+                      gap: 0.5,
+                      px: 0.5,
+                      py: 0.25,
+                      borderRadius: 1,
+                      "&:hover": { bgcolor: "action.hover" },
                     }}
                   >
-                    {label}
-                  </Typography>
+                    <Typography
+                      variant="body2"
+                      sx={{
+                        fontWeight: 600,
+                        fontSize: "0.8rem",
+                        whiteSpace: "nowrap",
+                        overflow: "hidden",
+                        textOverflow: "ellipsis",
+                        minWidth: 0,
+                      }}
+                    >
+                      {label}
+                    </Typography>
 
-                  <ArrowDropDownIcon
-                    sx={{ fontSize: 20, flexShrink: 0, color: "text.disabled" }}
-                  />
-                </ButtonBase>
-              </Tooltip>
+                    <ArrowDropDownIcon
+                      sx={{
+                        fontSize: 20,
+                        flexShrink: 0,
+                        color: "text.disabled",
+                      }}
+                    />
+                  </ButtonBase>
+                </Tooltip>
+              )}
 
               <Box sx={{ flex: 1, minWidth: 0 }} />
 
