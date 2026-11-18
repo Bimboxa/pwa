@@ -23,6 +23,7 @@ import {
   appendToMeshingSurfaceBuffer,
   armMeshingSurfaceInput,
   clearMeshingSurfaceBuffer,
+  clearSubSelection,
   deleteLastMeshingSurfaceBuffer,
   setMeshingModeActive,
   setMeshingNumberingNext,
@@ -32,8 +33,15 @@ import { selectEffectiveViewerKey } from "Features/viewers/utils/effectiveViewer
 import {
   selectSelectedItems,
   setSelectedItem,
+  setShowAnnotationsProperties,
   toggleItemSelection,
 } from "Features/selection/selectionSlice";
+import {
+  setAnnotationToolbarPosition,
+  setAnnotationsToolbarPosition,
+  setSelectedNode,
+} from "Features/mapEditor/mapEditorSlice";
+import { isForeignFootprintId } from "Features/annotations/constants/foreignFootprint";
 import {
   buildFaceHoverOverlay,
   disposeFaceHoverOverlay,
@@ -96,8 +104,8 @@ const FIXED_AREA_INSUFFICIENT_STIPPLE = {
 // Pointer interactions of the 3D meshing mode. Owns the pointer while
 // meshingMode.active (MainThreedEditor's hover/click paths short-circuit):
 //
-// - SELECT tool: clicking an existing maille selects it (shift+click
-//   toggles); empty click deselects. Never creates.
+// - SELECT tool: clicking an existing maille or an annotation selects it
+//   (shift+click toggles); empty click deselects. Never creates.
 // - CREATE tool: hovering an annotation face shows the face stipple (the
 //   region grown over the WHOLE annotation up to the "Sélection de face"
 //   angle, see getAnnotationFaceRegion) + a "+ nouvelle maille" cursor
@@ -306,6 +314,7 @@ export default function useMeshingPointerHandlers({
             return {
               kind: "ANNOTATION",
               nodeId: object.userData.nodeId,
+              root: object,
               hitObject: intersect.object,
               intersect,
               rect,
@@ -746,7 +755,49 @@ export default function useMeshingPointerHandlers({
         return;
       }
 
-      // Annotation or empty click: plain deselects, shift preserves.
+      // Annotation: selected whole, with the same payload as the generic
+      // 3D click (MainThreedEditor) — « Mailler » is scoped to the selected
+      // annotations. Shift toggles it in the selection. A footprint is a
+      // projection of another scope's annotation: not selectable.
+      const { nodeId, nodeType, annotationType, listingId } =
+        pick?.root?.userData ?? {};
+      if (
+        pick?.kind === "ANNOTATION" &&
+        nodeType === "ANNOTATION" &&
+        !isForeignFootprintId(nodeId)
+      ) {
+        const item = {
+          id: nodeId,
+          nodeId,
+          type: "NODE",
+          nodeType,
+          annotationType,
+          listingId,
+          annotationTemplateId: pick.root.userData.annotationTemplateId,
+        };
+        const position = { x: e.clientX, y: e.clientY };
+        if (e.shiftKey) {
+          dispatch(toggleItemSelection(item));
+        } else {
+          dispatch(
+            setSelectedNode({
+              id: nodeId,
+              nodeId,
+              nodeType,
+              annotationType,
+              listingId,
+            })
+          );
+          dispatch(setSelectedItem(item));
+          dispatch(setShowAnnotationsProperties(true));
+        }
+        dispatch(clearSubSelection());
+        dispatch(setAnnotationToolbarPosition(position));
+        dispatch(setAnnotationsToolbarPosition(position));
+        return;
+      }
+
+      // Empty click: plain deselects, shift preserves.
       if (!e.shiftKey) dispatch(setSelectedItem(null));
     }
 

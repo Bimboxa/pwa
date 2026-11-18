@@ -12,9 +12,11 @@ import CommandButton from "../../components/CommandButton";
 
 // Button of « Fusionner les mailles adjacentes »: merges the mailles of the
 // scope that no rendered cut line separates (mergeAdjacentMeshes3dService).
-// Disabled while a merge is running.
+// With a selection, only the selected mailles — or the mailles created from
+// the selected annotations — are merged. Disabled while a merge is running.
 export default function ButtonMergeAdjacentMeshes({
   command,
+  ctx,
   deps,
   state,
   hotkeyLabel,
@@ -36,6 +38,13 @@ export default function ButtonMergeAdjacentMeshes({
 
   // helpers
 
+  // Selection scope: the selected mailles (MESH3D nodes), or the mailles of
+  // the selected annotations.
+  const meshIds = ctx.selectedItems
+    .filter((item) => item?.type === "NODE" && item?.nodeType === "MESH3D")
+    .map((item) => item.nodeId);
+  const annotationIds = ctx.selectedAnnotationIds;
+
   const buttonState =
     state?.enabled && busy ? { enabled: false, reason: busyS } : state;
 
@@ -48,13 +57,18 @@ export default function ButtonMergeAdjacentMeshes({
         projectId,
         scopeId,
         cutLines: getCutLinesWorldPolylines().map((line) => line.points),
+        meshIds,
+        annotationIds,
       });
       if (!groups) {
         deps.dispatch(setToaster({ message: noneS, severity: "warning" }));
         return;
       }
-      // The absorbed mailles may be selected: their ids are gone.
-      deps.dispatch(clearSelection());
+      // The absorbed mailles may be selected: their ids are gone (a
+      // selection of annotations only stays).
+      if (meshIds.length || !annotationIds.length) {
+        deps.dispatch(clearSelection());
+      }
       const count = removedIds.length + groups;
       deps.dispatch(
         setToaster({
