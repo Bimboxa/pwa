@@ -135,6 +135,11 @@ failure), `polygonChord2d` gives the chord of a polygon through a point.
   basis (`getMesh3dLabelAnchor`): `u` / `v` in the maille plane, `n` (optional)
   along its normal — set by a Shift axis-locked drag along an out-of-plane
   axis.
+- `mesh3d.labelPlaneOffset` (number | null, meters) — explicit distance of the
+  card from the maille plane, typed in `ToolbarEditMesh3d`. When set (0
+  included) it supersedes `labelOffset.n` (`getMesh3dLabelOffset`) and a card
+  drag keeps it; `null` = unset. The toolbar reset clears the dragged
+  position, not this value.
 - `mesh3d.labelTargetPoint {x, y, z}` — pointed end of the leader: a world
   point ON the maille surface. The target drag (`useMesh3dLabelDragHandlers`)
   raycasts the maille's own faces and snaps to the closest point of the stored

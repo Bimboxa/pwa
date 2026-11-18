@@ -100,3 +100,25 @@ export function readMesh3dOffset(offset) {
     n: Number(offset?.n) || 0,
   };
 }
+
+/**
+ * Explicit distance (meters) of the label card from the maille plane, typed
+ * in the edit toolbar: `null` when unset (0 is a value: card IN the plane).
+ */
+export function getMesh3dLabelPlaneOffset(mesh3d) {
+  const value = mesh3d?.labelPlaneOffset;
+  return typeof value === "number" && Number.isFinite(value) ? value : null;
+}
+
+/**
+ * Effective {u, v, n} offset of the label card from the anchor base. When
+ * `mesh3d.labelPlaneOffset` is set it owns the normal component (measured
+ * from the maille plane itself, hence minus the base lift) and supersedes
+ * the `n` of the dragged `labelOffset`.
+ */
+export function getMesh3dLabelOffset(mesh3d) {
+  const offset = readMesh3dOffset(mesh3d?.labelOffset);
+  const planeOffset = getMesh3dLabelPlaneOffset(mesh3d);
+  if (planeOffset != null) offset.n = planeOffset - LABEL_LIFT_M;
+  return offset;
+}

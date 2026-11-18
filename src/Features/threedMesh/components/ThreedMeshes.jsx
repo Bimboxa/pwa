@@ -18,8 +18,9 @@ import buildShellGeometry from "../utils/buildShellGeometry";
 import formatSurfaceM2 from "../utils/formatSurfaceM2";
 import getMesh3dDisplayLabel from "../utils/getMesh3dDisplayLabel";
 import getMesh3dLabelAnchor, {
+  getMesh3dLabelOffset,
+  getMesh3dLabelPlaneOffset,
   getMesh3dPlanePoint,
-  readMesh3dOffset,
 } from "../utils/getMesh3dLabelAnchor";
 import getMesh3dLabelTargetPosition from "../utils/getMesh3dLabelTargetPosition";
 import getMesh3dOrientation from "../utils/getMesh3dOrientation";
@@ -201,7 +202,7 @@ export default function ThreedMeshes() {
 
       const anchor =
         showNumber || showQties ? getMesh3dLabelAnchor(mesh3d) : null;
-      const labelOffset = readMesh3dOffset(mesh3d.labelOffset);
+      const labelOffset = getMesh3dLabelOffset(mesh3d);
       const labelPosition = getMesh3dPlanePoint(anchor, labelOffset);
       // The pointed end always sits ON the maille surface.
       const targetPosition = getMesh3dLabelTargetPosition(mesh3d, anchor);
@@ -226,6 +227,9 @@ export default function ThreedMeshes() {
         // surface (mesh3d.labelTargetPoint).
         sprite.userData.labelAnchor = anchor;
         sprite.userData.labelOffset = labelOffset;
+        // Explicit plane offset: a drag must keep the card at that distance.
+        sprite.userData.labelPlaneOffsetLocked =
+          getMesh3dLabelPlaneOffset(mesh3d) != null;
         sprite.userData.targetPosition = targetPosition;
         group.add(sprite);
         sprites.push(sprite);

@@ -56,7 +56,9 @@ const round4 = (v) => Math.round(v * 10000) / 10000;
  *   cursor — same mechanism as the annotation label drag, the axis is drawn
  *   in its colour. An axis out of the maille plane takes the card off that
  *   plane (the `n` component of the offset); a free move then stays in the
- *   parallel plane through the card;
+ *   parallel plane through the card. When the maille carries an explicit
+ *   `labelPlaneOffset` (edit toolbar), the card keeps that distance from the
+ *   plane whatever the drag;
  * - dragging the round handle at the leader's pointed end moves that target
  *   OVER THE MAILLE SURFACE (handle shown on the selected maille only): the
  *   cursor is raycast against the maille's own faces and the result snapped
@@ -259,6 +261,8 @@ export default function useMesh3dLabelDragHandlers({ rendererIsReady }) {
         axis: null,
         axisLine: null,
         startOffset: sprite.userData.labelOffset || { u: 0, v: 0, n: 0 },
+        // Explicit mesh3d.labelPlaneOffset: the normal component is frozen.
+        nLocked: Boolean(sprite.userData.labelPlaneOffsetLocked),
         fixedEnd,
         offset: null,
         leader: sprite.userData.leader || null,
@@ -313,9 +317,10 @@ export default function useMesh3dLabelDragHandlers({ rendererIsReady }) {
         const d = hit.sub(drag.startHit);
         const du = d.x * anchor.u.x + d.y * anchor.u.y + d.z * anchor.u.z;
         const dv = d.x * anchor.v.x + d.y * anchor.v.y + d.z * anchor.v.z;
-        const dn = axisHit
-          ? d.x * anchor.n.x + d.y * anchor.n.y + d.z * anchor.n.z
-          : 0;
+        const dn =
+          axisHit && !drag.nLocked
+            ? d.x * anchor.n.x + d.y * anchor.n.y + d.z * anchor.n.z
+            : 0;
         const offset = {
           u: drag.startOffset.u + du,
           v: drag.startOffset.v + dv,
@@ -402,7 +407,8 @@ export default function useMesh3dLabelDragHandlers({ rendererIsReady }) {
               labelOffset: {
                 u: round4(drag.offset.u),
                 v: round4(drag.offset.v),
-                n: round4(drag.offset.n),
+                // Locked: labelPlaneOffset owns the normal component.
+                n: drag.nLocked ? 0 : round4(drag.offset.n),
               },
             };
       if (!changes) return;

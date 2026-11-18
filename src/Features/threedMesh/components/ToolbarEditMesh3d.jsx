@@ -27,6 +27,7 @@ import useDeleteMeshes3d from "../hooks/useDeleteMeshes3d";
 import useMesh3dLabelPrefix from "../hooks/useMesh3dLabelPrefix";
 import useMesh3dSurfaceDecimals from "../hooks/useMesh3dSurfaceDecimals";
 import { hasMesh3dLabelOffset } from "../hooks/useResetMeshes3dLabelPositions";
+import { getMesh3dLabelPlaneOffset } from "../utils/getMesh3dLabelAnchor";
 import findAdjacentMeshes3d from "../utils/findAdjacentMeshes3d";
 import formatSurfaceM2 from "../utils/formatSurfaceM2";
 import getMesh3dDisplayLabel from "../utils/getMesh3dDisplayLabel";
@@ -35,7 +36,7 @@ import getMesh3dRefreshedColor from "../utils/getMesh3dRefreshedColor";
 import { DEFAULT_MESH3D_COLOR } from "../utils/mesh3dConstants";
 
 // Edit toolbar shown when exactly one maille is selected (mirrors
-// ToolbarEditDimension): label override, color, delete.
+// ToolbarEditDimension): label override, label plane offset, color, delete.
 export default function ToolbarEditMesh3d({ onDragStart }) {
   const dispatch = useDispatch();
 
@@ -54,6 +55,7 @@ export default function ToolbarEditMesh3d({ onDragStart }) {
 
   const color = mesh3d.color || DEFAULT_MESH3D_COLOR;
   const displayLabel = getMesh3dDisplayLabel(mesh3d, prefix);
+  const labelPlaneOffset = getMesh3dLabelPlaneOffset(mesh3d);
 
   function handleLabelChange(value) {
     // Empty override reverts to the derived label (prefix + number).
@@ -78,7 +80,20 @@ export default function ToolbarEditMesh3d({ onDragStart }) {
     if (newColor) updateMesh3d(mesh3d.id, { color: newColor });
   }
 
-  // Undo the label drag: card + leader target back on the maille centroid.
+  // Distance of the card from the maille plane (m). Empty / invalid → null
+  // (unset: the drag owns the normal component again), 0 is a real value.
+  function handleLabelPlaneOffsetChange(value) {
+    const text = String(value ?? "")
+      .trim()
+      .replace(",", ".");
+    const parsed = text === "" ? NaN : Number(text);
+    updateMesh3d(mesh3d.id, {
+      labelPlaneOffset: Number.isFinite(parsed) ? parsed : null,
+    });
+  }
+
+  // Undo the label drag: card + leader target back on the maille centroid
+  // (the typed plane offset is kept).
   function handleResetLabelPosition() {
     updateMesh3d(mesh3d.id, {
       labelOffset: null,
@@ -139,6 +154,30 @@ export default function ToolbarEditMesh3d({ onDragStart }) {
             hideMic: true,
           }}
         />
+        <FieldTextV2
+          label="Offset étiquette"
+          value={labelPlaneOffset != null ? String(labelPlaneOffset) : ""}
+          onChange={handleLabelPlaneOffsetChange}
+          options={{
+            showAsField: true,
+            placeholder: "m",
+            changeOnBlur: true,
+            hideMic: true,
+            endAction: (
+              <Tooltip title="Réinitialiser la position de l'étiquette">
+                <span>
+                  <IconButton
+                    size="small"
+                    disabled={!hasMesh3dLabelOffset(mesh3d)}
+                    onClick={handleResetLabelPosition}
+                  >
+                    <FilterCenterFocusIcon fontSize="small" />
+                  </IconButton>
+                </span>
+              </Tooltip>
+            ),
+          }}
+        />
         <FieldColorV2
           label="Couleur"
           value={color}
@@ -163,13 +202,6 @@ export default function ToolbarEditMesh3d({ onDragStart }) {
         justifyContent="flex-end"
         sx={{ px: 1, py: 0.5 }}
       >
-        {hasMesh3dLabelOffset(mesh3d) && (
-          <Tooltip title="Recentrer l'étiquette">
-            <IconButton size="small" onClick={handleResetLabelPosition}>
-              <FilterCenterFocusIcon fontSize="small" />
-            </IconButton>
-          </Tooltip>
-        )}
         <Tooltip title="Supprimer la maille">
           <IconButton size="small" color="error" onClick={handleDeleteClick}>
             <DeleteIcon fontSize="small" />
