@@ -160,6 +160,12 @@ export default function getAnnotationTemplateProps(annotationTemplate) {
     // forced onto every annotation when listed in overrideFields (padlock).
     offsetLine: annotationTemplate?.offsetLine,
 
+    // COMPONENT template (Features/annotationComponents): surface detection
+    // reads the drawn line of the component instead of its generated
+    // annotations. Effective flag, only `false` is meaningful (default: on).
+    componentDetectSurfacesWithSource:
+      annotationTemplate?.componentDetectSurfacesWithSource,
+
     overrideFields: annotationTemplate?.overrideFields,
 
     // Read-time only (never gated by overrideFields, never copied onto rows).

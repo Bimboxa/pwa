@@ -219,6 +219,12 @@ export default function FormAnnotationTemplateVariantBlock({
     onChange({ ...annotationTemplate, componentItems });
   }
 
+  function handleComponentDetectSurfacesWithSourceChange(
+    componentDetectSurfacesWithSource
+  ) {
+    onChange({ ...annotationTemplate, componentDetectSurfacesWithSource });
+  }
+
   function handlePathArrayChange(pathArray) {
     onChange({ ...annotationTemplate, pathArray });
   }
@@ -591,6 +597,12 @@ export default function FormAnnotationTemplateVariantBlock({
               <FieldAnnotationTemplateComponentItems
                 value={annotationTemplate?.componentItems}
                 onChange={handleComponentItemsChange}
+                detectSurfacesWithSource={
+                  annotationTemplate?.componentDetectSurfacesWithSource
+                }
+                onDetectSurfacesWithSourceChange={
+                  handleComponentDetectSurfacesWithSourceChange
+                }
                 annotationTemplateId={annotationTemplate?.id}
                 listingId={annotationTemplate?.listingId}
               />

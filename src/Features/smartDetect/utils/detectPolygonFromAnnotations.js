@@ -7,6 +7,8 @@ import collapseArcsInPolyline from "Features/geometry/utils/collapseArcsInPolyli
 import getAnnotationAsPolygons from "Features/geometry/utils/getAnnotationAsPolygons";
 import { getStripDistancePx } from "Features/geometry/utils/getStripePolygons";
 
+import getSurfaceDetectionAnnotations from "Features/annotationComponents/utils/getSurfaceDetectionAnnotations";
+
 import findPolygonCandidates from "./findPolygonCandidates";
 
 // Cap the number of segments fed to the planar arrangement (O(n^2) split pass).
@@ -24,7 +26,9 @@ const MAX_SEGMENTS = 1500;
  * 4. Find cuts (closed loops fully inside the envelope)
  *
  * @param {Object} params
- * @param {Array} params.annotations - Resolved annotations with {type, points, closeLine, cuts}
+ * @param {Array} params.annotations - Resolved annotations with {type, points, closeLine, cuts}.
+ *   A component (Features/annotationComponents) is read through its drawn line
+ *   or through its generated annotations — see getSurfaceDetectionAnnotations.
  * @param {Array<{x:number, y:number}>} params.drawingPoints - Current drawing points in progress
  * @param {{x:number, y:number}} params.mousePos - Mouse position in local coords
  * @param {number} [params.tolerance=5] - Endpoint merge tolerance in pixels
@@ -37,13 +41,14 @@ const MAX_SEGMENTS = 1500;
  * generated contour instead of staying faceted (see `collapseRingToTypedPoints`).
  */
 export default function detectPolygonFromAnnotations({
-  annotations,
+  annotations: annotationsProp,
   drawingPoints,
   mousePos,
   tolerance = 5,
   meterByPx,
 }) {
-  if (!annotations || !mousePos) return null;
+  if (!annotationsProp || !mousePos) return null;
+  const annotations = getSurfaceDetectionAnnotations(annotationsProp);
 
   // Step 1: Decompose everything into independent segments. We also collect the
   // source annotations' arc circles so the discretized contour can be collapsed
