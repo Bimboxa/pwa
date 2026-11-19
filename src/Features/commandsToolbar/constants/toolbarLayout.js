@@ -279,7 +279,18 @@ const CUT_LINES_SECTION = {
     "ROTATE_ANNOTATION",
   ],
 };
-const MESHES_SECTIONS = [AXES_SECTION, CUT_LINES_SECTION, MESHES_TOOLS_SECTION];
+// Measures drawn over the mailles (cote / ruler, snapping on the cut lines)
+const MESHES_MEASURES_SECTION = {
+  key: "MESHES_MEASURES",
+  label: "Cotes / Règles",
+  entries: ["DRAW_COTE", "DRAW_RULER"],
+};
+const MESHES_SECTIONS = [
+  AXES_SECTION,
+  CUT_LINES_SECTION,
+  MESHES_TOOLS_SECTION,
+  MESHES_MEASURES_SECTION,
+];
 
 // « Infos » module (Features/comments): the two creation commands.
 const COMMENTS_SECTIONS = [
