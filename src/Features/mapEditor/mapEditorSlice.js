@@ -175,7 +175,9 @@ const mapEditorInitialState = {
   },
   imageModeLabelsAutoLayout: false, // when true, labels are auto-arranged (display-only) to avoid overlaps
   imageModeLabelsInMargin: false, // when true (and autoLayout on), labels are packed in a band inside the capture rect border
-  // legend overlay: position/size in pixels relative to the capture rect.
+  // legend overlay: x / y in screen pixels relative to the capture rect;
+  // width / fontSize in page points (scaled by frame px / page pt at render,
+  // like the cartouche, so the printed size does not depend on the viewport).
   // x/y default to null → resolved at render time to "top-right" of the
   // capture rect (so the default works for any aspect ratio + viewport).
   // The user dragging pins them to numeric pixel values.

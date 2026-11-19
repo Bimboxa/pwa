@@ -114,7 +114,7 @@ export default function SectionCaptureLegend() {
             }}
           >
             <Typography variant="caption" color="text.secondary">
-              Taille
+              Taille (pt)
             </Typography>
             <ToggleButtonGroup
               value={String(fontSize)}
@@ -122,13 +122,13 @@ export default function SectionCaptureLegend() {
               onChange={handleFontSizeChange}
               size="small"
             >
-              <ToggleButton value="10">
+              <ToggleButton value="10" title="10 pt">
                 <FormatSize sx={{ fontSize: 14 }} />
               </ToggleButton>
-              <ToggleButton value="12">
+              <ToggleButton value="12" title="12 pt">
                 <FormatSize sx={{ fontSize: 18 }} />
               </ToggleButton>
-              <ToggleButton value="14">
+              <ToggleButton value="14" title="14 pt">
                 <FormatSize sx={{ fontSize: 22 }} />
               </ToggleButton>
             </ToggleButtonGroup>
