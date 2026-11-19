@@ -122,15 +122,16 @@ export default function detectPolygonFromAnnotations({
 // Decompose annotations → independent segments
 // ---------------------------------------------------------------------------
 
-// Stroke width of a POLYLINE in image pixels (CM converted via meterByPx,
-// mirrors getAnnotationAsPolygons). 0 when unknown.
+// Physical stroke width of a POLYLINE in image pixels (CM converted via
+// meterByPx). 0 when unknown, and 0 for a PX width: it is a fixed on-screen
+// thickness (non-scaling stroke), not a footprint on the plan — on a
+// small-scale base map (1 cm < 1 px) a 2 px line would otherwise pass for a
+// wall band and its end caps would break the loop it belongs to.
 function getStrokeWidthPx(ann, meterByPx) {
   const w = Number(ann?.strokeWidth) || 0;
   if (w <= 0) return 0;
-  if (ann.strokeWidthUnit === "CM") {
-    return meterByPx > 0 ? (w * 0.01) / meterByPx : 0;
-  }
-  return w;
+  if (ann.strokeWidthUnit !== "CM") return 0;
+  return meterByPx > 0 ? (w * 0.01) / meterByPx : 0;
 }
 
 function extractSegments(annotations, drawingPoints, tolerance = 5, meterByPx) {
