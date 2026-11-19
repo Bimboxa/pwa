@@ -63,9 +63,7 @@ export const STYLE_FIELDS = [
   "hasBorder",
   "hasPadding",
   "hasConnector",
-  // IMAGE link line + manual display number
-  "imageConnectorColor",
-  "imageConnectorEnd",
+  // IMAGE manual display number
   "imageNumber",
 ];
 

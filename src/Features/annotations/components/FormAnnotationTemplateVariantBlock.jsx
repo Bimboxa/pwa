@@ -35,8 +35,6 @@ import FieldAnnotationTemplateArrows from "./FieldAnnotationTemplateArrows";
 import FieldAnnotationTemplateOpening from "./FieldAnnotationTemplateOpening";
 import FieldQty from "Features/form/components/FieldQty";
 import FieldCheck from "Features/form/components/FieldCheck";
-import FieldImageConnectorStyle from "Features/imageAnnotations/components/FieldImageConnectorStyle";
-import getImageConnectorConfig from "Features/imageAnnotations/utils/getImageConnectorConfig";
 import FieldMappingCategories from "./FieldMappingCategories";
 import FieldProcedure from "./FieldProcedure";
 import OverrideToggle from "./OverrideToggle";
@@ -330,11 +328,6 @@ export default function FormAnnotationTemplateVariantBlock({
     onChange({ ...annotationTemplate, isObject2D });
   }
 
-  // IMAGE link line: `changes` = { imageConnectorColor } / { imageConnectorEnd }.
-  function handleImageConnectorChange(changes) {
-    onChange({ ...annotationTemplate, ...changes });
-  }
-
   // POLYGON: enables the "Calepinage" feature (layout lines on the drawn
   // polygons + the "C" main quantity). Off = nothing layout-related shown.
   function handleDeltaOffsetZ3dChange(deltaOffsetZ3d) {
@@ -579,14 +572,6 @@ export default function FormAnnotationTemplateVariantBlock({
                 onChange={handleIsObject2DChange}
                 options={{ type: "switch", showAsField: true }}
               />
-              {/* Link line of the photos (read-time default of every photo
-                without its own style); « Objet 2D » symbols have none. */}
-              {!annotationTemplate?.isObject2D && (
-                <FieldImageConnectorStyle
-                  {...getImageConnectorConfig({ annotationTemplate })}
-                  onChange={handleImageConnectorChange}
-                />
-              )}
             </Box>
           )}
 

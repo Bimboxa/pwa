@@ -1,5 +1,8 @@
 import { useCallback, useMemo, useRef, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
+import { selectImagesConnector } from "Features/popperImages/popperImagesSlice";
+import { IMAGE_CONNECTOR_DASH } from "Features/imageAnnotations/utils/getImageConnectorConfig";
+import ImageLinkArrowHead from "Features/popperImages/components/ImageLinkArrowHead";
 
 import {
   selectImagesLinkLine,
@@ -20,7 +23,6 @@ import DialogImageViewer from "Features/images/components/DialogImageViewer";
 
 import useImagePrintZonesLayout from "../hooks/useImagePrintZonesLayout";
 import {
-  IMAGE_LINK_STROKE,
   IMAGE_LINK_STROKE_WIDTH,
   IMAGE_LINK_STROKE_WIDTH_SELECTED,
   IMAGE_VEIL_ELEMENT_OPACITY,
@@ -67,6 +69,15 @@ export default function ImagesPrintZonesOverlay({
 
   // data
 
+  // Global connector style of the photos: link colour, and the end marker
+  // on the anchor — a numbered badge (the leader stops on its border), an
+  // arrow head (drawn here, at the leader end) or the anchor dot.
+  const imagesConnector = useSelector(selectImagesConnector);
+  const linkStroke = imagesConnector.color;
+  const linkDash =
+    imagesConnector.line === "DASHED" ? IMAGE_CONNECTOR_DASH : undefined;
+  const endIsBadge = imagesConnector.end === "NUMBER";
+  const endIsArrow = imagesConnector.end === "ARROW";
   const printZones = useSelector(selectImagesPrintZones);
   const linkLine = useSelector(selectImagesLinkLine);
   const linkNumber = useSelector(selectImagesLinkNumber);
@@ -202,7 +213,7 @@ export default function ImagesPrintZonesOverlay({
               // "Ligne" off: the leader of the selected photo only.
               if (!a?.inside || !(linkLine || selected)) return null;
               const p = getPrintZoneTileLinkPoint(t, a);
-              const end = getImageLinkEnd(p, a, linkNumber);
+              const end = getImageLinkEnd(p, a, endIsBadge);
               return (
                 <g
                   key={t.id}
@@ -217,14 +228,18 @@ export default function ImagesPrintZonesOverlay({
                     y1={p.y}
                     x2={end.x}
                     y2={end.y}
-                    stroke={IMAGE_LINK_STROKE}
+                    stroke={linkStroke}
+                    strokeDasharray={linkDash}
                     strokeWidth={
                       selected
                         ? IMAGE_LINK_STROKE_WIDTH_SELECTED
                         : IMAGE_LINK_STROKE_WIDTH
                     }
                   />
-                  <circle cx={p.x} cy={p.y} r={3} fill={IMAGE_LINK_STROKE} />
+                  <circle cx={p.x} cy={p.y} r={3} fill={linkStroke} />
+                  {endIsArrow && (
+                    <ImageLinkArrowHead from={p} to={end} color={linkStroke} />
+                  )}
                 </g>
               );
             })}

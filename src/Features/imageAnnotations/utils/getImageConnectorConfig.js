@@ -1,22 +1,29 @@
-// Link line ("connecteur") of a photo (IMAGE annotation): colour and end
-// marker drawn on the anchor.
+// Link line ("connecteur") of the photos (IMAGE annotations): colour and end
+// marker drawn on the anchor. A GLOBAL display setting of the photos (same
+// for every photo, per device): stored in popperImagesSlice (`connector`),
+// edited in DialogImagesDisplayOptions ("…" of the bottom bar controls).
 //
-// - imageConnectorColor: colour of the line and of its end marker.
-// - imageConnectorEnd: "NUMBER" (numbered badge), "ARROW" or "POINT".
-//
-// Resolution: annotation own value ?? template value ?? app default. The
-// template value is a READ-TIME default (not seeded at creation, hence not in
-// drawingShapeConfig configurableProps) so editing the template propagates to
-// every photo without its own value — same model as
-// getAnnotationLabelStubConfig.
+// - color: colour of the line and of its end marker.
+// - end: "NUMBER" (numbered badge), "ARROW" or "POINT". With "ARROW" /
+//   "POINT" the number, when displayed ("Numéro" toggle), moves to the
+//   top-left corner of the photo.
+// - line: "SOLID", "DASHED" or "NONE" — the line itself, in the 3 display
+//   modes (photo ↔ anchor in situ, tile ↔ anchor off in situ).
+// - size: size of the end marker in PAGE POINTS of the base map's print zone
+//   (fixed relative to the plan, like COTE / FREE_TEXT ink). It is the font
+//   size of the number; the badge, arrow head and dot scale with it (their
+//   geometry is designed for the default size).
 
 export const DEFAULT_IMAGE_CONNECTOR_COLOR = "#333333";
 export const DEFAULT_IMAGE_CONNECTOR_END = "NUMBER";
+export const DEFAULT_IMAGE_CONNECTOR_SIZE = 11;
+export const IMAGE_CONNECTOR_SIZE_MIN = 2;
+export const IMAGE_CONNECTOR_SIZE_MAX = 200;
 export const IMAGE_CONNECTOR_ENDS = ["NUMBER", "ARROW", "POINT"];
-export const IMAGE_CONNECTOR_FIELDS = [
-  "imageConnectorColor",
-  "imageConnectorEnd",
-];
+export const DEFAULT_IMAGE_CONNECTOR_LINE = "SOLID";
+export const IMAGE_CONNECTOR_LINES = ["SOLID", "DASHED", "NONE"];
+// Dash pattern of a "DASHED" line, in screen px.
+export const IMAGE_CONNECTOR_DASH = "5 4";
 // Manual display number: short free text, replaces the automatic rank.
 export const IMAGE_NUMBER_MAX_LENGTH = 4;
 
@@ -28,10 +35,18 @@ function parseEnd(raw) {
   return IMAGE_CONNECTOR_ENDS.includes(raw) ? raw : undefined;
 }
 
-export function hasOwnImageConnectorValue(annotation) {
-  return (
-    parseColor(annotation?.imageConnectorColor) !== undefined ||
-    parseEnd(annotation?.imageConnectorEnd) !== undefined
+function parseLine(raw) {
+  return IMAGE_CONNECTOR_LINES.includes(raw) ? raw : undefined;
+}
+
+// Valid size in pt (clamped), or undefined for an empty / invalid input.
+export function parseImageConnectorSize(raw) {
+  if (raw === null || raw === undefined || raw === "") return undefined;
+  const n = Number(String(raw).replace(",", "."));
+  if (!Number.isFinite(n) || n <= 0) return undefined;
+  return Math.min(
+    IMAGE_CONNECTOR_SIZE_MAX,
+    Math.max(IMAGE_CONNECTOR_SIZE_MIN, n)
   );
 }
 
@@ -43,16 +58,12 @@ export function getImageManualNumber(annotation) {
   return text || null;
 }
 
-export default function getImageConnectorConfig(annotation) {
-  const templateProps =
-    annotation?.annotationTemplateProps ?? annotation?.annotationTemplate;
-  const color =
-    parseColor(annotation?.imageConnectorColor) ??
-    parseColor(templateProps?.imageConnectorColor) ??
-    DEFAULT_IMAGE_CONNECTOR_COLOR;
-  const end =
-    parseEnd(annotation?.imageConnectorEnd) ??
-    parseEnd(templateProps?.imageConnectorEnd) ??
-    DEFAULT_IMAGE_CONNECTOR_END;
-  return { color, end };
+// Sanitized { color, end, line, size } from a stored / partial config.
+export default function getImageConnectorConfig(raw) {
+  return {
+    color: parseColor(raw?.color) ?? DEFAULT_IMAGE_CONNECTOR_COLOR,
+    end: parseEnd(raw?.end) ?? DEFAULT_IMAGE_CONNECTOR_END,
+    line: parseLine(raw?.line) ?? DEFAULT_IMAGE_CONNECTOR_LINE,
+    size: parseImageConnectorSize(raw?.size) ?? DEFAULT_IMAGE_CONNECTOR_SIZE,
+  };
 }

@@ -6,12 +6,13 @@ import {
   PRINT_ZONES_SIDES,
   PRINT_ZONES_TILE_SIZE_MODES,
   clampPrintZonesTileSizePx,
+  loadImagesConnector,
   loadImagesDisplayMode,
+  saveImagesConnector,
   loadPrintZonesTileSizeMode,
   loadPrintZonesTileSizePx,
   savePrintZonesTileSizeMode,
   savePrintZonesTileSizePx,
-  loadImagesLinkLine,
   loadImagesLinkNumber,
   loadImagesPanelColumns,
   loadPrintZonesZones,
@@ -22,6 +23,7 @@ import {
   saveImagesLinkLine,
   saveImagesLinkNumber,
 } from "./services/popperImagesLocalStorage";
+import getImageConnectorConfig from "Features/imageAnnotations/utils/getImageConnectorConfig";
 
 export { IMAGES_DISPLAY_MODES };
 
@@ -34,9 +36,13 @@ export { IMAGES_DISPLAY_MODES };
 //   "PRINT_ZONES" (tiles dispatched in 4 bands along the editor / capture
 //   frame edges). Off in situ, only the anchor stays in the scene.
 //   Persisted per device.
-// - linkLine / linkNumber: how a tile is tied to its anchor — a leader from
-//   the tile to the anchor, and / or the same number badge on both.
-//   Independent toggles, both persisted.
+// - linkLine: the connector line is drawn (see `connector.line`).
+// - linkNumber: the number shows in the top-left corner of the photo / tile,
+//   in the 3 display modes. Persisted.
+// - connector: { color, end, line, size } — style of the photo connector:
+//   colour, end marker on the anchor, line (solid / dashed / none) and
+//   marker size (see getImageConnectorConfig). Persisted. `linkLine` is kept
+//   in sync with it (`line !== "NONE"`): the two setters update both.
 // - printZonesTileSizeMode / printZonesTileSizePx: PRINT_ZONES tile size
 //   ("AUTO" shrinks to fit, "FIXED" keeps the stored size). Persisted.
 // - printZonesZones: the PRINT_ZONES zones the user resized, { [side]:
@@ -57,10 +63,13 @@ export { IMAGES_DISPLAY_MODES };
 // - collapsed: panel folded to its header (survives the 2D ↔ 3D remount).
 // ---------------------------------------------------------------------------
 
+const initialConnector = loadImagesConnector();
+
 const initialState = {
   displayMode: loadImagesDisplayMode(),
-  linkLine: loadImagesLinkLine(),
+  linkLine: initialConnector.line !== "NONE",
   linkNumber: loadImagesLinkNumber(),
+  connector: initialConnector,
   printZonesTileSizeMode: loadPrintZonesTileSizeMode(),
   printZonesTileSizePx: loadPrintZonesTileSizePx(),
   printZonesZones: loadPrintZonesZones(),
@@ -86,10 +95,28 @@ export const popperImagesSlice = createSlice({
     setImagesLinkLine: (state, action) => {
       state.linkLine = Boolean(action.payload);
       saveImagesLinkLine(state.linkLine);
+      // Same setting as the connector line: on = solid unless already drawn.
+      if (state.linkLine !== (state.connector.line !== "NONE")) {
+        state.connector = getImageConnectorConfig({
+          ...state.connector,
+          line: state.linkLine ? "SOLID" : "NONE",
+        });
+        saveImagesConnector(state.connector);
+      }
     },
     setImagesLinkNumber: (state, action) => {
       state.linkNumber = Boolean(action.payload);
       saveImagesLinkNumber(state.linkNumber);
+    },
+    // payload: partial { color?, end?, size? }.
+    setImagesConnector: (state, action) => {
+      state.connector = getImageConnectorConfig({
+        ...state.connector,
+        ...action.payload,
+      });
+      saveImagesConnector(state.connector);
+      state.linkLine = state.connector.line !== "NONE";
+      saveImagesLinkLine(state.linkLine);
     },
     setPrintZonesTileSizeMode: (state, action) => {
       const mode = action.payload;
@@ -153,6 +180,7 @@ export const {
   setImagesDisplayMode,
   setImagesLinkLine,
   setImagesLinkNumber,
+  setImagesConnector,
   setPrintZonesTileSizeMode,
   setPrintZonesTileSizePx,
   setPrintZonesZone,
@@ -168,6 +196,7 @@ export const {
 export const selectImagesDisplayMode = (s) => s.popperImages.displayMode;
 export const selectImagesLinkLine = (s) => s.popperImages.linkLine;
 export const selectImagesLinkNumber = (s) => s.popperImages.linkNumber;
+export const selectImagesConnector = (s) => s.popperImages.connector;
 export const selectImagesExSitu = (s) =>
   s.popperImages.displayMode === "EX_SITU";
 export const selectImagesPrintZones = (s) =>

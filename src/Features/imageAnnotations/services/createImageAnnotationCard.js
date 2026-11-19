@@ -17,7 +17,7 @@ import { getImageAnnotationTextureAsync } from "Features/threedEditor/js/utilsAn
 // One card contains the photo and its text, so picking and
 // dragging the container never separates its title from its image.
 // `badgeNumber`: display number of the photo (PopperImages tile), drawn in
-// the top-right corner, filled with `badgeColor` (connector colour of the
+// the top-right corner (top-left with `badgeLeft`), filled with `badgeColor` (connector colour of the
 // photo). `veiled`: another photo is selected → translucent
 // white veil over the whole card (the 3D counterpart of the 2D veil; drawn
 // in the canvas so VERTICAL sprites and HORIZONTAL planes look the same).
@@ -29,6 +29,7 @@ export default function createImageAnnotationCard(
     meterByPx = 0.01,
     badgeNumber = null,
     badgeColor = "#333333",
+    badgeLeft = false,
     veiled = false,
   } = {}
 ) {
@@ -176,7 +177,9 @@ export default function createImageAnnotationCard(
       // Rounded rectangle, like the 2D badge (the comments use discs).
       const bw = 28;
       const bh = 22;
-      const bx = shadow + width + 2 * frame - bw / 2 - 6;
+      const bx = badgeLeft
+        ? shadow + bw / 2 + 6
+        : shadow + width + 2 * frame - bw / 2 - 6;
       const by = shadow + bh / 2 + 6;
       ctx.beginPath();
       ctx.roundRect(bx - bw / 2, by - bh / 2, bw, bh, 6);

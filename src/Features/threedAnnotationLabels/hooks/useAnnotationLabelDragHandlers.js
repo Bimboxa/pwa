@@ -439,6 +439,7 @@ export default function useAnnotationLabelDragHandlers({
       // temporary one when both ends still sat on the same point.
       if (
         drag.sprite.userData.hasConnector &&
+        drag.sprite.userData.connectorLine !== "NONE" &&
         !drag.leader &&
         !drag.tempLeader &&
         drag.dragged.parent
@@ -448,6 +449,7 @@ export default function useAnnotationLabelDragHandlers({
           to: position,
           depthTest: true,
           color: drag.sprite.userData.connectorColor,
+          dashed: drag.sprite.userData.connectorLine === "DASHED",
         });
         drag.dragged.parent.add(drag.tempLeader);
       }

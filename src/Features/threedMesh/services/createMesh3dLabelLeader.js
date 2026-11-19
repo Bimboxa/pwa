@@ -3,6 +3,7 @@ import {
   Float32BufferAttribute,
   Line,
   LineBasicMaterial,
+  LineDashedMaterial,
 } from "three";
 
 /**
@@ -21,20 +22,30 @@ export default function createMesh3dLabelLeader({
   depthTest = false,
   // Photo link lines pass their connector colour.
   color = "#000000",
+  // Dashed photo connector (dash / gap in metres).
+  dashed = false,
 }) {
   const geometry = new BufferGeometry();
   geometry.setAttribute(
     "position",
     new Float32BufferAttribute([from.x, from.y, from.z, to.x, to.y, to.z], 3)
   );
-  const material = new LineBasicMaterial({
+  const materialOptions = {
     color,
     transparent: true,
     opacity: dimmed ? 0.2 : 0.7,
     depthTest,
     depthWrite: false,
-  });
+  };
+  const material = dashed
+    ? new LineDashedMaterial({
+        ...materialOptions,
+        dashSize: 0.06,
+        gapSize: 0.04,
+      })
+    : new LineBasicMaterial(materialOptions);
   const line = new Line(geometry, material);
+  if (dashed) line.computeLineDistances();
   line.renderOrder = 1002;
   line.userData = { isMesh3dLabelLeader: true };
   return line;
@@ -47,4 +58,5 @@ export function setMesh3dLabelLeaderEnds(line, from, to) {
   attr.setXYZ(1, to.x, to.y, to.z);
   attr.needsUpdate = true;
   line.geometry.computeBoundingSphere();
+  if (line.material?.isLineDashedMaterial) line.computeLineDistances();
 }

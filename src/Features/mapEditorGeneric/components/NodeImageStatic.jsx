@@ -1,4 +1,8 @@
 import { memo, useId, useMemo } from "react";
+import { useSelector } from "react-redux";
+
+import { selectImagesConnector } from "Features/popperImages/popperImagesSlice";
+
 import theme from "Styles/theme";
 
 import NodeImageToolbarOverlay from "./NodeImageToolbarOverlay";
@@ -6,8 +10,13 @@ import ImageIndexBadgeSvg from "Features/popperImages/components/ImageIndexBadge
 import {
   getImageAnchorPoint,
   getImageConnectorGeometry,
+  getImagePinnedAnchor,
 } from "Features/imageAnnotations/utils/imageConnector";
-import getImageConnectorConfig from "Features/imageAnnotations/utils/getImageConnectorConfig";
+import {
+  DEFAULT_IMAGE_CONNECTOR_SIZE,
+  IMAGE_CONNECTOR_DASH,
+} from "Features/imageAnnotations/utils/getImageConnectorConfig";
+import getCotePageScale from "Features/annotations/utils/getCotePageScale";
 import {
   IMAGE_BADGE_HEIGHT_PX,
   IMAGE_BADGE_WIDTH_PX,
@@ -19,7 +28,8 @@ import {
 const HANDLE_SIZE = 10; // Un peu plus grand pour faciliter le grab
 const HALF_HANDLE = HANDLE_SIZE / 2;
 const ROTATION_HANDLE_OFFSET = 30; // Distance de la poignée de rotation (en pixels locaux)
-// Arrow head of the link line (screen px), tip at the origin, pointing +x.
+// Arrow head of the link line (page pt at the default connector size), tip
+// at the origin, pointing +x.
 const ARROW_HEAD_PATH = "M0,0 L-13,-5.5 L-13,5.5 Z";
 
 export default memo(function NodeImageStatic({
@@ -56,6 +66,8 @@ export default memo(function NodeImageStatic({
   // One clipPath per rendered instance: the same annotation may be drawn
   // twice (static layer + transient drag preview) with different sizes.
   const clipId = useId();
+  // Global display setting of the photos (DialogImagesDisplayOptions).
+  const imagesConnector = useSelector(selectImagesConnector);
 
   const handleScaleTransform = useMemo(() => {
     const k = containerK || 1;
@@ -144,11 +156,23 @@ export default memo(function NodeImageStatic({
   const connector = imageAnnotation.hasConnector
     ? getImageConnectorGeometry(imageAnnotation)
     : null;
-  // Link line style (annotation ?? template ?? default): colour of the line
-  // and of its end marker, and the marker drawn on the anchor — numbered
-  // badge, arrow head or dot.
-  const { color: connectorColor, end: connectorEnd } =
-    getImageConnectorConfig(imageAnnotation);
+  // Link line style (global photos setting): colour of the line and of its
+  // end marker, and the marker drawn on the anchor — numbered badge, arrow
+  // head or dot.
+  const {
+    color: connectorColor,
+    end: connectorEnd,
+    line: connectorLine,
+    size: connectorSize,
+  } = imagesConnector;
+  // The end marker (badge, arrow head, dot) is FIXED relative to the plan:
+  // sized in page points of the base map's print zone (same rule as COTE /
+  // FREE_TEXT ink), not screen-constant. Its geometry is drawn for the
+  // default size and scaled to `imageConnectorSize`.
+  const markerScaleTransform = `scale(${
+    (getCotePageScale(imageAnnotation) * connectorSize) /
+    DEFAULT_IMAGE_CONNECTOR_SIZE
+  })`;
   // An arrow needs a visible line to follow: otherwise it falls back to a dot.
   const arrowAngle =
     connectorEnd === "ARROW" && connector && !connector.inside
@@ -160,7 +184,7 @@ export default memo(function NodeImageStatic({
         Math.PI
       : null;
 
-  // Arrow head / dot on the anchor (inside an inverse-zoom group: screen px).
+  // Arrow head / dot on the anchor (inside a `markerScaleTransform` group).
   const renderEndMarker = ({ radius, markerProps }) =>
     arrowAngle !== null ? (
       <g transform={`rotate(${arrowAngle})`}>
@@ -287,19 +311,33 @@ export default memo(function NodeImageStatic({
   // where no badge is drawn (print, « Objet 2D »).
   const badgeGrip = showBadge && !isObject2D;
   const badgeAnchor = badgeGrip ? getImageAnchorPoint(imageAnnotation) : null;
+  // Two independent settings in situ:
+  // - the connector end marks the ANCHOR: numbered badge, arrow head or dot;
+  // - "Numéro" shows the number on the top-left corner of the PHOTO — which
+  //   is the anchor itself while the photo is pinned (one badge there, in
+  //   place of the grip dot), a separate corner badge once it is detached.
+  const numberOnAnchor =
+    connectorEnd === "NUMBER" || (imagesLinkNumber && !connector);
+  const cornerBadgePoint =
+    badgeGrip && imagesLinkNumber && connector
+      ? getImagePinnedAnchor(imageAnnotation)
+      : null;
   const veiled = imageVeiled && !isObject2D;
   const veilOpacity = veiled ? IMAGE_VEIL_ELEMENT_OPACITY : 1;
 
   // --- EX SITU: anchor only ---
-  // The photo lives in a tile (overlay panel / print zones). With "Numéro":
-  // the numbered badge alone, centred on the anchor; without: a dot. Either
-  // carries the BADGE interaction (click = select, drag = move the anchor
+  // The photo lives in a tile (overlay panel / print zones). The anchor shows
+  // the connector end: the numbered badge, a dot, or — arrow end — a small
+  // dot only, the arrow head being drawn by the overlay that draws the tile →
+  // anchor leader (it knows the direction). Either carries the BADGE
+  // interaction (click = select, drag = move the anchor
   // AND the photo), exactly as the in-situ badge.
   if (exSitu) {
     const anchor = getImageAnchorPoint(imageAnnotation);
     // Secondary colour (not the editor's neon selection green).
     const selectedStroke = theme.palette.secondary.main;
-    const asBadge = imagesLinkNumber && showBadge;
+    const asBadge = connectorEnd === "NUMBER" && showBadge;
+    const asArrow = connectorEnd === "ARROW";
     return (
       <g style={{ opacity: (dragged ? 0.7 : (opacity ?? 1)) * veilOpacity }}>
         <g transform={`translate(${anchor.x}, ${anchor.y})`}>
@@ -323,15 +361,22 @@ export default memo(function NodeImageStatic({
                 />
               </>
             ) : (
-              <circle
-                r={selected ? 7 : 5}
-                fill="#333"
-                stroke={selected ? selectedStroke : "white"}
-                strokeWidth={1.5}
-                {...interactionProps}
-                data-part-type="BADGE"
-                style={{ cursor: "pointer" }}
-              />
+              <>
+                {asArrow && (
+                  <circle r={2.5} fill={connectorColor} pointerEvents="none" />
+                )}
+                <circle
+                  r={selected ? 7 : 5}
+                  fill={asArrow ? "transparent" : connectorColor}
+                  stroke={
+                    selected ? selectedStroke : asArrow ? "none" : "white"
+                  }
+                  strokeWidth={1.5}
+                  {...interactionProps}
+                  data-part-type="BADGE"
+                  style={{ cursor: "pointer" }}
+                />
+              </>
             )}
           </g>
         </g>
@@ -344,7 +389,7 @@ export default memo(function NodeImageStatic({
     <g style={{ opacity: dragged ? 0.7 : opacity }}>
       {connector && (
         <g style={{ opacity: veilOpacity }}>
-          {!connector.inside && (
+          {!connector.inside && connectorLine !== "NONE" && (
             <line
               x1={connector.target.x}
               y1={connector.target.y}
@@ -352,6 +397,9 @@ export default memo(function NodeImageStatic({
               y2={connector.end.y}
               stroke={connectorColor}
               strokeWidth={1.5}
+              strokeDasharray={
+                connectorLine === "DASHED" ? IMAGE_CONNECTOR_DASH : undefined
+              }
               vectorEffect="non-scaling-stroke"
               pointerEvents="none"
             />
@@ -360,7 +408,7 @@ export default memo(function NodeImageStatic({
             <g
               transform={`translate(${connector.target.x}, ${connector.target.y})`}
             >
-              <g style={{ transform: handleScaleTransform }}>
+              <g transform={markerScaleTransform}>
                 {renderEndMarker({
                   radius: selected ? 6 : 4,
                   markerProps: {
@@ -466,13 +514,13 @@ export default memo(function NodeImageStatic({
       </g>
 
       {/* Display number (PopperImages tile) on the anchor — the visual
-        top-left corner of a pinned photo, rotated or not —, constant screen
-        size, never rotated.
+        top-left corner of a pinned photo, rotated or not —, sized in page
+        points (fixed relative to the plan), never rotated.
         Grip: dragging it moves the badge AND the photo. */}
       {badgeGrip && (
         <g transform={`translate(${badgeAnchor.x}, ${badgeAnchor.y})`}>
-          <g style={{ transform: handleScaleTransform }}>
-            {connectorEnd === "NUMBER" ? (
+          <g transform={markerScaleTransform}>
+            {numberOnAnchor ? (
               <ImageIndexBadgeSvg
                 number={imageDisplayIndex}
                 dimmed={veiled}
@@ -513,12 +561,29 @@ export default memo(function NodeImageStatic({
         </g>
       )}
 
+      {/* "Numéro": number on the visual top-left corner of the detached
+        photo (not a grip: the photo body drags it). */}
+      {cornerBadgePoint && (
+        <g
+          transform={`translate(${cornerBadgePoint.x}, ${cornerBadgePoint.y})`}
+          style={{ pointerEvents: "none" }}
+        >
+          <g transform={markerScaleTransform}>
+            <ImageIndexBadgeSvg
+              number={imageDisplayIndex}
+              dimmed={veiled}
+              fill={connectorColor}
+            />
+          </g>
+        </g>
+      )}
+
       {/* Overlay toolbar (scale / change image) — outside the rotate group */}
       {connector?.inside && selected && !dragged && !badgeGrip && (
         <g
           transform={`translate(${connector.target.x}, ${connector.target.y})`}
         >
-          <g style={{ transform: handleScaleTransform }}>
+          <g transform={markerScaleTransform}>
             <circle
               r={6}
               fill={connectorColor}

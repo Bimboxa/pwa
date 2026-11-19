@@ -7,6 +7,9 @@ import {
   useState,
 } from "react";
 import { useDispatch, useSelector } from "react-redux";
+import { selectImagesConnector } from "Features/popperImages/popperImagesSlice";
+import { IMAGE_CONNECTOR_DASH } from "Features/imageAnnotations/utils/getImageConnectorConfig";
+import ImageLinkArrowHead from "Features/popperImages/components/ImageLinkArrowHead";
 
 import { setImageModeImagesOverlay } from "../mapEditorSlice";
 import { selectImagesPanelColumns } from "Features/popperImages/popperImagesSlice";
@@ -15,10 +18,7 @@ import getImageLinkEnd from "Features/popperImages/utils/getImageLinkEnd";
 import CaptureImageTileCard, {
   CAPTURE_TILE_CAPTION_HEIGHT,
 } from "./CaptureImageTileCard";
-import {
-  IMAGE_LINK_STROKE,
-  IMAGE_LINK_STROKE_WIDTH,
-} from "Features/popperImages/constants/imageDisplay";
+import { IMAGE_LINK_STROKE_WIDTH } from "Features/popperImages/constants/imageDisplay";
 import resolveImagesOverlayGeometry, {
   IMAGES_ZONE_MIN_WIDTH,
   IMAGES_ZONE_PADDING,
@@ -63,6 +63,15 @@ export default function CaptureImagesOverlay({
 
   // data
 
+  // Global connector style of the photos: link colour, and the end marker
+  // on the anchor — a numbered badge (the leader stops on its border), an
+  // arrow head (drawn here, at the leader end) or the anchor dot.
+  const imagesConnector = useSelector(selectImagesConnector);
+  const linkStroke = imagesConnector.color;
+  const linkDash =
+    imagesConnector.line === "DASHED" ? IMAGE_CONNECTOR_DASH : undefined;
+  const endIsBadge = imagesConnector.end === "NUMBER";
+  const endIsArrow = imagesConnector.end === "ARROW";
   const overlay = useSelector((s) => s.mapEditor.imageModeImagesOverlay);
   const columns = useSelector(selectImagesPanelColumns);
 
@@ -236,17 +245,26 @@ export default function CaptureImagesOverlay({
             const left = originX + t.x;
             const midY = originY + t.y + t.height / 2;
             const x1 = a.x < left + t.width / 2 ? left : left + t.width;
-            const end = getImageLinkEnd({ x: x1, y: midY }, a, showNumbers);
+            const end = getImageLinkEnd({ x: x1, y: midY }, a, endIsBadge);
             return (
-              <line
-                key={t.id}
-                x1={x1}
-                y1={midY}
-                x2={end.x}
-                y2={end.y}
-                stroke={IMAGE_LINK_STROKE}
-                strokeWidth={IMAGE_LINK_STROKE_WIDTH}
-              />
+              <g key={t.id}>
+                <line
+                  x1={x1}
+                  y1={midY}
+                  x2={end.x}
+                  y2={end.y}
+                  stroke={linkStroke}
+                  strokeDasharray={linkDash}
+                  strokeWidth={IMAGE_LINK_STROKE_WIDTH}
+                />
+                {endIsArrow && (
+                  <ImageLinkArrowHead
+                    from={{ x: x1, y: midY }}
+                    to={end}
+                    color={linkStroke}
+                  />
+                )}
+              </g>
             );
           })}
         </g>

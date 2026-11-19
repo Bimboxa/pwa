@@ -29,7 +29,8 @@ import { isThreedFamilyViewerKey } from "Features/viewers/utils/threedViewerKeys
 // annotations) of the displayed editor, left of the base maps controls:
 // "Photos" + count pill (toggles the photos off everywhere), the display
 // mode (in situ / overlay / print zones), the two tile ↔ anchor links as
-// toggle buttons ("Ligne", "Numéro" — they only apply off in situ) and "…"
+// toggle buttons ("Ligne": connector line; "Numéro": number on the photo
+// corner — both in the 3 modes) and "…"
 // (DialogImagesDisplayOptions). Shown for the 2D map editors and the 3D
 // editor when the editor displays photos (popperImages.imagesCount, published
 // by the editors); nothing under a capture / POV framing. Flat buttons, like
@@ -45,7 +46,7 @@ export default function SectionImagesBottomBarControls() {
   const hidePhotosS = "Masquer les photos";
   const showPhotosS = "Afficher les photos";
   const lineS = "Ligne entre la photo et son point d'ancrage";
-  const numberS = "Numéro sur la photo et sur son point d'ancrage";
+  const numberS = "Numéro sur la photo";
   const moreS = "Options d'affichage des photos";
 
   // data
@@ -56,7 +57,7 @@ export default function SectionImagesBottomBarControls() {
   const captureFramingActive = useSelector(selectCaptureFramingActive);
   const imagesCount = useSelector(selectImagesCount);
   const photosHidden = useSelector(selectImagesPhotosHidden);
-  const { displayMode, linkLine, linkNumber, setLinkLine, setLinkNumber } =
+  const { linkLine, linkNumber, setLinkLine, setLinkNumber } =
     useImagesDisplaySettings();
 
   // state
@@ -69,7 +70,6 @@ export default function SectionImagesBottomBarControls() {
     effectiveViewerKey === "MAP" || effectiveViewerKey === "BASE_MAPS";
   const is3dEditor = isThreedFamilyViewerKey(effectiveViewerKey) && !disable3D;
   const isMeshesViewer = viewerKey === "MESHES";
-  const linksDisabled = displayMode === "IN_SITU";
 
   // render
 
@@ -113,15 +113,13 @@ export default function SectionImagesBottomBarControls() {
       <ButtonBaseMapsGrid
         title={lineS}
         icon={<Timeline />}
-        active={linkLine && !linksDisabled}
-        disabled={linksDisabled}
+        active={linkLine}
         onClick={() => setLinkLine(!linkLine)}
       />
       <ButtonBaseMapsGrid
         title={numberS}
         icon={<LooksOne />}
-        active={linkNumber && !linksDisabled}
-        disabled={linksDisabled}
+        active={linkNumber}
         onClick={() => setLinkNumber(!linkNumber)}
       />
       <ButtonBaseMapsGrid

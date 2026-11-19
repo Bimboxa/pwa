@@ -1,5 +1,8 @@
 import { useCallback, useEffect, useMemo } from "react";
 import { useDispatch, useSelector } from "react-redux";
+import { selectImagesConnector } from "Features/popperImages/popperImagesSlice";
+import { IMAGE_CONNECTOR_DASH } from "Features/imageAnnotations/utils/getImageConnectorConfig";
+import ImageLinkArrowHead from "Features/popperImages/components/ImageLinkArrowHead";
 
 import {
   selectPrintZonesCaptureZones,
@@ -17,10 +20,7 @@ import SelectorPrintZoneSide, {
 import useImagePrintZonesLayout from "Features/popperImages/hooks/useImagePrintZonesLayout";
 import useHoveredPrintZoneTileId from "Features/popperImages/hooks/useHoveredPrintZoneTileId";
 import usePrintZonesResize from "Features/popperImages/hooks/usePrintZonesResize";
-import {
-  IMAGE_LINK_STROKE,
-  IMAGE_LINK_STROKE_WIDTH,
-} from "Features/popperImages/constants/imageDisplay";
+import { IMAGE_LINK_STROKE_WIDTH } from "Features/popperImages/constants/imageDisplay";
 import getImageLinkEnd from "Features/popperImages/utils/getImageLinkEnd";
 import { getImageManualNumber } from "Features/imageAnnotations/utils/getImageConnectorConfig";
 import { getPrintZoneTileLinkPoint } from "Features/popperImages/utils/layoutImagePrintZones";
@@ -59,6 +59,15 @@ export default function CaptureImagePrintZonesOverlay({
 
   // data
 
+  // Global connector style of the photos: link colour, and the end marker
+  // on the anchor — a numbered badge (the leader stops on its border), an
+  // arrow head (drawn here, at the leader end) or the anchor dot.
+  const imagesConnector = useSelector(selectImagesConnector);
+  const linkStroke = imagesConnector.color;
+  const linkDash =
+    imagesConnector.line === "DASHED" ? IMAGE_CONNECTOR_DASH : undefined;
+  const endIsBadge = imagesConnector.end === "NUMBER";
+  const endIsArrow = imagesConnector.end === "ARROW";
   const zonesSettings = useSelector(selectPrintZonesCaptureZones);
 
   // helpers
@@ -165,7 +174,7 @@ export default function CaptureImagePrintZonesOverlay({
             const a = anchorsById[t.id];
             if (!a?.inside) return null;
             const p = getPrintZoneTileLinkPoint(t, a);
-            const end = getImageLinkEnd(p, a, showNumbers);
+            const end = getImageLinkEnd(p, a, endIsBadge);
             return (
               <g key={t.id}>
                 <line
@@ -173,10 +182,14 @@ export default function CaptureImagePrintZonesOverlay({
                   y1={p.y}
                   x2={end.x}
                   y2={end.y}
-                  stroke={IMAGE_LINK_STROKE}
+                  stroke={linkStroke}
+                  strokeDasharray={linkDash}
                   strokeWidth={IMAGE_LINK_STROKE_WIDTH}
                 />
-                <circle cx={p.x} cy={p.y} r={3} fill={IMAGE_LINK_STROKE} />
+                <circle cx={p.x} cy={p.y} r={3} fill={linkStroke} />
+                {endIsArrow && (
+                  <ImageLinkArrowHead from={p} to={end} color={linkStroke} />
+                )}
               </g>
             );
           })}

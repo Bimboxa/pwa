@@ -3,7 +3,6 @@ import { useEffect, useState } from "react";
 import {
   Box,
   Button,
-  IconButton,
   InputBase,
   ToggleButton,
   ToggleButtonGroup,
@@ -11,7 +10,6 @@ import {
 } from "@mui/material";
 
 import FilterCenterFocusIcon from "@mui/icons-material/FilterCenterFocus";
-import RestartAltIcon from "@mui/icons-material/RestartAlt";
 
 import FieldTextV2 from "Features/form/components/FieldTextV2";
 import WhiteSectionGeneric from "Features/form/components/WhiteSectionGeneric";
@@ -21,11 +19,9 @@ import {
   toggleGroupSx,
 } from "Features/annotations/constants/fieldSx";
 
-import FieldImageConnectorStyle from "./FieldImageConnectorStyle";
-import getImageConnectorConfig, {
+import {
   IMAGE_NUMBER_MAX_LENGTH,
   getImageManualNumber,
-  hasOwnImageConnectorValue,
 } from "../utils/getImageConnectorConfig";
 
 // Photo position: the numbered badge (anchor) positions the photo, drawn
@@ -33,8 +29,8 @@ import getImageConnectorConfig, {
 // (`hasConnector`) is joined to it by a link line; the reset pins it back
 // (the stored bbox origin is then ignored: see getImageEffectiveBbox).
 // Photos only (not « Objet 2D »): manual display number (empty = automatic
-// rank) and link line style, which overrides the template default until
-// reset (see getImageConnectorConfig).
+// rank). The link line style is a global display setting of the photos
+// (DialogImagesDisplayOptions).
 export default function FieldImageAnnotationDetails({ annotation }) {
   // strings
   const resetS = "Réinitialiser la position de la photo";
@@ -42,7 +38,6 @@ export default function FieldImageAnnotationDetails({ annotation }) {
     "La photo a été déplacée : elle revient sur sa pastille, le trait de liaison disparaît.";
   const numberS = "Numéro";
   const numberPlaceholderS = "Auto";
-  const resetConnectorS = "Revenir au style du modèle";
 
   // data
   const updateAnnotation = useUpdateAnnotation();
@@ -57,8 +52,6 @@ export default function FieldImageAnnotationDetails({ annotation }) {
   // helpers
   const isPhoto = !annotation.isObject2D;
   const detached = Boolean(annotation.hasConnector) && isPhoto;
-  const connector = getImageConnectorConfig(annotation);
-  const hasOwnConnector = hasOwnImageConnectorValue(annotation);
 
   // handlers
   function patch(changes) {
@@ -115,27 +108,6 @@ export default function FieldImageAnnotationDetails({ annotation }) {
             />
           </Box>
         </WhiteSectionGeneric>
-      )}
-      {isPhoto && (
-        <FieldImageConnectorStyle
-          color={connector.color}
-          end={connector.end}
-          onChange={patch}
-          endAction={
-            hasOwnConnector && (
-              <IconButton
-                size="small"
-                title={resetConnectorS}
-                aria-label={resetConnectorS}
-                onClick={() =>
-                  patch({ imageConnectorColor: null, imageConnectorEnd: null })
-                }
-              >
-                <RestartAltIcon fontSize="small" />
-              </IconButton>
-            )
-          }
-        />
       )}
       <FieldTextV2
         label="Description de l’image"
