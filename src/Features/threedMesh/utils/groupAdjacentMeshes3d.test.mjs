@@ -163,3 +163,23 @@ test("planar mailles merge into unioned coplanar faces", () => {
   assert.equal(merged.faces.length, 2);
   assert.ok(Math.abs(merged.surface - 120) < 1e-6);
 });
+
+test("a line leaving a plane shifted by the anti-aliasing shrink still separates", () => {
+  // The line runs 12 mm under the floor pieces (traced before the faces
+  // moved), covers 6 m of their 10 m border, then climbs a wall: its
+  // prolongation on the floor plane separates the rest of the border.
+  const lift = (row) => ({
+    ...row,
+    faces: row.faces.map((face) => ({
+      ...face,
+      contour: face.contour.map((p) => ({ ...p, y: 0.012 })),
+    })),
+  });
+  const rows = [lift(floor("a", 0, -5, 10, 0)), lift(floor("b", 0, 0, 10, 5))];
+  const line = [
+    { x: 0, y: 0, z: 0 },
+    { x: 6, y: 0, z: 0 },
+    { x: 6, y: 2, z: 0 },
+  ];
+  assert.deepEqual(ids(groupAdjacentMeshes3d(rows, [line])), []);
+});
