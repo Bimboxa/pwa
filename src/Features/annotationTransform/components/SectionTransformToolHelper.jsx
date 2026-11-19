@@ -2,6 +2,7 @@ import { Box, IconButton, Paper, Tooltip } from "@mui/material";
 import LockOutlinedIcon from "@mui/icons-material/LockOutlined";
 
 import FieldNumberCompact from "Features/threedMesh/components/FieldNumberCompact";
+import KeyChip from "Features/annotations/components/KeyChip";
 import SectionShortcutHelpers from "Features/annotations/components/SectionShortcutHelpers";
 
 // ---------------------------------------------------------------------------
@@ -10,7 +11,8 @@ import SectionShortcutHelpers from "Features/annotations/components/SectionShort
 // the 3D one (SectionThreedToolHelperContent): the step hint, an optional
 // numeric field mirroring the keyboard buffer, the shortcuts.
 //
-// field: { label, unit, value, onChangeText, onClear?, clearTitle? } | null
+// field: { label, unit, value, onChangeText, onClear?, clearTitle?,
+// shortcutKey? } | null — shortcutKey: key cap shown at the end of the line.
 // children: optional extra cards (e.g. SectionTypedConstraint), between the
 // field and the shortcuts.
 // ---------------------------------------------------------------------------
@@ -59,13 +61,18 @@ export default function SectionTransformToolHelper({
             onChangeText={field.onChangeText}
             unit={field.unit}
           />
-          {field.onClear && (
-            <Tooltip title={field.clearTitle ?? ""}>
-              <IconButton size="small" onClick={field.onClear}>
-                <LockOutlinedIcon sx={{ fontSize: 18 }} color="primary" />
-              </IconButton>
-            </Tooltip>
-          )}
+          <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
+            {field.onClear && (
+              <Tooltip title={field.clearTitle ?? ""}>
+                <IconButton size="small" onClick={field.onClear}>
+                  <LockOutlinedIcon sx={{ fontSize: 18 }} color="primary" />
+                </IconButton>
+              </Tooltip>
+            )}
+            {field.shortcutKey && (
+              <KeyChip sx={{ mr: 0.5 }}>{field.shortcutKey}</KeyChip>
+            )}
+          </Box>
         </Paper>
       )}
       {children}

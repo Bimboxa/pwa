@@ -21,12 +21,15 @@ import getSingleSelectedAnnotationId from "Features/threedDimensions/utils/getSi
 import { getActiveThreedEditor } from "Features/threedEditor/services/threedEditorRegistry";
 import {
   appendToMeshingSurfaceBuffer,
+  armMeshingNumberInput,
   armMeshingSurfaceInput,
   clearMeshingSurfaceBuffer,
   clearSubSelection,
   deleteLastMeshingSurfaceBuffer,
   setMeshingCreateNumber,
+  setMeshingMergeAdjacentFaces,
   setMeshingModeActive,
+  setMeshingNumberBuffer,
   setMeshingNumberingNext,
   setMeshingTool,
 } from "Features/threedEditor/threedEditorSlice";
@@ -850,8 +853,13 @@ export default function useMeshingPointerHandlers({
               : {}),
           },
         });
-        if (record && createNumber != null) {
-          dispatch(setMeshingCreateNumber(createNumber + 1));
+        // Also ends a number input still armed (N without Enter).
+        if (record) {
+          dispatch(
+            setMeshingCreateNumber(
+              createNumber != null ? createNumber + 1 : null
+            )
+          );
         }
       } catch (err) {
         console.error("[threedMesh] create failed", err);
@@ -1021,7 +1029,9 @@ export default function useMeshingPointerHandlers({
       }
     }
 
-    // Target surface of the CREATE tool (« Ajouter une maille »): S arms the
+    // Keys of the CREATE tool (« Ajouter une maille »). F toggles the «
+    // Fusionner les faces adjacentes » switch, N arms the typed number of
+    // the maille. Target surface: S arms the
     // input, the digits typed then feed meshingMode.surfaceBuffer, Enter
     // validates (the surface stays fixed), Escape drops the surface first
     // (the next Escape returns to SELECT). Capture phase so the digits reach
@@ -1039,6 +1049,46 @@ export default function useMeshingPointerHandlers({
       if (e.key === "s" || e.key === "S") {
         consume();
         if (!e.repeat) dispatch(armMeshingSurfaceInput(true));
+        return;
+      }
+      // N arms the « Numéro de la maille » input: the digits typed then feed
+      // meshingMode.numberBuffer (shown live in the helper field), Enter /
+      // Escape end the input.
+      if (e.key === "n" || e.key === "N") {
+        consume();
+        if (!e.repeat) dispatch(armMeshingNumberInput(true));
+        return;
+      }
+      const { numberInputArmed, numberBuffer } =
+        store.getState().threedEditor.meshingMode;
+      if (numberInputArmed) {
+        if (e.key === "Enter" || e.key === "Escape") {
+          consume();
+          dispatch(armMeshingNumberInput(false));
+          return;
+        }
+        if (e.key === "Backspace" || e.key === "Delete") {
+          consume();
+          dispatch(setMeshingNumberBuffer(numberBuffer.slice(0, -1)));
+          return;
+        }
+        if (/^[0-9]$/.test(e.key)) {
+          consume();
+          dispatch(setMeshingNumberBuffer(numberBuffer + e.key));
+          return;
+        }
+      }
+      // F toggles « Fusionner les faces adjacentes » — like its switch, not
+      // while a target surface is set.
+      if (e.key === "f" || e.key === "F") {
+        consume();
+        if (!e.repeat && !(fixedSurfaceRef.current > 0)) {
+          dispatch(
+            setMeshingMergeAdjacentFaces(
+              !store.getState().threedEditor.meshingMode.mergeAdjacentFaces
+            )
+          );
+        }
         return;
       }
       if (e.key === "Escape") {

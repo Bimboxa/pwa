@@ -67,7 +67,7 @@ borders.
 ## « Ajouter une maille » (command `ADD_MESH`, tool `CREATE`)
 
 The command of the commands toolbar (`commandsToolbar/commands/addMesh`,
-MESHES layout) arms the `CREATE` tool. The drawing helper shows in the
+MESHES layout, hotkey `A`) arms the `CREATE` tool. The drawing helper shows in the
 popper chain (`selectActiveMeshHelperTool` → `PopperDrawingHelper` →
 `SectionMeshCreateHelperContent`).
 
@@ -78,7 +78,7 @@ popper chain (`selectActiveMeshHelperTool` → `PopperDrawingHelper` →
   validates, `Escape` drops the surface (then returns to SELECT). The hover
   then pre-draws, in fluo green, the maille the click creates; the surface
   stays set after a click (the user tiles).
-- « Fusionner les faces adjacentes » switch of the helper
+- « Fusionner les faces adjacentes » switch of the helper, toggled by `F`
   (`meshingMode.mergeAdjacentFaces`, on by default; not applied with a
   target surface): the maille is the clicked piece plus every FREE piece
   adjacent to it, transitively — as if every free face had been meshed and
@@ -86,7 +86,10 @@ popper chain (`selectActiveMeshHelperTool` → `PopperDrawingHelper` →
   the groups of `collectVisibleFaceRegions` not covered by a maille, joined
   by `groupAdjacentMeshes3d`). Existing mailles are neither absorbed nor
   crossed. The hover still stipples the clicked piece only.
-- « Numéro de la maille » field of the helper: the number of the next
+- « Numéro de la maille » field of the helper (`N` arms its keyboard
+  input — `meshingMode.numberInputArmed` / `numberBuffer`, the digits show
+  live in the highlighted field, `Enter` / `Escape` end it): the number of
+  the next
   created maille — the typed one (`meshingMode.createNumber`, +1 after
   every click, reset when the tool changes; duplicates allowed), else the
   next free number of the scope (`useNextMesh3dNumber`).

@@ -348,6 +348,10 @@ const threedEditorInitialState = {
     // number typed for the next created maille (then +1). null → automatic
     // (1 + the highest number of the scope).
     createNumber: null,
+    // N was pressed: the digits typed now feed numberBuffer (no focused
+    // field, like the surface), each keystroke updating createNumber.
+    numberInputArmed: false,
+    numberBuffer: "",
   },
   // Extrusion ("push/pull") mode, SketchUp-style: click a top face, move the
   // mouse to set the value, click again to commit `annotation.height`.
@@ -928,12 +932,32 @@ export const threedEditorSlice = createSlice({
       state.meshingMode.surfaceBuffer = "";
       state.meshingMode.surfaceInputArmed = false;
       state.meshingMode.createNumber = null;
+      state.meshingMode.numberInputArmed = false;
+      state.meshingMode.numberBuffer = "";
     },
     setMeshingMergeAdjacentFaces: (state, action) => {
       state.meshingMode.mergeAdjacentFaces = !!action.payload;
     },
+    // Sets the number outright (field edit, +1 after a creation): any
+    // keyboard input in progress ends.
     setMeshingCreateNumber: (state, action) => {
       state.meshingMode.createNumber = action.payload ?? null;
+      state.meshingMode.numberInputArmed = false;
+      state.meshingMode.numberBuffer = "";
+    },
+    // Arming (N) starts a new value: the buffer is cleared, the number
+    // stands until a digit is typed. The surface input yields.
+    armMeshingNumberInput: (state, action) => {
+      state.meshingMode.numberInputArmed = !!action.payload;
+      state.meshingMode.numberBuffer = "";
+      if (action.payload) state.meshingMode.surfaceInputArmed = false;
+    },
+    // Digits typed while armed. A buffer >= 1 becomes the number at once.
+    setMeshingNumberBuffer: (state, action) => {
+      const buffer = String(action.payload ?? "").replace(/[^0-9]/g, "");
+      state.meshingMode.numberBuffer = buffer;
+      const number = parseInt(buffer, 10);
+      if (number >= 1) state.meshingMode.createNumber = number;
     },
     setMeshingNumberingNext: (state, action) => {
       state.meshingMode.numberingNext = action.payload;
@@ -942,7 +966,11 @@ export const threedEditorSlice = createSlice({
     // Arming (S) starts a new value: the buffer is cleared.
     armMeshingSurfaceInput: (state, action) => {
       state.meshingMode.surfaceInputArmed = !!action.payload;
-      if (action.payload) state.meshingMode.surfaceBuffer = "";
+      if (action.payload) {
+        state.meshingMode.surfaceBuffer = "";
+        state.meshingMode.numberInputArmed = false;
+        state.meshingMode.numberBuffer = "";
+      }
     },
     appendToMeshingSurfaceBuffer: (state, action) => {
       state.meshingMode.surfaceBuffer += action.payload;
@@ -1590,6 +1618,8 @@ export const {
   setMeshingTool,
   setMeshingMergeAdjacentFaces,
   setMeshingCreateNumber,
+  armMeshingNumberInput,
+  setMeshingNumberBuffer,
   setMeshingNumberingNext,
   armMeshingSurfaceInput,
   appendToMeshingSurfaceBuffer,

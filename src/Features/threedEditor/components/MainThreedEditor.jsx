@@ -167,6 +167,7 @@ import { selectIsTemplateRulerDrawActive } from "Features/threedDrawing/utils/te
 import {
   bumpSnapIndexEpoch,
   clearSubSelection,
+  setAntiAliasingShrink,
   setMeshingModeActive,
   setSubSelection,
 } from "Features/threedEditor/threedEditorSlice";
@@ -560,6 +561,19 @@ export default function MainThreedEditor() {
     annotationPoseModeActive,
     dispatch,
   ]);
+
+  // Maillage module: « Séparer les surfaces en contact » is switched off on
+  // entry (the mailles are built on the displayed faces — at their drawn
+  // dimensions, touching faces really touch). The bottom bar toggle stays
+  // available; the value the user had before is restored on leaving.
+  useEffect(() => {
+    if (!isMeshesViewer) return undefined;
+    const previous = store.getState().threedEditor.antiAliasingShrink;
+    dispatch(setAntiAliasingShrink(false));
+    return () => {
+      dispatch(setAntiAliasingShrink(previous));
+    };
+  }, [isMeshesViewer, dispatch, store]);
 
   // Same pattern for meshing mode — useMeshingPointerHandlers owns the
   // pointer (hover stipple, maille creation, cut tools) while active.

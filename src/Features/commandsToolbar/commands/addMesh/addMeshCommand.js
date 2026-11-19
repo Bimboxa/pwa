@@ -11,14 +11,14 @@ import { getMeshingToolCommandState } from "../../utils/meshingCommandState";
 // the drawing helper (S + digits, meshingMode.surfaceBuffer) the click
 // creates the pre-drawn maille of that surface instead
 // (useMeshingPointerHandlers / buildFixedAreaMaille). A second click on the
-// armed button returns to the selection tool. No hotkey: S belongs to the
-// surface input while the tool is armed.
+// armed button — or on its hotkey, A — returns to the selection tool.
 export default {
   key: "ADD_MESH",
   usesSelection: false,
   label: "Ajouter une maille",
   Icon: AddBoxOutlinedIcon,
   editors: [EDITOR_3D],
+  hotkey: { key: "a", plainOnly: true, editors: [EDITOR_3D] },
   getState: (ctx) => getMeshingToolCommandState(ctx, "CREATE"),
   run(ctx, { dispatch }) {
     dispatch(

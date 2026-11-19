@@ -25,8 +25,9 @@ import selectIsAnySoloActive from "Features/annotations/utils/selectIsAnySoloAct
 // with scan base maps: hidden / points / realistic), the « Séparer les surfaces en contact »
 // and « Caméra ortho » toggles (3D editor only) and the base maps grid button (2D grid layer, or
 // the 3D "lay the base maps flat" mode) — formerly the top-right rows of
-// the editors. Rendered for the 2D map editors and the 3D editor; the
-// Maillage module (meshing-only) has neither; nothing under a capture / POV
+// the editors. Rendered for the 2D map editors and the 3D editor, Maillage
+// module included — without the base maps grid button there (meshing mode
+// is forced on, the grid cannot open); nothing under a capture / POV
 // framing. The hotkey badges hang above the buttons (bottom edge). The
 // buttons are flat here (no elevation, a thin border): they belong to the
 // bar, they do not float over the editor like the in-editor rows.
@@ -49,8 +50,7 @@ export default function SectionBaseMapsBottomBarControls() {
 
   // render
 
-  if ((!is2dEditor && !is3dEditor) || isMeshesViewer || captureFramingActive)
-    return null;
+  if ((!is2dEditor && !is3dEditor) || captureFramingActive) return null;
 
   return (
     <Box
@@ -72,7 +72,11 @@ export default function SectionBaseMapsBottomBarControls() {
       {is3dEditor && hasScanBaseMaps && <SelectorBaseMapsScanMode />}
       {is3dEditor && <ButtonToggleAntiAliasingShrink />}
       {is3dEditor && <ButtonToggleCameraOrtho />}
-      {is3dEditor ? <ButtonOpenBaseMapsGrid3d /> : <ButtonOpenBaseMapsGrid />}
+      {isMeshesViewer ? null : is3dEditor ? (
+        <ButtonOpenBaseMapsGrid3d />
+      ) : (
+        <ButtonOpenBaseMapsGrid />
+      )}
     </Box>
   );
 }
