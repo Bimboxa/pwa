@@ -1,4 +1,4 @@
-import { useEffect, useMemo } from "react";
+import { useEffect } from "react";
 import { useDispatch, useSelector } from "react-redux";
 
 import { setSelectedListingId } from "Features/listings/listingsSlice";
@@ -8,11 +8,10 @@ import {
 } from "Features/annotations/annotationsSlice";
 import { setEnabledDrawingMode } from "Features/mapEditor/mapEditorSlice";
 
-import { alpha, Box, Button, Typography } from "@mui/material";
+import { alpha, Box, Button, Tooltip, Typography } from "@mui/material";
 import { West } from "@mui/icons-material";
 
-import useAnnotationTemplatesBySelectedListing from "Features/annotations/hooks/useAnnotationTemplatesBySelectedListing";
-import { resolveDrawingShape } from "Features/annotations/constants/drawingShapeConfig";
+import { getDefaultsForShape } from "Features/annotations/constants/drawingShapeConfig";
 import { getDrawingToolByKey } from "Features/mapEditor/constants/drawingTools.jsx";
 import getNewAnnotationPropsFromAnnotationTemplate from "Features/annotations/utils/getNewAnnotationPropsFromAnnotationTemplate";
 import getPdfPageThumbnailDataUrl from "Features/detailFolio/utils/getPdfPageThumbnailDataUrl";
@@ -20,14 +19,16 @@ import getPdfPageThumbnailDataUrl from "Features/detailFolio/utils/getPdfPageThu
 const INTERCEPTOR_KEY = "PDF_PAGE_DETAIL";
 
 // Bottom section of the resource PDF viewer (Dessin + Fonds de plan
-// modules): one row per DETAIL annotationTemplate of the selected listing,
-// with an "Ajouter au fond de plan" button arming the ONE_CLICK draw of that
-// template. In the BASE_MAPS module only while "Afficher les annotations" is
-// ON — otherwise the placed detail would be invisible in that module's editor.
+// modules): an always-visible "Ajouter au fond de plan" button arming the
+// ONE_CLICK draw of a DETAIL annotation, with NO template (disabled only
+// while no listing is selected). In the BASE_MAPS module only while "Afficher
+// les annotations" is ON — otherwise the placed detail would be invisible in
+// that module's editor.
 // The armed newAnnotation carries a PDF_PAGE_DETAIL commitInterceptor with
 // the viewed page context: the placement click either links the annotation
-// to the page's existing detail baseMap, or opens the creation dialog first
-// (see drawingCommitInterceptors).
+// to the page's existing detail baseMap, or opens the creation dialog first.
+// Either way the commit finds or creates, in the selected listing, the DETAIL
+// annotationTemplate named after that detail (see drawingCommitInterceptors).
 export default function SectionAddDetailToBaseMap({
   resource,
   pageNumber,
@@ -40,6 +41,8 @@ export default function SectionAddDetailToBaseMap({
 
   const addS = "Ajouter au fond de plan";
   const armedS = "Cliquez sur le plan pour placer le détail.";
+  const detailS = "Détail";
+  const noListingS = "Sélectionnez d'abord une liste d'annotations";
 
   // data
 
@@ -50,9 +53,6 @@ export default function SectionAddDetailToBaseMap({
     (s) => s.baseMapEditor.showAnnotations
   );
   const selectedListingId = useSelector((s) => s.listings.selectedListingId);
-  const templates = useAnnotationTemplatesBySelectedListing({
-    sortByLabel: true,
-  });
   const enabledDrawingMode = useSelector((s) => s.mapEditor.enabledDrawingMode);
   const newAnnotation = useSelector((s) => s.annotations.newAnnotation);
 
@@ -60,19 +60,13 @@ export default function SectionAddDetailToBaseMap({
 
   const rotation = effectiveRotation ?? 0;
 
-  const detailTemplates = useMemo(
-    () => (templates ?? []).filter((t) => resolveDrawingShape(t) === "DETAIL"),
-    [templates]
-  );
+  const detailColor = getDefaultsForShape("DETAIL")?.fillColor ?? "#999";
 
   const commitInterceptor = newAnnotation?.commitInterceptor;
   const armed =
     enabledDrawingMode === "ONE_CLICK" &&
     commitInterceptor?.key === INTERCEPTOR_KEY &&
     commitInterceptor?.context?.resourceId === resource?.id;
-
-  const isArmedForTemplate = (template) =>
-    armed && newAnnotation?.annotationTemplateId === template.id;
 
   const OneClickIcon = getDrawingToolByKey("ONE_CLICK")?.Icon;
 
@@ -113,8 +107,8 @@ export default function SectionAddDetailToBaseMap({
 
   // handlers
 
-  async function handleAddClick(template) {
-    if (isArmedForTemplate(template)) {
+  async function handleAddClick() {
+    if (armed) {
       dispatch(setEnabledDrawingMode(null));
       return;
     }
@@ -131,7 +125,10 @@ export default function SectionAddDetailToBaseMap({
     dispatch(setSelectedListingId(selectedListingId));
     dispatch(
       setNewAnnotation({
-        ...getNewAnnotationPropsFromAnnotationTemplate(template),
+        // Template-less DETAIL draft: the template is resolved at commit.
+        ...getNewAnnotationPropsFromAnnotationTemplate({
+          drawingShape: "DETAIL",
+        }),
         commitInterceptor: {
           key: INTERCEPTOR_KEY,
           context: {
@@ -151,7 +148,6 @@ export default function SectionAddDetailToBaseMap({
 
   if (!isDrawingModule && !isBaseMapsModule) return null;
   if (isBaseMapsModule && !showAnnotationsInBaseMaps) return null;
-  if (detailTemplates.length === 0) return null;
 
   return (
     <Box
@@ -161,29 +157,25 @@ export default function SectionAddDetailToBaseMap({
         bgcolor: "background.default",
       }}
     >
-      {detailTemplates.map((template) => {
-        const templateColor =
-          template.fillColor ?? template.strokeColor ?? "#999";
-        const isArmed = isArmedForTemplate(template);
-        return (
-          <Box
-            key={template.id}
-            sx={{
-              display: "flex",
-              alignItems: "center",
-              gap: 1,
-              px: 1,
-              py: 0.5,
-            }}
-          >
+      <Box
+        sx={{
+          display: "flex",
+          alignItems: "center",
+          gap: 1,
+          px: 1,
+          py: 0.5,
+        }}
+      >
+        <Tooltip title={selectedListingId ? "" : noListingS}>
+          <Box component="span" sx={{ flexShrink: 0 }}>
             <Button
               size="small"
-              variant={isArmed ? "contained" : "outlined"}
+              variant={armed ? "contained" : "outlined"}
               color="secondary"
-              onClick={() => handleAddClick(template)}
+              disabled={!selectedListingId}
+              onClick={handleAddClick}
               startIcon={<West fontSize="small" />}
               sx={{
-                flexShrink: 0,
                 // Nudging arrow towards the map (left of the panel): hints
                 // that the detail is placed onto the base map.
                 "& .MuiButton-startIcon": {
@@ -200,29 +192,29 @@ export default function SectionAddDetailToBaseMap({
             >
               {addS}
             </Button>
-            {OneClickIcon && (
-              <Box
-                sx={{
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  width: 28,
-                  height: 28,
-                  borderRadius: 1,
-                  flexShrink: 0,
-                  color: templateColor,
-                  bgcolor: alpha(templateColor, 0.15),
-                }}
-              >
-                <OneClickIcon fontSize="small" />
-              </Box>
-            )}
-            <Typography variant="body2" noWrap sx={{ minWidth: 0 }}>
-              {template.label}
-            </Typography>
           </Box>
-        );
-      })}
+        </Tooltip>
+        {OneClickIcon && (
+          <Box
+            sx={{
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              width: 28,
+              height: 28,
+              borderRadius: 1,
+              flexShrink: 0,
+              color: detailColor,
+              bgcolor: alpha(detailColor, 0.15),
+            }}
+          >
+            <OneClickIcon fontSize="small" />
+          </Box>
+        )}
+        <Typography variant="body2" noWrap sx={{ minWidth: 0 }}>
+          {detailS}
+        </Typography>
+      </Box>
       {armed && (
         <Typography
           variant="caption"

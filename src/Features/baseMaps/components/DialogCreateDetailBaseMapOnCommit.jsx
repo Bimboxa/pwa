@@ -3,6 +3,7 @@ import { useDispatch, useSelector } from "react-redux";
 import { useLiveQuery } from "dexie-react-hooks";
 
 import { triggerEntitiesTableUpdate } from "Features/entities/entitiesSlice";
+import { triggerAnnotationTemplatesUpdate } from "Features/annotations/annotationsSlice";
 
 import db from "App/db/db";
 
@@ -16,13 +17,17 @@ import useResourceFile from "Features/resources/hooks/useResourceFile";
 import usePdfDocument from "Features/pdf/hooks/usePdfDocument";
 import usePdfPageImageUrl from "Features/baseMapCreator/hooks/usePdfPageImageUrl";
 
+import findOrCreateDetailAnnotationTemplate from "Features/annotations/services/findOrCreateDetailAnnotationTemplate";
+import getNewAnnotationPropsFromAnnotationTemplate from "Features/annotations/utils/getNewAnnotationPropsFromAnnotationTemplate";
+
 import findOrCreateDetailBaseMap from "../services/findOrCreateDetailBaseMap";
 
 // Dialog of the PDF_PAGE_DETAIL commit interceptor (first placement of a
 // DETAIL annotation for a PDF page with no detail baseMap yet): preview of
 // the armed page + name / detailRef of the detail baseMap to create. Confirm
-// creates the baseMap then resumes the parked annotation commit with the
-// link; cancel drops the commit (nothing is created, the tool stays armed).
+// creates the baseMap + the DETAIL annotationTemplate named after it in the
+// selected listing, then resumes the parked annotation commit with both
+// links; cancel drops the commit (nothing is created, the tool stays armed).
 //
 // Preview: the context thumbnail (200px, captured at arm time) shows
 // instantly, then is swapped for the page rendered at full preview
@@ -45,6 +50,7 @@ export default function DialogCreateDetailBaseMapOnCommit({
   // data
 
   const projectId = useSelector((s) => s.projects.selectedProjectId);
+  const listingId = useSelector((s) => s.listings.selectedListingId);
   const { value: userEmail } = useUserEmail();
 
   const context = pending?.context ?? {};
@@ -93,11 +99,21 @@ export default function DialogCreateDetailBaseMapOnCommit({
         console.warn(
           "[resources] detail baseMap not created (PDF file missing?)"
         );
+      // One DETAIL template per detail, named after it (the record name
+      // wins: the page may already be materialized under another name).
+      const template = await findOrCreateDetailAnnotationTemplate({
+        listingId,
+        projectId,
+        label: record?.name ?? name,
+        detailBaseMapId: record?.id ?? null,
+      });
+      if (template) dispatch(triggerAnnotationTemplatesUpdate());
       // Same degradation as before: a missing PDF leaves the annotation
       // unlinked instead of blocking its creation.
       onResume({
         newAnnotation: {
           ...pending.newAnnotation,
+          ...getNewAnnotationPropsFromAnnotationTemplate(template),
           detailBaseMapId: record?.id ?? null,
         },
       });

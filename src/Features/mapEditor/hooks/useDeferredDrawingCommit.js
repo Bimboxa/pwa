@@ -20,7 +20,7 @@ import { getDrawingCommitInterceptor } from "../services/drawingCommitIntercepto
 // commit hook.
 //
 // commitFn: the untouched useHandleCommitDrawing().handleDrawingCommit.
-// deps: { projectId, createdBy, dispatch, deleteAnnotations } forwarded to
+// deps: { projectId, listingId, createdBy, dispatch, deleteAnnotations } forwarded to
 // interceptors.
 // ---------------------------------------------------------------------------
 

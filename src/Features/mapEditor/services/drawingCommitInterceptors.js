@@ -3,7 +3,12 @@ import DialogCreateDetailBaseMapOnCommit from "Features/baseMaps/components/Dial
 import DialogPickImageOnCommit from "Features/imageAnnotations/components/DialogPickImageOnCommit";
 
 import db from "App/db/db";
-import { setNewAnnotation } from "Features/annotations/annotationsSlice";
+import {
+  setNewAnnotation,
+  triggerAnnotationTemplatesUpdate,
+} from "Features/annotations/annotationsSlice";
+import findOrCreateDetailAnnotationTemplate from "Features/annotations/services/findOrCreateDetailAnnotationTemplate";
+import getNewAnnotationPropsFromAnnotationTemplate from "Features/annotations/utils/getNewAnnotationPropsFromAnnotationTemplate";
 import { setEnabledDrawingMode } from "Features/mapEditor/mapEditorSlice";
 import { setToaster } from "Features/layout/layoutSlice";
 import { triggerRelsBusinessObjectAnnotationUpdate } from "Features/businessObjects/businessObjectsSlice";
@@ -30,7 +35,8 @@ import { isTemplateLinked } from "Features/businessObjects/utils/linkedTemplateI
 //     { openDialog: true }           → park the commit and open the entry's
 //                                      DialogComponent.
 //   newAnnotation is already stripped of commitInterceptor; deps =
-//   { projectId, createdBy, dispatch, deleteAnnotations }. Async on purpose:
+//   { projectId, listingId, createdBy, dispatch, deleteAnnotations }. Async on
+//   purpose:
 //   Dexie queries are allowed.
 // - DialogComponent: rendered by DeferredCommitDialogOutlet with
 //   { pending, onResume, onCancel }; onResume(extraOptions) resumes the
@@ -56,10 +62,13 @@ const registry = {
     DialogComponent: DialogPickImageOnCommit,
   },
 
-  // "Ajouter au fond de plan" from the resources PDF viewer (BASE_MAPS
-  // module): a DETAIL placement click links the annotation to the detail
-  // baseMap of the armed PDF page. Page already materialized → direct commit;
-  // first placement → dialog to name the detail baseMap + set its detailRef.
+  // "Ajouter au fond de plan" from the resources PDF viewer: a DETAIL
+  // placement click links the annotation to the detail baseMap of the armed
+  // PDF page. The draft is armed WITHOUT a template: the commit resolves (or
+  // creates) the DETAIL annotationTemplate dedicated to that detail in the
+  // selected listing, named after the detail baseMap. Page already
+  // materialized → direct commit; first placement → dialog to name the
+  // detail baseMap (= template label) + set its detailRef.
   PDF_PAGE_DETAIL: {
     intercept: async ({ newAnnotation, context, deps }) => {
       const existing = await findDetailBaseMap({
@@ -68,10 +77,21 @@ const registry = {
         projectId: deps?.projectId,
       });
       if (existing) {
+        const template = await findOrCreateDetailAnnotationTemplate({
+          listingId: deps?.listingId,
+          projectId: deps?.projectId,
+          label: existing.name,
+          detailBaseMapId: existing.id,
+        });
+        if (template) deps?.dispatch?.(triggerAnnotationTemplatesUpdate());
         return {
           proceed: {
             extraOptions: {
-              newAnnotation: { ...newAnnotation, detailBaseMapId: existing.id },
+              newAnnotation: {
+                ...newAnnotation,
+                ...getNewAnnotationPropsFromAnnotationTemplate(template),
+                detailBaseMapId: existing.id,
+              },
             },
           },
         };

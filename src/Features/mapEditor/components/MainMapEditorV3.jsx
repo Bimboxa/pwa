@@ -1026,6 +1026,7 @@ export default function MainMapEditorV3({ forViewerKey = "MAP" }) {
     commitFn: _handleCommitDrawing,
     deps: {
       projectId,
+      listingId,
       createdBy: userEmail,
       dispatch,
       deleteAnnotations: deleteAnnotationsForInterceptors,
