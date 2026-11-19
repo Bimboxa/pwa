@@ -2848,12 +2848,12 @@ export default function PopperMapListings() {
           {/* « Annotations sans modèle » in the Maillage module (3D only):
               the cotes / rulers drawn there with the toolbar commands
               (DRAW_COTE / DRAW_RULER) — same row as in the Dessin popper,
-              under « Lignes de coupe ». */}
+              under « Lignes de coupe ». The Maillage popper is a legend
+              popper (isLegendPopper, SELECT-filtered): same gate as the
+              « Lignes de coupe » row, not the Dessin one. */}
           {isMeshesModule &&
             !isBaseMapsLegend &&
-            !isLocateBusinessObjectMode &&
-            !isLegendPopper &&
-            !visibleTemplateIds && (
+            !isLocateBusinessObjectMode && (
               <Box sx={{ flexShrink: 0, bgcolor: "background.default" }}>
                 <RowTemplatelessAnnotations
                   annotations={templatelessAnnotations}
