@@ -1,3 +1,5 @@
+import theme from "Styles/theme";
+
 import {
   CanvasTexture,
   LinearFilter,
@@ -22,6 +24,8 @@ export default function createAnnotationNumberBadgeSprite({
   annotationId,
   number,
   dimmed = false,
+  // Global connector colour of the photos.
+  color = "#333333",
 }) {
   const canvas = document.createElement("canvas");
   canvas.width = CANVAS_W;
@@ -39,12 +43,12 @@ export default function createAnnotationNumberBadgeSprite({
   ctx.arcTo(inset, inset + h, inset, inset, r);
   ctx.arcTo(inset, inset, inset + w, inset, r);
   ctx.closePath();
-  ctx.fillStyle = "#333333";
+  ctx.fillStyle = color;
   ctx.fill();
   ctx.lineWidth = 9;
   ctx.strokeStyle = "#ffffff";
   ctx.stroke();
-  ctx.fillStyle = "#ffffff";
+  ctx.fillStyle = theme.palette.getContrastText(color);
   ctx.font = `600 ${Math.round(CANVAS_H * 0.5)}px sans-serif`;
   ctx.textAlign = "center";
   ctx.textBaseline = "middle";

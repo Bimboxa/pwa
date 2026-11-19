@@ -22,6 +22,8 @@ export default function createAnnotationLabelAnchorSprite({
   annotationId,
   // Photo whose sibling is selected (PopperImages veil): faded dot.
   dimmed = false,
+  // Photo link lines pass their connector colour.
+  color = "#000000",
 }) {
   const canvas = document.createElement("canvas");
   canvas.width = CANVAS_PX;
@@ -31,7 +33,7 @@ export default function createAnnotationLabelAnchorSprite({
 
   ctx.beginPath();
   ctx.arc(c, c, c - 6, 0, Math.PI * 2);
-  ctx.fillStyle = "#000000";
+  ctx.fillStyle = color;
   ctx.fill();
   ctx.lineWidth = 6;
   ctx.strokeStyle = "#ffffff";

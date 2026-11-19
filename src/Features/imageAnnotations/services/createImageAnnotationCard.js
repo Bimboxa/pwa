@@ -10,12 +10,15 @@ import {
   SRGBColorSpace,
 } from "three";
 
+import theme from "Styles/theme";
+
 import { getImageAnnotationTextureAsync } from "Features/threedEditor/js/utilsAnnotationsManager/createImageAnnotation3D";
 
 // One card contains the photo and its text, so picking and
 // dragging the container never separates its title from its image.
 // `badgeNumber`: display number of the photo (PopperImages tile), drawn in
-// the top-right corner. `veiled`: another photo is selected → translucent
+// the top-right corner (top-left with `badgeLeft`), filled with `badgeColor` (connector colour of the
+// photo). `veiled`: another photo is selected → translucent
 // white veil over the whole card (the 3D counterpart of the 2D veil; drawn
 // in the canvas so VERTICAL sprites and HORIZONTAL planes look the same).
 export default function createImageAnnotationCard(
@@ -25,6 +28,8 @@ export default function createImageAnnotationCard(
     onLoaded,
     meterByPx = 0.01,
     badgeNumber = null,
+    badgeColor = "#333333",
+    badgeLeft = false,
     veiled = false,
   } = {}
 ) {
@@ -172,17 +177,22 @@ export default function createImageAnnotationCard(
       // Rounded rectangle, like the 2D badge (the comments use discs).
       const bw = 28;
       const bh = 22;
-      const bx = shadow + width + 2 * frame - bw / 2 - 6;
+      const bx = badgeLeft
+        ? shadow + bw / 2 + 6
+        : shadow + width + 2 * frame - bw / 2 - 6;
       const by = shadow + bh / 2 + 6;
       ctx.beginPath();
       ctx.roundRect(bx - bw / 2, by - bh / 2, bw, bh, 6);
-      ctx.fillStyle = veiled ? "rgba(51,51,51,0.35)" : "#333333";
+      ctx.globalAlpha = veiled ? 0.35 : 1;
+      ctx.fillStyle = badgeColor;
       ctx.fill();
+      ctx.globalAlpha = 1;
       ctx.lineWidth = 2;
       ctx.strokeStyle = "#ffffff";
       ctx.stroke();
-      ctx.fillStyle = "#ffffff";
-      ctx.font = "600 12px sans-serif";
+      ctx.fillStyle = theme.palette.getContrastText(badgeColor);
+      // Manual numbers are free text (up to 4 characters): shrink to fit.
+      ctx.font = `600 ${String(badgeNumber).length > 3 ? 9 : String(badgeNumber).length > 2 ? 10.5 : 12}px sans-serif`;
       ctx.textAlign = "center";
       ctx.textBaseline = "middle";
       ctx.fillText(String(badgeNumber), bx, by);

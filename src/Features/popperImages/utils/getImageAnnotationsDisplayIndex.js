@@ -6,6 +6,12 @@
 // ascending), then createdAt ascending, then id. Every host (2D, 3D,
 // capture overlay) calls it on its own displayed list; the numbers agree
 // because the sort is internal.
+//
+// A photo with a manual number (`imageNumber`, free short text) shows it
+// instead of its rank; the others keep their rank (no renumbering, so a
+// manual number may duplicate an automatic one).
+
+import { getImageManualNumber } from "Features/imageAnnotations/utils/getImageConnectorConfig";
 
 // « Objet 2D » images (template flag isObject2D) are scaled symbols, not
 // photos: never listed, numbered nor driven by the Photos panel.
@@ -42,7 +48,7 @@ export default function getImageAnnotationsDisplayIndex(annotations) {
     .sort(compareImageAnnotations);
   const indexById = {};
   images.forEach((a, i) => {
-    indexById[a.id] = i + 1;
+    indexById[a.id] = getImageManualNumber(a) ?? i + 1;
   });
   return { images, indexById };
 }

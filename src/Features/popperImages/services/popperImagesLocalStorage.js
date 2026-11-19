@@ -2,6 +2,8 @@
 // editorSettingsLocalStorage): how IMAGE annotations are displayed in the
 // editors / captures and how an ex-situ tile is linked to its anchor.
 
+import getImageConnectorConfig from "Features/imageAnnotations/utils/getImageConnectorConfig";
+
 const STORAGE_KEY = "popperImagesSettings";
 
 // IN_SITU: photos drawn in the scene. EX_SITU ("overlay"): photos listed in
@@ -79,6 +81,22 @@ export function loadImagesLinkNumber() {
 export function saveImagesLinkNumber(enabled) {
   const store = readStore();
   store.linkNumber = Boolean(enabled);
+  writeStore(store);
+}
+
+// Connector style of the photos: { color, end, line, size }. A store saved
+// before `line` existed derives it from the legacy "Ligne" toggle.
+export function loadImagesConnector() {
+  const raw = readStore().connector;
+  return getImageConnectorConfig({
+    ...raw,
+    line: raw?.line ?? (loadImagesLinkLine() ? "SOLID" : "NONE"),
+  });
+}
+
+export function saveImagesConnector(connector) {
+  const store = readStore();
+  store.connector = getImageConnectorConfig(connector);
   writeStore(store);
 }
 

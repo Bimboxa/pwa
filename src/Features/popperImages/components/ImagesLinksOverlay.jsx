@@ -1,10 +1,12 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useSelector } from "react-redux";
+import { selectImagesConnector } from "Features/popperImages/popperImagesSlice";
+import { IMAGE_CONNECTOR_DASH } from "Features/imageAnnotations/utils/getImageConnectorConfig";
+import ImageLinkArrowHead from "Features/popperImages/components/ImageLinkArrowHead";
 
 import { selectImagesLinkNumber } from "../popperImagesSlice";
 
 import {
-  IMAGE_LINK_STROKE,
   IMAGE_LINK_STROKE_WIDTH,
   IMAGE_LINK_STROKE_WIDTH_SELECTED,
   IMAGE_VEIL_ELEMENT_OPACITY,
@@ -44,6 +46,15 @@ export default function ImagesLinksOverlay({
   anchorProjector,
   invalidateKey,
 }) {
+  // Global connector style of the photos: link colour, and the end marker
+  // on the anchor — a numbered badge (the leader stops on its border), an
+  // arrow head (drawn here, at the leader end) or the anchor dot.
+  const imagesConnector = useSelector(selectImagesConnector);
+  const linkStroke = imagesConnector.color;
+  const linkDash =
+    imagesConnector.line === "DASHED" ? IMAGE_CONNECTOR_DASH : undefined;
+  const endIsBadge = imagesConnector.end === "NUMBER";
+  const endIsArrow = imagesConnector.end === "ARROW";
   const linkNumber = useSelector(selectImagesLinkNumber);
   const svgRef = useRef(null);
   const [lines, setLines] = useState([]);
@@ -77,7 +88,7 @@ export default function ImagesLinksOverlay({
       if (!t) continue;
       const cy = t.top + t.height / 2;
       if (grid && (cy < grid.top || cy > grid.bottom)) continue;
-      const end = getImageLinkEnd({ x: t.left, y: cy }, p, linkNumber);
+      const end = getImageLinkEnd({ x: t.left, y: cy }, p, endIsBadge);
       next.push({
         id: a.id,
         x1: t.left - o.left,
@@ -169,14 +180,22 @@ export default function ImagesLinksOverlay({
             y1={l.y1}
             x2={l.x2}
             y2={l.y2}
-            stroke={IMAGE_LINK_STROKE}
+            stroke={linkStroke}
+            strokeDasharray={linkDash}
             strokeWidth={
               l.selected
                 ? IMAGE_LINK_STROKE_WIDTH_SELECTED
                 : IMAGE_LINK_STROKE_WIDTH
             }
           />
-          <circle cx={l.x1} cy={l.y1} r={3} fill={IMAGE_LINK_STROKE} />
+          <circle cx={l.x1} cy={l.y1} r={3} fill={linkStroke} />
+          {endIsArrow && (
+            <ImageLinkArrowHead
+              from={{ x: l.x1, y: l.y1 }}
+              to={{ x: l.x2, y: l.y2 }}
+              color={linkStroke}
+            />
+          )}
         </g>
       ))}
     </svg>

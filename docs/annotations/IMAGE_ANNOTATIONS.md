@@ -160,6 +160,39 @@ is unrelated to `baseMap.printZone` (the print sheet of a base map).
   the IMAGE annotations (badge on the photo / anchor / tile). Deterministic
   order `orderIndex` → `createdAt` → `id`: moving a photo never renumbers.
   Every host (2D, 3D, capture) calls it on its own displayed list.
+  A photo with a manual number (`annotation.imageNumber`, free text up to 4
+  characters, edited in the annotation panel) shows it instead of its rank;
+  the other photos are not renumbered (duplicates are possible), emptying the
+  field restores the rank.
+- Connector — a GLOBAL display setting of the photos, per device:
+  `popperImages.connector = { color, end, line, size }`
+  (`selectImagesConnector`, `setImagesConnector`, persisted in
+  `popperImagesSettings`), edited in the single "Connecteur" section of
+  `DialogImagesDisplayOptions` through `FieldImageConnectorStyle` (size
+  committed on blur only). Not stored on annotations nor templates.
+  `getImageConnectorConfig(raw)` (`imageAnnotations/utils`) sanitizes it. It
+  applies in the 3 display modes:
+  - `color`: lines, end markers, numbered badges (their text takes the
+    contrast colour) — `ImageIndexBadge` / `ImageIndexBadgeSvg` read it.
+  - `end`, the marker on the ANCHOR: `NUMBER` badge, `ARROW` head or `POINT`
+    dot. In situ `NodeImageStatic` draws it. Off in situ the node draws the
+    badge or the dot; the arrow head is drawn by the overlay that draws the
+    tile → anchor leader (`ImageLinkArrowHead`, it knows the direction), the
+    node keeping a small dot under it. No leader (line off, tile not shown)
+    means no arrow head, the small dot only.
+  - `line`: `SOLID`, `DASHED` (`IMAGE_CONNECTOR_DASH`) or `NONE`, for the
+    photo ↔ anchor line in situ and the tile ↔ anchor leaders. `linkLine`
+    (bottom bar "Ligne" toggle) is kept in sync: `line !== "NONE"`.
+  - `linkNumber` ("Numéro"): the number on the top-left corner of the PHOTO /
+    tile, independent from `end`. A pinned in-situ photo has its corner on
+    the anchor: a single badge there.
+  - `size` (default 11): the in-situ end marker is sized in PAGE POINTS of
+    the print zone (`getCotePageScale`, fixed relative to the plan) — it is
+    the number font size, badge / arrow / dot scale with it. Off-situ anchors
+    and 3D markers stay screen-constant.
+  - 3D (`ThreedAnnotationLabels`): leader colour / dash
+    (`createMesh3dLabelLeader`), anchor badge / dot / in-situ arrow cone
+    (`createImageConnectorArrow3D`), card badge in the top-left corner.
 - `imageAnnotationSelection` — the veil rule: when the selected item is an
   IMAGE, every other image (photo, leader, anchor dot, badge, tile) gets a
   translucent white veil (`IMAGE_VEIL_*` constants).

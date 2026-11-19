@@ -63,6 +63,8 @@ export const STYLE_FIELDS = [
   "hasBorder",
   "hasPadding",
   "hasConnector",
+  // IMAGE manual display number
+  "imageNumber",
 ];
 
 // Fields an annotation inherits from its template ROW at creation when the

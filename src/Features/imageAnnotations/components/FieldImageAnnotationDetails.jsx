@@ -1,6 +1,9 @@
+import { useEffect, useState } from "react";
+
 import {
   Box,
   Button,
+  InputBase,
   ToggleButton,
   ToggleButtonGroup,
   Typography,
@@ -11,27 +14,54 @@ import FilterCenterFocusIcon from "@mui/icons-material/FilterCenterFocus";
 import FieldTextV2 from "Features/form/components/FieldTextV2";
 import WhiteSectionGeneric from "Features/form/components/WhiteSectionGeneric";
 import useUpdateAnnotation from "Features/annotations/hooks/useUpdateAnnotation";
-import { toggleGroupSx } from "Features/annotations/constants/fieldSx";
+import {
+  numberInputSx,
+  toggleGroupSx,
+} from "Features/annotations/constants/fieldSx";
+
+import {
+  IMAGE_NUMBER_MAX_LENGTH,
+  getImageManualNumber,
+} from "../utils/getImageConnectorConfig";
 
 // Photo position: the numbered badge (anchor) positions the photo, drawn
 // with its top-left corner on it. A photo dragged away from its badge
 // (`hasConnector`) is joined to it by a link line; the reset pins it back
 // (the stored bbox origin is then ignored: see getImageEffectiveBbox).
+// Photos only (not « Objet 2D »): manual display number (empty = automatic
+// rank). The link line style is a global display setting of the photos
+// (DialogImagesDisplayOptions).
 export default function FieldImageAnnotationDetails({ annotation }) {
   // strings
   const resetS = "Réinitialiser la position de la photo";
   const resetHelperS =
     "La photo a été déplacée : elle revient sur sa pastille, le trait de liaison disparaît.";
+  const numberS = "Numéro";
+  const numberPlaceholderS = "Auto";
 
   // data
   const updateAnnotation = useUpdateAnnotation();
 
+  // state
+  const manualNumber = getImageManualNumber(annotation) ?? "";
+  const [numberDraft, setNumberDraft] = useState(manualNumber);
+  useEffect(() => {
+    setNumberDraft(manualNumber);
+  }, [manualNumber, annotation.id]);
+
   // helpers
-  const detached = Boolean(annotation.hasConnector) && !annotation.isObject2D;
+  const isPhoto = !annotation.isObject2D;
+  const detached = Boolean(annotation.hasConnector) && isPhoto;
 
   // handlers
   function patch(changes) {
     return updateAnnotation({ id: annotation.id, ...changes });
+  }
+
+  function commitNumber() {
+    const next = numberDraft.trim();
+    if (next === manualNumber) return;
+    patch({ imageNumber: next || null });
   }
 
   // render
@@ -52,6 +82,30 @@ export default function FieldImageAnnotationDetails({ annotation }) {
             <Typography variant="caption" color="text.secondary">
               {resetHelperS}
             </Typography>
+          </Box>
+        </WhiteSectionGeneric>
+      )}
+      {isPhoto && (
+        <WhiteSectionGeneric>
+          <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+            <Typography variant="body2" sx={{ fontWeight: "bold", flex: 1 }}>
+              {numberS}
+            </Typography>
+            <InputBase
+              value={numberDraft}
+              placeholder={numberPlaceholderS}
+              onChange={(event) => setNumberDraft(event.target.value)}
+              onBlur={commitNumber}
+              onKeyDown={(event) => {
+                event.stopPropagation();
+                if (event.key === "Enter") event.target.blur();
+              }}
+              inputProps={{
+                maxLength: IMAGE_NUMBER_MAX_LENGTH,
+                "aria-label": numberS,
+              }}
+              sx={numberInputSx}
+            />
           </Box>
         </WhiteSectionGeneric>
       )}
