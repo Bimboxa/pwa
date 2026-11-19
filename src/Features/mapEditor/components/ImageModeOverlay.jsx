@@ -3,7 +3,9 @@
 // - Dims the viewport outside the capture rectangle (4 grey rects).
 // - Draws the capture rectangle outline.
 // - Renders the legend (NodeLegendStatic) at a draggable/resizable
-//   position INSIDE the rectangle, in pixel coords (zoom-independent).
+//   position INSIDE the rectangle (zoom-independent). Its width / font size
+//   are page points, scaled like the cartouche (k = frame px / page pt), so
+//   the legend keeps the same printed size whatever the viewport.
 //
 // The legend body is the move target. A small SE-corner handle is the
 // resize-width target. The dim mask and rect border are pointer-events:
@@ -39,10 +41,12 @@ import {
 } from "Features/popperImages/popperImagesSlice";
 import DialogEditCaptureLegend from "./DialogEditCaptureLegend";
 import useCaptureAspectRatio from "../hooks/useCaptureAspectRatio";
+import useCapturePageFormat from "../hooks/useCapturePageFormat";
 import applyHardCodedQties from "Features/legend/utils/applyHardCodedQties";
 import filterHiddenLegendItems from "Features/legend/utils/filterHiddenLegendItems";
 import parseMainQtyLabel from "Features/legend/utils/parseMainQtyLabel";
 import getCaptureRectBounds from "../utils/getCaptureRectBounds";
+import { getPdfPageSize } from "../utils/captureMapAsPng";
 import { selectCaptureRightInset } from "../utils/captureRightInset";
 import {
   CAPTURE_BORDER_INSET,
@@ -59,6 +63,7 @@ const DIM_FILL = "rgba(0,0,0,0.45)";
 const RECT_STROKE = "rgba(255,255,255,0.95)";
 const HANDLE_SIZE = 12;
 const EDIT_BUTTON_SIZE = 22;
+// legend width bounds, in page points
 const MIN_LEGEND_WIDTH = 120;
 const MAX_LEGEND_WIDTH = 600;
 
@@ -94,6 +99,7 @@ export default function ImageModeOverlay({
   // Resolved ratio (preset key or the base map's numeric ratio for the
   // "BASE_MAP" option) — the watermark below keys on the raw preset string.
   const aspectRatio = useCaptureAspectRatio();
+  const { format: pageFormat } = useCapturePageFormat();
   const overlay = useSelector((s) => s.mapEditor.imageModeLegendOverlay);
   const showWatermark = useSelector((s) => s.mapEditor.imageModeShowWatermark);
   const watermarkUrl = useSelector(
@@ -136,11 +142,18 @@ export default function ImageModeOverlay({
     { rightInset }
   );
 
+  // Legend scale: screen px per page pt, the same factor as the cartouche
+  // (CaptureTitleBlockOverlay). overlay.width / overlay.fontSize are page
+  // points; overlay.x / overlay.y stay screen px relative to the rect.
+  const { pageWidth } = getPdfPageSize(aspectRatio, pageFormat);
+  const k = pageWidth > 0 && rect.width > 0 ? rect.width / pageWidth : 1;
+  const legendWidthPx = overlay.width * k;
+
   // Resolve x/y null → default top-right of the capture rect. As soon as
   // the user drags, x/y become numeric and stick.
   const DEFAULT_PADDING = 16;
   const resolvedX =
-    overlay.x ?? Math.max(0, rect.width - overlay.width - DEFAULT_PADDING);
+    overlay.x ?? Math.max(0, rect.width - legendWidthPx - DEFAULT_PADDING);
   const resolvedY = overlay.y ?? DEFAULT_PADDING;
 
   // The items may carry the templates hidden in the legend
@@ -189,7 +202,8 @@ export default function ImageModeOverlay({
   // legend editor dialog (capture tool only — opened by the Edit button)
   const [legendDialogOpen, setLegendDialogOpen] = useState(false);
 
-  // measure legend height (provided by NodeLegendStatic)
+  // measure legend height (provided by NodeLegendStatic, layout box → page
+  // points, unaffected by the scale transform)
   const [legendHeight, setLegendHeight] = useState(60);
   const handleLegendSizeChange = useCallback(({ height }) => {
     setLegendHeight((prev) =>
@@ -230,7 +244,7 @@ export default function ImageModeOverlay({
       const dx = e.clientX - startX;
       const dy = e.clientY - startY;
       if (type === "MOVE") {
-        const maxX = Math.max(0, rect.width - base.width);
+        const maxX = Math.max(0, rect.width - base.width * k);
         const maxY = Math.max(0, rect.height - 20);
         commitOverlay({
           ...base,
@@ -239,9 +253,9 @@ export default function ImageModeOverlay({
         });
       } else if (type === "RESIZE") {
         const next = clamp(
-          base.width + dx,
+          base.width + dx / k,
           MIN_LEGEND_WIDTH,
-          Math.min(MAX_LEGEND_WIDTH, rect.width - base.x)
+          Math.min(MAX_LEGEND_WIDTH, (rect.width - base.x) / k)
         );
         commitOverlay({ ...base, width: next });
       }
@@ -256,7 +270,7 @@ export default function ImageModeOverlay({
       document.removeEventListener("mousemove", handleMove);
       document.removeEventListener("mouseup", handleUp);
     };
-  }, [commitOverlay, rect.width, rect.height]);
+  }, [commitOverlay, rect.width, rect.height, k]);
 
   function startMove(e) {
     e.preventDefault();
@@ -287,6 +301,7 @@ export default function ImageModeOverlay({
   // legend origin in viewport coords
   const legendX = rect.left + resolvedX;
   const legendY = rect.top + resolvedY;
+  const legendHeightPx = legendHeight * k;
 
   // render
 
@@ -449,7 +464,7 @@ export default function ImageModeOverlay({
               overlay.visible !== false &&
               overlay.x == null &&
               overlay.y == null
-                ? legendHeight + 12
+                ? legendHeightPx + 12
                 : 0
             }
           />
@@ -478,58 +493,60 @@ export default function ImageModeOverlay({
           onMouseDown={startMove}
           style={{ cursor: "grab" }}
         >
-          {displayedLegendItems.length > 0 ? (
-            <NodeLegendStatic
-              legendItems={displayedLegendItems}
-              spriteImage={spriteImage}
-              legendFormat={{
-                x: 0,
-                y: 0,
-                width: overlay.width,
-                fontSize: overlay.fontSize,
-              }}
-              showQty={overlay.showQty}
-              qtiesById={applyHardCodedQties(
-                qtiesById,
-                overlay.hardCodedQtiesById
-              )}
-              onSizeChange={handleLegendSizeChange}
-            />
-          ) : (
-            // Empty-state placeholder: keeps the drag target alive even when
-            // there are no items to render yet (annotations still loading, no
-            // visible annotations, etc.).
-            <g data-capture-hide>
-              <rect
-                x={0}
-                y={0}
-                width={overlay.width}
-                height={legendHeight}
-                fill="rgba(255,255,255,0.85)"
-                stroke="#2196f3"
-                strokeWidth={1}
-                strokeDasharray="3 3"
-                rx={4}
-                style={{ pointerEvents: "auto" }}
+          <g transform={`scale(${k})`}>
+            {displayedLegendItems.length > 0 ? (
+              <NodeLegendStatic
+                legendItems={displayedLegendItems}
+                spriteImage={spriteImage}
+                legendFormat={{
+                  x: 0,
+                  y: 0,
+                  width: overlay.width,
+                  fontSize: overlay.fontSize,
+                }}
+                showQty={overlay.showQty}
+                qtiesById={applyHardCodedQties(
+                  qtiesById,
+                  overlay.hardCodedQtiesById
+                )}
+                onSizeChange={handleLegendSizeChange}
               />
-              <foreignObject
-                x={8}
-                y={8}
-                width={overlay.width - 16}
-                height={legendHeight - 16}
-              >
-                <div
-                  style={{
-                    font: "12px sans-serif",
-                    color: "#666",
-                    pointerEvents: "auto",
-                  }}
+            ) : (
+              // Empty-state placeholder: keeps the drag target alive even when
+              // there are no items to render yet (annotations still loading, no
+              // visible annotations, etc.).
+              <g data-capture-hide>
+                <rect
+                  x={0}
+                  y={0}
+                  width={overlay.width}
+                  height={legendHeight}
+                  fill="rgba(255,255,255,0.85)"
+                  stroke="#2196f3"
+                  strokeWidth={1}
+                  strokeDasharray="3 3"
+                  rx={4}
+                  style={{ pointerEvents: "auto" }}
+                />
+                <foreignObject
+                  x={8}
+                  y={8}
+                  width={overlay.width - 16}
+                  height={legendHeight - 16}
                 >
-                  Légende vide
-                </div>
-              </foreignObject>
-            </g>
-          )}
+                  <div
+                    style={{
+                      font: "12px sans-serif",
+                      color: "#666",
+                      pointerEvents: "auto",
+                    }}
+                  >
+                    Légende vide
+                  </div>
+                </foreignObject>
+              </g>
+            )}
+          </g>
 
           {/* EDIT button — top-right corner of the legend, capture tool only.
               data-capture-hide keeps it out of the PNG/PDF; the mousedown is
@@ -537,7 +554,7 @@ export default function ImageModeOverlay({
           {captureToolActive && (
             <g data-capture-hide>
               <foreignObject
-                x={overlay.width - EDIT_BUTTON_SIZE - 2}
+                x={legendWidthPx - EDIT_BUTTON_SIZE - 2}
                 y={2}
                 width={EDIT_BUTTON_SIZE}
                 height={EDIT_BUTTON_SIZE}
@@ -568,8 +585,8 @@ export default function ImageModeOverlay({
           {/* SE resize handle (data-capture-hide) */}
           <g data-capture-hide>
             <rect
-              x={overlay.width - HANDLE_SIZE / 2}
-              y={legendHeight - HANDLE_SIZE / 2}
+              x={legendWidthPx - HANDLE_SIZE / 2}
+              y={legendHeightPx - HANDLE_SIZE / 2}
               width={HANDLE_SIZE}
               height={HANDLE_SIZE}
               fill="#2196f3"
