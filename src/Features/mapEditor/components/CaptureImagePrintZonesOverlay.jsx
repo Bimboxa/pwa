@@ -22,6 +22,7 @@ import {
   IMAGE_LINK_STROKE_WIDTH,
 } from "Features/popperImages/constants/imageDisplay";
 import getImageLinkEnd from "Features/popperImages/utils/getImageLinkEnd";
+import { getImageManualNumber } from "Features/imageAnnotations/utils/getImageConnectorConfig";
 import { getPrintZoneTileLinkPoint } from "Features/popperImages/utils/layoutImagePrintZones";
 
 // ---------------------------------------------------------------------------
@@ -128,9 +129,13 @@ export default function CaptureImagePrintZonesOverlay({
     () => Object.fromEntries((images ?? []).map((a) => [a.id, a])),
     [images]
   );
-  // `images` comes in display order: the badge number is the rank.
+  // `images` comes in display order: the badge number is the rank, unless
+  // the photo carries a manual number.
   const numberById = useMemo(
-    () => Object.fromEntries((images ?? []).map((a, i) => [a.id, i + 1])),
+    () =>
+      Object.fromEntries(
+        (images ?? []).map((a, i) => [a.id, getImageManualNumber(a) ?? i + 1])
+      ),
     [images]
   );
 

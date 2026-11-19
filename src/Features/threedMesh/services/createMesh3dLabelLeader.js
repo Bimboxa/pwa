@@ -19,6 +19,8 @@ export default function createMesh3dLabelLeader({
   // truncated by 3D objects in front of it; maille leaders keep the
   // always-on-top behavior.
   depthTest = false,
+  // Photo link lines pass their connector colour.
+  color = "#000000",
 }) {
   const geometry = new BufferGeometry();
   geometry.setAttribute(
@@ -26,7 +28,7 @@ export default function createMesh3dLabelLeader({
     new Float32BufferAttribute([from.x, from.y, from.z, to.x, to.y, to.z], 3)
   );
   const material = new LineBasicMaterial({
-    color: "#000000",
+    color,
     transparent: true,
     opacity: dimmed ? 0.2 : 0.7,
     depthTest,

@@ -7,6 +7,7 @@ import {
   getImageAnchorPoint,
   getImageConnectorGeometry,
 } from "Features/imageAnnotations/utils/imageConnector";
+import getImageConnectorConfig from "Features/imageAnnotations/utils/getImageConnectorConfig";
 import {
   IMAGE_BADGE_HEIGHT_PX,
   IMAGE_BADGE_WIDTH_PX,
@@ -18,6 +19,8 @@ import {
 const HANDLE_SIZE = 10; // Un peu plus grand pour faciliter le grab
 const HALF_HANDLE = HANDLE_SIZE / 2;
 const ROTATION_HANDLE_OFFSET = 30; // Distance de la poignée de rotation (en pixels locaux)
+// Arrow head of the link line (screen px), tip at the origin, pointing +x.
+const ARROW_HEAD_PATH = "M0,0 L-13,-5.5 L-13,5.5 Z";
 
 export default memo(function NodeImageStatic({
   imageAnnotation,
@@ -141,6 +144,44 @@ export default memo(function NodeImageStatic({
   const connector = imageAnnotation.hasConnector
     ? getImageConnectorGeometry(imageAnnotation)
     : null;
+  // Link line style (annotation ?? template ?? default): colour of the line
+  // and of its end marker, and the marker drawn on the anchor — numbered
+  // badge, arrow head or dot.
+  const { color: connectorColor, end: connectorEnd } =
+    getImageConnectorConfig(imageAnnotation);
+  // An arrow needs a visible line to follow: otherwise it falls back to a dot.
+  const arrowAngle =
+    connectorEnd === "ARROW" && connector && !connector.inside
+      ? (Math.atan2(
+          connector.target.y - connector.end.y,
+          connector.target.x - connector.end.x
+        ) *
+          180) /
+        Math.PI
+      : null;
+
+  // Arrow head / dot on the anchor (inside an inverse-zoom group: screen px).
+  const renderEndMarker = ({ radius, markerProps }) =>
+    arrowAngle !== null ? (
+      <g transform={`rotate(${arrowAngle})`}>
+        <path
+          d={ARROW_HEAD_PATH}
+          fill={connectorColor}
+          stroke="white"
+          strokeWidth={1}
+          strokeLinejoin="round"
+          {...markerProps}
+        />
+      </g>
+    ) : (
+      <circle
+        r={radius}
+        fill={connectorColor}
+        stroke="white"
+        strokeWidth={1.5}
+        {...markerProps}
+      />
+    );
 
   // --- 2. RENDU DES POIGNÉES AVEC SCALE FIXE ---
   const renderHandle = (type, hx, hy) => (
@@ -309,7 +350,7 @@ export default memo(function NodeImageStatic({
               y1={connector.target.y}
               x2={connector.end.x}
               y2={connector.end.y}
-              stroke="#333"
+              stroke={connectorColor}
               strokeWidth={1.5}
               vectorEffect="non-scaling-stroke"
               pointerEvents="none"
@@ -320,15 +361,14 @@ export default memo(function NodeImageStatic({
               transform={`translate(${connector.target.x}, ${connector.target.y})`}
             >
               <g style={{ transform: handleScaleTransform }}>
-                <circle
-                  r={selected ? 6 : 4}
-                  fill="#333"
-                  stroke="white"
-                  strokeWidth={1.5}
-                  {...interactionProps}
-                  data-part-type="TARGET"
-                  style={{ cursor: "crosshair" }}
-                />
+                {renderEndMarker({
+                  radius: selected ? 6 : 4,
+                  markerProps: {
+                    ...interactionProps,
+                    "data-part-type": "TARGET",
+                    style: { cursor: "crosshair" },
+                  },
+                })}
               </g>
             </g>
           )}
@@ -432,7 +472,30 @@ export default memo(function NodeImageStatic({
       {badgeGrip && (
         <g transform={`translate(${badgeAnchor.x}, ${badgeAnchor.y})`}>
           <g style={{ transform: handleScaleTransform }}>
-            <ImageIndexBadgeSvg number={imageDisplayIndex} dimmed={veiled} />
+            {connectorEnd === "NUMBER" ? (
+              <ImageIndexBadgeSvg
+                number={imageDisplayIndex}
+                dimmed={veiled}
+                fill={connectorColor}
+              />
+            ) : (
+              // Arrow / dot instead of the badge. A pinned photo has no link
+              // line: its anchor is then a plain grip dot, shown only while
+              // the photo is hovered or selected.
+              <g
+                style={{
+                  pointerEvents: "none",
+                  opacity:
+                    !connector && !selected && !hovered
+                      ? 0
+                      : veiled
+                        ? IMAGE_VEIL_ELEMENT_OPACITY
+                        : 1,
+                }}
+              >
+                {renderEndMarker({ radius: selected ? 6 : 5 })}
+              </g>
+            )}
             <rect
               x={-IMAGE_BADGE_WIDTH_PX / 2}
               y={-IMAGE_BADGE_HEIGHT_PX / 2}
@@ -458,7 +521,7 @@ export default memo(function NodeImageStatic({
           <g style={{ transform: handleScaleTransform }}>
             <circle
               r={6}
-              fill="#333"
+              fill={connectorColor}
               stroke="white"
               strokeWidth={1.5}
               {...interactionProps}

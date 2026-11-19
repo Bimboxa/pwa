@@ -26,6 +26,10 @@ import { setAnnotationLabelObjects } from "../services/annotationLabelObjectsSto
 import getAnnotationLabelLiftM from "../utils/getAnnotationLabelLiftM";
 import getAnnotationVerticalLift from "Features/threedEditor/js/utilsAnnotationsManager/getAnnotationVerticalLift";
 import createImageAnnotationCard from "Features/imageAnnotations/services/createImageAnnotationCard";
+import createImageConnectorArrow3D, {
+  setImageConnectorArrowEnds,
+} from "Features/imageAnnotations/services/createImageConnectorArrow3D";
+import getImageConnectorConfig from "Features/imageAnnotations/utils/getImageConnectorConfig";
 import {
   getImageAnchorPoint,
   getImageCardLift,
@@ -231,6 +235,12 @@ export default function ThreedAnnotationLabels({ annotations }) {
       const badgeNumber = isImage
         ? (imageIndexById[annotation.id] ?? null)
         : null;
+      // Photo link line style: colour of the leader / anchor marker, and the
+      // end marker — the card badge ("NUMBER"), an arrow head or the dot.
+      const connectorConfig = isPhoto
+        ? getImageConnectorConfig(annotation)
+        : null;
+      const connectorColor = connectorConfig?.color;
 
       let sprite;
       if (isImage && exSitu) {
@@ -253,7 +263,12 @@ export default function ThreedAnnotationLabels({ annotations }) {
           selected: isSelected,
           meterByPx: baseMapForRender.meterByPx,
           onLoaded: () => editor.sceneManager.renderScene?.(),
-          badgeNumber,
+          // Arrow / dot end markers replace the numbered badge.
+          badgeNumber:
+            connectorConfig && connectorConfig.end !== "NUMBER"
+              ? null
+              : badgeNumber,
+          badgeColor: connectorColor,
           veiled,
         });
       } else {
@@ -285,6 +300,7 @@ export default function ThreedAnnotationLabels({ annotations }) {
         targetLocal,
         liftM,
         leader: null,
+        connectorColor,
         imageSize: {
           width: baseMapForRender.imageWidth,
           height: baseMapForRender.imageHeight,
@@ -310,6 +326,7 @@ export default function ThreedAnnotationLabels({ annotations }) {
           to: labelLocal,
           depthTest: true,
           dimmed: veiled,
+          color: connectorColor,
         });
         sprite.userData.leader = leader;
         group.add(leader);
@@ -322,6 +339,9 @@ export default function ThreedAnnotationLabels({ annotations }) {
       // Off in situ + "Numéro": the numbered badge, centred on the anchor,
       // IS the anchor marker (no dot under it).
       if (sprite.userData.hasConnector || exSitu) {
+        // In-situ photo with the "ARROW" end: an arrow head along the leader
+        // replaces the dot (kept under `anchorDot`: the drag hook moves it).
+        const asArrow = !exSitu && connectorConfig?.end === "ARROW" && apart;
         const anchorDot =
           exSitu && imagesLinkNumber && badgeNumber != null
             ? createAnnotationNumberBadgeSprite({
@@ -329,11 +349,19 @@ export default function ThreedAnnotationLabels({ annotations }) {
                 number: badgeNumber,
                 dimmed: veiled,
               })
-            : createAnnotationLabelAnchorSprite({
-                annotationId: annotation.id,
-                dimmed: veiled,
-              });
+            : asArrow
+              ? createImageConnectorArrow3D({
+                  annotationId: annotation.id,
+                  color: connectorColor,
+                  dimmed: veiled,
+                })
+              : createAnnotationLabelAnchorSprite({
+                  annotationId: annotation.id,
+                  dimmed: veiled,
+                  color: !exSitu ? connectorColor : undefined,
+                });
         anchorDot.position.set(targetLocal.x, targetLocal.y, targetLocal.z);
+        setImageConnectorArrowEnds(anchorDot, targetLocal, labelLocal);
         sprite.userData.anchorDot = anchorDot;
         group.add(anchorDot);
         if (isImage) imageAnchorsById[annotation.id] = anchorDot;

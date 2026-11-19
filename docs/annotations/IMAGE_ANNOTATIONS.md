@@ -160,6 +160,22 @@ is unrelated to `baseMap.printZone` (the print sheet of a base map).
   the IMAGE annotations (badge on the photo / anchor / tile). Deterministic
   order `orderIndex` → `createdAt` → `id`: moving a photo never renumbers.
   Every host (2D, 3D, capture) calls it on its own displayed list.
+  A photo with a manual number (`annotation.imageNumber`, free text up to 4
+  characters, edited in the annotation panel) shows it instead of its rank;
+  the other photos are not renumbered (duplicates are possible), emptying the
+  field restores the rank.
+- `getImageConnectorConfig(annotation)` (`imageAnnotations/utils`) — style of
+  the link line: `imageConnectorColor` (line + end marker) and
+  `imageConnectorEnd` (`NUMBER` badge, `ARROW` head or `POINT` dot, drawn on
+  the anchor in place of the badge). Resolution: annotation value ?? template
+  value ?? default (`#333333`, `NUMBER`). The template value is a read-time
+  default (whitelisted in `getAnnotationTemplateProps`, NOT in
+  `configurableProps`), so editing the template restyles every photo without
+  its own value. Applied by `NodeImageStatic` (2D, print included) and
+  `ThreedAnnotationLabels` (leader, anchor dot, card badge,
+  `createImageConnectorArrow3D`); the ex-situ tile links keep
+  `IMAGE_LINK_STROKE`. With `ARROW` / `POINT` a pinned photo (no link line)
+  keeps a grip dot on its anchor, visible while hovered or selected.
 - `imageAnnotationSelection` — the veil rule: when the selected item is an
   IMAGE, every other image (photo, leader, anchor dot, badge, tile) gets a
   translucent white veil (`IMAGE_VEIL_*` constants).

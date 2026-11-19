@@ -149,6 +149,10 @@ export default function getAnnotationTemplateProps(annotationTemplate) {
     // onto every annotation when listed in overrideFields (padlock).
     labelStubLength: annotationTemplate?.labelStubLength,
     labelStubMode: annotationTemplate?.labelStubMode,
+    // IMAGE link line (colour + end marker), same read-time default model
+    // (see getImageConnectorConfig).
+    imageConnectorColor: annotationTemplate?.imageConnectorColor,
+    imageConnectorEnd: annotationTemplate?.imageConnectorEnd,
     // Label chip size mode (fixed vs print zone / screen-constant), same model.
     labelIsFixedSize: annotationTemplate?.labelIsFixedSize,
 

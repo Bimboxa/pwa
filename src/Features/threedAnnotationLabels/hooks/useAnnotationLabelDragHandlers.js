@@ -5,6 +5,7 @@ import { Matrix4, Plane, Raycaster, Vector2, Vector3 } from "three";
 
 import db from "App/db/db";
 import { getImageCardMoveUpdates } from "Features/imageAnnotations/utils/imageConnector";
+import { setImageConnectorArrowEnds } from "Features/imageAnnotations/services/createImageConnectorArrow3D";
 import useAnnotationPermissions from "Features/mapEditor/hooks/useAnnotationPermissions";
 import { setToaster } from "Features/layout/layoutSlice";
 import { triggerAnnotationsUpdate } from "Features/annotations/annotationsSlice";
@@ -193,6 +194,12 @@ export default function useAnnotationLabelDragHandlers({
         drag.sprite.userData.anchorDot?.position.copy(drag.startLocal);
       setMesh3dLabelLeaderEnds(
         drag.leader,
+        drag.kind === "TARGET" ? drag.startLocal : drag.fixedEnd,
+        drag.kind === "LABEL" ? drag.startLocal : drag.fixedEnd
+      );
+      // Photo arrow head (no-op on the plain anchor dot).
+      setImageConnectorArrowEnds(
+        drag.sprite.userData.anchorDot,
         drag.kind === "TARGET" ? drag.startLocal : drag.fixedEnd,
         drag.kind === "LABEL" ? drag.startLocal : drag.fixedEnd
       );
@@ -440,6 +447,7 @@ export default function useAnnotationLabelDragHandlers({
           from: drag.fixedEnd,
           to: position,
           depthTest: true,
+          color: drag.sprite.userData.connectorColor,
         });
         drag.dragged.parent.add(drag.tempLeader);
       }
@@ -450,6 +458,13 @@ export default function useAnnotationLabelDragHandlers({
       } else {
         setMesh3dLabelLeaderEnds(leader, position, drag.fixedEnd);
       }
+      // Photo arrow head: keep it on the target, aligned with the leader
+      // (no-op on the plain anchor dot).
+      setImageConnectorArrowEnds(
+        drag.sprite.userData.anchorDot,
+        drag.kind === "TARGET" ? position : drag.fixedEnd,
+        drag.kind === "LABEL" ? position : drag.fixedEnd
+      );
 
       sceneManager.renderScene?.();
     }
