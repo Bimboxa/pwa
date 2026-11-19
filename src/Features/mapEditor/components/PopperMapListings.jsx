@@ -2845,6 +2845,22 @@ export default function PopperMapListings() {
               </Box>
             )}
 
+          {/* « Annotations sans modèle » in the Maillage module (3D only):
+              the cotes / rulers drawn there with the toolbar commands
+              (DRAW_COTE / DRAW_RULER) — same row as in the Dessin popper,
+              under « Lignes de coupe ». */}
+          {isMeshesModule &&
+            !isBaseMapsLegend &&
+            !isLocateBusinessObjectMode &&
+            !isLegendPopper &&
+            !visibleTemplateIds && (
+              <Box sx={{ flexShrink: 0, bgcolor: "background.default" }}>
+                <RowTemplatelessAnnotations
+                  annotations={templatelessAnnotations}
+                />
+              </Box>
+            )}
+
           {/* « Annotations sans modèle » — pinned at the very top, above the
               axes, in the same white rounded card as the axis rows (Dessin
               popper, scope-level: the « Dessin » command needs no listing),
