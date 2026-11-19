@@ -297,3 +297,27 @@ test("two lines bridging the contour to a hole cut the ring in two (neither cuts
   near(result.pieces[1].area, 6, 1e-6);
   for (const piece of result.pieces) assert.deepEqual(piece.holes, []);
 });
+
+test("a face shifted by the anti-aliasing shrink is still cut", () => {
+  // Leg of a shrunk extrusion: the line was traced on the unshrunk leg
+  // (x = 0), the displayed face stands 12 mm inside (x = 0.012) and is 5 mm
+  // lower.
+  const face = {
+    contour: [
+      v(0.012, 0, 0),
+      v(0.012, 4, 0),
+      v(0.012, 4, 0.095),
+      v(0.012, 0, 0.095),
+    ],
+    holes: [],
+    normal: v(-1, 0, 0),
+  };
+  const cutLines = [[v(-1, 2, 0), v(0, 2, 0), v(0, 2, 0.1), v(0.2, 2, 0.1)]];
+
+  const result = clipFaceByCutLines({ face, cutLines });
+  assert.ok(result);
+  assert.deepEqual(
+    areas(result.pieces).map((a) => Math.round(a * 1e6) / 1e6),
+    [0.19, 0.19]
+  );
+});

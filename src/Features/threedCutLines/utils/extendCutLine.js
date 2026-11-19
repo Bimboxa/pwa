@@ -11,6 +11,14 @@ import { copy, cross, distanceSq, dot, normalize, sub } from "./vec3.js";
 // section within it (user decision 2026-11-04: 2 cm).
 export const CUT_LINE_GAP_TOLERANCE_M = 2e-2;
 
+// A cut line point this close to the plane of a face lies on it (m). Must
+// exceed the anti-aliasing shrink of the displayed solids (« Séparer les
+// surfaces en contact »: 10 mm lateral, 5 mm top): the lines keep the points
+// they were traced with, so toggling the setting afterwards shifts the faces
+// by that much — at 10 mm the shifted faces were left uncut and bridged the
+// pieces across the lines.
+export const CUT_LINE_FACE_PLANE_TOL_M = 1.5e-2;
+
 // Collinear points: the polygon's area is under this fraction of its extent
 // squared (a 1 mm wide sliver over 1 m). Same threshold as computeDraftPlane.
 const MIN_AREA_RATIO = 1e-3;

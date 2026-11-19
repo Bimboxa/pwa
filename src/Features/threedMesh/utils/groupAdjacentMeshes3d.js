@@ -1,4 +1,7 @@
-import { CUT_LINE_GAP_TOLERANCE_M } from "../../threedCutLines/utils/extendCutLine.js";
+import {
+  CUT_LINE_FACE_PLANE_TOL_M,
+  CUT_LINE_GAP_TOLERANCE_M,
+} from "../../threedCutLines/utils/extendCutLine.js";
 
 import computePlaneBasis from "./computePlaneBasis.js";
 import pointInPolygon2d from "./pointInPolygon2d.js";
@@ -33,7 +36,7 @@ export const ADJACENT_MIN_SHARED_M = 0.05;
 const SAMPLE_STEP_M = 0.01;
 const MAX_SAMPLES_PER_EDGE = 4000;
 // Same as clipFaceByCutLines: a line point this close to a plane lies on it.
-const PLANE_TOL_M = 1e-2;
+const PLANE_TOL_M = CUT_LINE_FACE_PLANE_TOL_M;
 
 /**
  * @param {object[]} rows - maille records ({ id, faces, shell })

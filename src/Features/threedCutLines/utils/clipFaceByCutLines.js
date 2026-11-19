@@ -15,7 +15,10 @@ import getPathChunksInRegion, {
   isInsideRegion,
 } from "../../surfaceCut/utils/getPathChunksInRegion.js";
 import splitFlatRegionAlongChunks from "../../surfaceCut/utils/splitFlatRegionAlongChunks.js";
-import { CUT_LINE_GAP_TOLERANCE_M } from "./extendCutLine.js";
+import {
+  CUT_LINE_FACE_PLANE_TOL_M,
+  CUT_LINE_GAP_TOLERANCE_M,
+} from "./extendCutLine.js";
 
 // Pieces of a planar face delimited by the CUT_LINE polylines lying on it.
 //
@@ -40,8 +43,9 @@ export default function clipFaceByCutLines({
   cutLines,
   hitPoint = null,
   // A line point within this of the face plane lies on it (the extension
-  // walks a 1 mm-quantized section graph, the stored altitudes keep 0.01 mm).
-  planeTolerance = 1e-2,
+  // walks a 1 mm-quantized section graph, the stored altitudes keep 0.01 mm,
+  // and the face may be shifted by the anti-aliasing shrink).
+  planeTolerance = CUT_LINE_FACE_PLANE_TOL_M,
   // Boundary snap of the line ends (same 1 mm quantization: an end found on
   // a face edge may sit a hair inside the face).
   tolerance = 5e-3,
