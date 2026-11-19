@@ -18,6 +18,8 @@ export default async function createMesh3dService({
   edgeColor = null,
   label = null,
   sourceInfo = null,
+  // Explicit number of the maille (null → next free one).
+  number = null,
 }) {
   if (!projectId || !scopeId) return null;
   // A maille is either planar (polygon faces) or curved (triangulated shell).
@@ -40,6 +42,7 @@ export default async function createMesh3dService({
         edgeColor,
         label,
         sourceInfo,
+        number,
       },
       rows
     );

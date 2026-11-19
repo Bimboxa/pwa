@@ -10,7 +10,9 @@ import findAdjacentMeshes3d from "./findAdjacentMeshes3d";
 // the records already built in the same run.
 //
 // `number` is 1 + max(number) over `rows` (rows are never physically
-// removed, so numbers are never reused).
+// removed, so numbers are never reused), unless an explicit `number` (>= 1)
+// is given — the « Numéro de la maille » field of the CREATE tool;
+// duplicates are then allowed, like with « Numéroter ».
 //
 // Colors: `baseColor` is the source annotation's color — the fill is a
 // lightened shade of it picked to contrast with the ADJACENT mailles (same
@@ -32,13 +34,17 @@ export default function buildMesh3dRecord(
     edgeColor = null,
     label = null,
     sourceInfo = null,
+    number: forcedNumber = null,
   },
   rows
 ) {
   // A maille is either planar (polygon faces) or curved (triangulated shell).
   if (!faces?.length && !shell?.positions?.length) return null;
 
-  const number = 1 + rows.reduce((max, r) => Math.max(max, r.number || 0), 0);
+  const number =
+    Number.isInteger(forcedNumber) && forcedNumber >= 1
+      ? forcedNumber
+      : 1 + rows.reduce((max, r) => Math.max(max, r.number || 0), 0);
 
   const neighbors = findAdjacentMeshes3d(
     getMesh3dLoops({ faces, shell }),

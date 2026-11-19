@@ -78,6 +78,18 @@ popper chain (`selectActiveMeshHelperTool` → `PopperDrawingHelper` →
   validates, `Escape` drops the surface (then returns to SELECT). The hover
   then pre-draws, in fluo green, the maille the click creates; the surface
   stays set after a click (the user tiles).
+- « Fusionner les faces adjacentes » switch of the helper
+  (`meshingMode.mergeAdjacentFaces`, on by default; not applied with a
+  target surface): the maille is the clicked piece plus every FREE piece
+  adjacent to it, transitively — as if every free face had been meshed and
+  « Fusionner les mailles adjacentes » run (`buildAdjacentFacesMeshData`:
+  the groups of `collectVisibleFaceRegions` not covered by a maille, joined
+  by `groupAdjacentMeshes3d`). Existing mailles are neither absorbed nor
+  crossed. The hover still stipples the clicked piece only.
+- « Numéro de la maille » field of the helper: the number of the next
+  created maille — the typed one (`meshingMode.createNumber`, +1 after
+  every click, reset when the tool changes; duplicates allowed), else the
+  next free number of the scope (`useNextMesh3dNumber`).
 
 ### Pre-drawn maille (user decisions 2026-11-04)
 

@@ -118,7 +118,7 @@ export default async function createMeshesFromCutLinesService({
 
 // Every cut piece of the group (every piece, for a group no line bounds —
 // scoped run) has its centroid inside an existing maille.
-function isGroupCovered(pieces, faces, shells) {
+export function isGroupCovered(pieces, faces, shells) {
   const located = pieces.filter((p) => p.centroid);
   const cutPieces = located.filter((p) => p.cut);
   const cut = cutPieces.length ? cutPieces : located;

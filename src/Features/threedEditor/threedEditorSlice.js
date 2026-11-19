@@ -340,6 +340,14 @@ const threedEditorInitialState = {
     surfaceBuffer: "",
     // S was pressed: the digits typed now feed surfaceBuffer.
     surfaceInputArmed: false,
+    // CREATE tool, « Fusionner les faces adjacentes » switch of the drawing
+    // helper: the click creates ONE maille from the clicked face and every
+    // free face adjacent to it (no cut line in between). Kept across tools.
+    mergeAdjacentFaces: true,
+    // CREATE tool, « Numéro de la maille » field of the drawing helper: the
+    // number typed for the next created maille (then +1). null → automatic
+    // (1 + the highest number of the scope).
+    createNumber: null,
   },
   // Extrusion ("push/pull") mode, SketchUp-style: click a top face, move the
   // mouse to set the value, click again to commit `annotation.height`.
@@ -919,6 +927,13 @@ export const threedEditorSlice = createSlice({
       state.meshingMode.tool = action.payload;
       state.meshingMode.surfaceBuffer = "";
       state.meshingMode.surfaceInputArmed = false;
+      state.meshingMode.createNumber = null;
+    },
+    setMeshingMergeAdjacentFaces: (state, action) => {
+      state.meshingMode.mergeAdjacentFaces = !!action.payload;
+    },
+    setMeshingCreateNumber: (state, action) => {
+      state.meshingMode.createNumber = action.payload ?? null;
     },
     setMeshingNumberingNext: (state, action) => {
       state.meshingMode.numberingNext = action.payload;
@@ -1573,6 +1588,8 @@ export const {
   toggleClippingPlaneEditing,
   setMeshingModeActive,
   setMeshingTool,
+  setMeshingMergeAdjacentFaces,
+  setMeshingCreateNumber,
   setMeshingNumberingNext,
   armMeshingSurfaceInput,
   appendToMeshingSurfaceBuffer,

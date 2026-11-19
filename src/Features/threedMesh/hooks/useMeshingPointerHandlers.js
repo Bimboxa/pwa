@@ -25,6 +25,7 @@ import {
   clearMeshingSurfaceBuffer,
   clearSubSelection,
   deleteLastMeshingSurfaceBuffer,
+  setMeshingCreateNumber,
   setMeshingModeActive,
   setMeshingNumberingNext,
   setMeshingTool,
@@ -56,6 +57,7 @@ import { MESH3D_PART_HOVER_COLOR } from "Features/annotationMesh3d/constants/mes
 import parseRectBuffer from "Features/mapEditor/utils/parseRectBuffer";
 
 import useMeshes3d from "./useMeshes3d";
+import buildAdjacentFacesMeshData from "../services/buildAdjacentFacesMeshData";
 import createMesh3dService from "../services/createMesh3dService";
 import {
   setMeshingOverlay,
@@ -116,7 +118,11 @@ const FIXED_AREA_INSUFFICIENT_STIPPLE = {
 //   leaning on the nearest borders of the hovered piece (face edges, cut
 //   lines, existing mailles — openings are spanned and kept as holes, a
 //   curved sheet is unfolded: buildFixedAreaMaille), and the click creates
-//   that maille.
+//   that maille. Without a target surface and with « Fusionner les faces
+//   adjacentes » on (meshingMode.mergeAdjacentFaces, the default), the
+//   maille also takes every free face adjacent to the clicked one
+//   (buildAdjacentFacesMeshData). The maille gets the number typed in the
+//   helper (meshingMode.createNumber, then +1), else the next free one.
 // - NUMBER tool: clicking a maille gives it the next number
 //   (meshingMode.numberingNext), then +1. Escape returns to SELECT.
 // `tooltipApiRef`: MainThreedEditor's hover tooltip (ThreedHoverTooltip) —
@@ -801,109 +807,115 @@ export default function useMeshingPointerHandlers({
       if (!e.shiftKey) dispatch(setSelectedItem(null));
     }
 
-    async function handleCreateClick(e, pick) {
-      if (pick?.kind === "ANNOTATION") {
-        // A group of pieces cut by the cut lines is hovered
-        // (applyCutLinePieceStipple ran on the move that led here): the
-        // maille is that group — one planar face when its pieces are
-        // coplanar, a shell otherwise (buildMeshDataFromPieces).
-        const group = applyCutLinePieceStipple(
-          pick.hitObject,
-          pick.intersect.faceIndex,
-          pick.intersect.point
-        );
-        // A target surface is typed: the maille is the pre-drawn one (even
-        // smaller than the target when the free cell is — user decision),
-        // never the whole piece.
-        if (fixedSurfaceRef.current > 0) {
-          const fixed = applyFixedAreaPreview(pick);
-          if (!fixed?.meshData) return;
-          const { projectId: pId, scopeId: sId } = idsRef.current;
-          try {
-            const annotation = await db.annotations.get(pick.nodeId);
-            const baseColor =
-              annotation?.fillColor || annotation?.strokeColor || null;
-            await createMesh3dService({
-              projectId: pId,
-              scopeId: sId,
-              faces: fixed.meshData.faces,
-              shell: fixed.meshData.shell,
-              baseColor,
-              sourceInfo: {
-                annotationId: pick.nodeId,
-                fixedSurface: fixed.target,
-                ...(group ? { fromCutLines: true } : {}),
-              },
-            });
-          } catch (err) {
-            console.error("[threedMesh] create fixed surface failed", err);
-          }
-          clearStipple();
-          return;
+    // Creates the maille of a CREATE click from `meshData` ({ faces, shell })
+    // built on the annotation `annotationId`. `mergeAdjacent`: the maille
+    // also takes the free faces adjacent to it (« Fusionner les faces
+    // adjacentes »). The maille takes the source annotation's hue (lightened
+    // fill + raw-color edges — see createMesh3dService) and the number typed
+    // in the helper, which then moves to the next one.
+    async function createMailleFromClick({
+      meshData,
+      annotationId,
+      sourceInfo,
+      mergeAdjacent = false,
+    }) {
+      const { projectId: pId, scopeId: sId } = idsRef.current;
+      const { mergeAdjacentFaces, createNumber } =
+        store.getState().threedEditor.meshingMode;
+      try {
+        const merged = mergeAdjacent && mergeAdjacentFaces;
+        const data = merged
+          ? buildAdjacentFacesMeshData({
+              sceneManager,
+              angleDeg: faceSelectionAngleDegRef.current,
+              seed: meshData,
+              meshes3d: Object.values(mesh3dByIdRef.current),
+            })
+          : meshData;
+        const annotation = await db.annotations.get(annotationId);
+        const baseColor =
+          annotation?.fillColor || annotation?.strokeColor || null;
+        const record = await createMesh3dService({
+          projectId: pId,
+          scopeId: sId,
+          faces: data.faces,
+          shell: data.shell,
+          baseColor,
+          number: createNumber,
+          sourceInfo: {
+            annotationId,
+            ...sourceInfo,
+            ...(merged && data !== meshData
+              ? { mergedAdjacentFaces: true }
+              : {}),
+          },
+        });
+        if (record && createNumber != null) {
+          dispatch(setMeshingCreateNumber(createNumber + 1));
         }
-        if (group) {
-          const meshData = buildMeshDataFromPieces(group.pieces);
-          if (!meshData) return;
-          const { projectId: pId, scopeId: sId } = idsRef.current;
-          try {
-            const annotation = await db.annotations.get(pick.nodeId);
-            const baseColor =
-              annotation?.fillColor || annotation?.strokeColor || null;
-            await createMesh3dService({
-              projectId: pId,
-              scopeId: sId,
-              faces: meshData.faces,
-              shell: meshData.shell,
-              baseColor,
-              sourceInfo: { annotationId: pick.nodeId, fromCutLines: true },
-            });
-          } catch (err) {
-            console.error("[threedMesh] create from cut piece failed", err);
-          }
-          clearStipple();
-          return;
-        }
-        // Same region as applyStipple: the created maille covers exactly the
-        // highlighted region. Planar region → polygon faces; curved one
-        // (revolution, swept profile) → triangulated shell.
-        const region = getAnnotationFaceRegion(
-          pick.hitObject,
-          pick.intersect.faceIndex,
-          { angleDeg: faceSelectionAngleDegRef.current }
-        );
-        let meshData = null;
-        if (region) {
-          region.host.updateWorldMatrix(true, false);
-          meshData = buildMeshDataFromWorldSoup(
-            buildWorldSoup(
-              region.geometry,
-              region.host.matrixWorld,
-              region.tris
-            )
-          );
-        }
-        if (meshData) {
-          const { projectId: pId, scopeId: sId } = idsRef.current;
-          try {
-            // The maille takes the source annotation's hue (lightened fill +
-            // raw-color edges) — see createMesh3dService.
-            const annotation = await db.annotations.get(pick.nodeId);
-            const baseColor =
-              annotation?.fillColor || annotation?.strokeColor || null;
-            await createMesh3dService({
-              projectId: pId,
-              scopeId: sId,
-              faces: meshData.faces,
-              shell: meshData.shell,
-              baseColor,
-              sourceInfo: { annotationId: pick.nodeId },
-            });
-          } catch (err) {
-            console.error("[threedMesh] create failed", err);
-          }
-          clearStipple();
-        }
+      } catch (err) {
+        console.error("[threedMesh] create failed", err);
       }
+      clearStipple();
+    }
+
+    async function handleCreateClick(e, pick) {
+      if (pick?.kind !== "ANNOTATION") return;
+      // A group of pieces cut by the cut lines is hovered
+      // (applyCutLinePieceStipple ran on the move that led here): the
+      // maille is that group — one planar face when its pieces are
+      // coplanar, a shell otherwise (buildMeshDataFromPieces).
+      const group = applyCutLinePieceStipple(
+        pick.hitObject,
+        pick.intersect.faceIndex,
+        pick.intersect.point
+      );
+      // A target surface is typed: the maille is the pre-drawn one (even
+      // smaller than the target when the free cell is — user decision),
+      // never the whole piece, and never merged with the adjacent faces.
+      if (fixedSurfaceRef.current > 0) {
+        const fixed = applyFixedAreaPreview(pick);
+        if (!fixed?.meshData) return;
+        await createMailleFromClick({
+          meshData: fixed.meshData,
+          annotationId: pick.nodeId,
+          sourceInfo: {
+            fixedSurface: fixed.target,
+            ...(group ? { fromCutLines: true } : {}),
+          },
+        });
+        return;
+      }
+      if (group) {
+        const meshData = buildMeshDataFromPieces(group.pieces);
+        if (!meshData) return;
+        await createMailleFromClick({
+          meshData,
+          annotationId: pick.nodeId,
+          sourceInfo: { fromCutLines: true },
+          mergeAdjacent: true,
+        });
+        return;
+      }
+      // Same region as applyStipple: the created maille covers exactly the
+      // highlighted region. Planar region → polygon faces; curved one
+      // (revolution, swept profile) → triangulated shell.
+      const region = getAnnotationFaceRegion(
+        pick.hitObject,
+        pick.intersect.faceIndex,
+        { angleDeg: faceSelectionAngleDegRef.current }
+      );
+      if (!region) return;
+      region.host.updateWorldMatrix(true, false);
+      const meshData = buildMeshDataFromWorldSoup(
+        buildWorldSoup(region.geometry, region.host.matrixWorld, region.tris)
+      );
+      if (!meshData) return;
+      await createMailleFromClick({
+        meshData,
+        annotationId: pick.nodeId,
+        mergeAdjacent: true,
+      });
     }
 
     function onPointerDown(e) {
