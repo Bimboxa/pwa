@@ -20,7 +20,7 @@ import BoxCenter from "Features/layout/components/BoxCenter";
 import BoxFlexVStretch from "Features/layout/components/BoxFlexVStretch";
 import ContainerFilesSelectorV2 from "Features/files/components/ContainerFilesSelectorV2";
 import DialogDeleteRessource from "Features/layout/components/DialogDeleteRessource";
-import FieldOptionKey from "Features/form/components/FieldOptionKey";
+import ChipOptionKey from "Features/form/components/ChipOptionKey";
 import stringifyFileSize from "Features/files/utils/stringifyFileSize";
 
 import useResourceFile from "../hooks/useResourceFile";
@@ -100,6 +100,9 @@ export default function PanelResourceDetail({ resource, onBack }) {
     linkedBaseMapCount > 0
       ? `${linkedBaseMapCount} fond(s) de plan ont été créés depuis cette page`
       : null;
+  const visibilityTooltipS = linkedS
+    ? `${visibilityS} · ${linkedS}`
+    : visibilityS;
   const deleteMessage =
     linkedBaseMapCount > 0
       ? `${linkedS}. Ils resteront intacts, mais ne pourront plus être régénérés depuis le PDF.`
@@ -216,68 +219,37 @@ export default function PanelResourceDetail({ resource, onBack }) {
         </Menu>
       </Box>
 
-      {/* scope ("périmètre") + linked base maps */}
+      {/* one row: scope ("périmètre") chip, type chip, whole-resource link */}
       <Box
         sx={{
           display: "flex",
           alignItems: "center",
-          justifyContent: "space-between",
-          gap: 1,
+          gap: 0.5,
           px: 1,
           py: 0.5,
           borderBottom: (theme) => `1px solid ${theme.palette.divider}`,
           flexShrink: 0,
+          minWidth: 0,
         }}
       >
-        <Box sx={{ minWidth: 0 }}>
-          <Typography variant="caption" color="text.secondary" noWrap>
-            {visibilityS}
-          </Typography>
-          {linkedS && (
-            <Typography
-              variant="caption"
-              color="text.secondary"
-              sx={{ display: "block" }}
-              noWrap
-            >
-              {linkedS}
-            </Typography>
-          )}
-        </Box>
-        <FieldOptionKey
+        <ChipOptionKey
+          label={visibilityTooltipS}
           value={visibility}
           onChange={handleVisibilityChange}
           valueOptions={visibilityOptions}
         />
-      </Box>
-
-      {/* type: text document (selectable, highlightable) or plan */}
-      {isPdf && (
-        <Box
-          sx={{
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "space-between",
-            gap: 1,
-            px: 1,
-            py: 0.5,
-            borderBottom: (theme) => `1px solid ${theme.palette.divider}`,
-            flexShrink: 0,
-          }}
-        >
-          <Typography variant="caption" color="text.secondary" noWrap>
-            {typeS}
-          </Typography>
-          <FieldOptionKey
+        {/* type: text document (selectable, highlightable) or plan */}
+        {isPdf && (
+          <ChipOptionKey
+            label={typeS}
             value={isDocument ? "DOCUMENT" : "PLAN"}
             onChange={handleDocumentTypeChange}
             valueOptions={documentTypeOptions}
           />
-        </Box>
-      )}
-
-      {/* whole-resource link to the selected / active business object */}
-      <ButtonLinkResourceToBusinessObject resource={resource} />
+        )}
+        <Box sx={{ flexGrow: 1 }} />
+        <ButtonLinkResourceToBusinessObject resource={resource} />
+      </Box>
 
       <DialogDeleteRessource
         open={openDelete}

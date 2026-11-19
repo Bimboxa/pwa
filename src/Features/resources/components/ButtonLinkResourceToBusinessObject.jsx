@@ -4,7 +4,7 @@ import { useLiveQuery } from "dexie-react-hooks";
 import { triggerRelsBusinessObjectResourceUpdate } from "Features/businessObjects/businessObjectsSlice";
 import { setToaster } from "Features/layout/layoutSlice";
 
-import { Box, Button, Typography } from "@mui/material";
+import { Box, Button, Tooltip, Typography } from "@mui/material";
 import { AddLink, LinkOff } from "@mui/icons-material";
 
 import db from "App/db/db";
@@ -15,10 +15,11 @@ import useBusinessObjectTypeOfListing from "Features/businessObjects/hooks/useBu
 import isWholeResourceRel from "Features/businessObjects/utils/isWholeResourceRel";
 import selectSelectedBusinessObjectId from "Features/businessObjects/utils/selectSelectedBusinessObjectId";
 
-// Row of the resource detail panel linking the WHOLE resource (any file
-// type) to the target business object — the selected one, else the module's
-// active one, like the highlights of the document viewer. Toggles to
-// "Délier" once linked. Disabled without target.
+// Inline button of the resource detail panel linking the WHOLE resource (any
+// file type) to the target business object — the selected one, else the
+// module's active one, like the highlights of the document viewer. Toggles
+// to "Délier" once linked. Disabled without target; the target (or the hint
+// to select one) is shown as a tooltip.
 export default function ButtonLinkResourceToBusinessObject({ resource }) {
   const dispatch = useDispatch();
 
@@ -60,6 +61,9 @@ export default function ButtonLinkResourceToBusinessObject({ resource }) {
     ) ?? null;
   const labelS = rel ? unlinkS : type.strings.linkResourceTo;
   const Icon = rel ? LinkOff : AddLink;
+  const tooltipS = businessObject
+    ? `${type.strings.objectLabel} : ${businessObject.label}`
+    : noTargetS;
 
   // handlers
 
@@ -83,33 +87,22 @@ export default function ButtonLinkResourceToBusinessObject({ resource }) {
   // render
 
   return (
-    <Box
-      sx={{
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "space-between",
-        gap: 1,
-        px: 1,
-        py: 0.5,
-        borderBottom: (theme) => `1px solid ${theme.palette.divider}`,
-        flexShrink: 0,
-      }}
-    >
-      <Typography variant="caption" color="text.secondary" noWrap>
-        {businessObject
-          ? `${type.strings.objectLabel} : ${businessObject.label}`
-          : noTargetS}
-      </Typography>
-      <Button
-        size="small"
-        variant={rel ? "text" : "outlined"}
-        disabled={!businessObject}
-        onClick={handleClick}
-        startIcon={<Icon fontSize="small" />}
-        sx={{ flexShrink: 0, textTransform: "none" }}
-      >
-        {labelS}
-      </Button>
-    </Box>
+    <Tooltip title={tooltipS}>
+      {/* span: tooltips need a non-disabled child */}
+      <Box component="span" sx={{ minWidth: 0, display: "flex" }}>
+        <Button
+          size="small"
+          variant={rel ? "text" : "outlined"}
+          disabled={!businessObject}
+          onClick={handleClick}
+          startIcon={<Icon fontSize="small" />}
+          sx={{ minWidth: 0, textTransform: "none" }}
+        >
+          <Typography variant="inherit" noWrap>
+            {labelS}
+          </Typography>
+        </Button>
+      </Box>
+    </Tooltip>
   );
 }
