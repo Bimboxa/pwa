@@ -1,3 +1,6 @@
+import { setNewAnnotation } from "Features/annotations/annotationsSlice";
+import { setEnabledDrawingMode } from "Features/mapEditor/mapEditorSlice";
+
 import TEMPLATELESS_DRAWING_SHAPES from "Features/annotations/constants/templatelessDrawingShapes.jsx";
 import { DEFAULT_TEMPLATELESS_DRAWING_SHAPE } from "Features/annotations/utils/templatelessAnnotations";
 import startTemplatelessDraw, {
@@ -43,14 +46,42 @@ export function getRememberedTemplatelessShapeKey(ctx) {
 // fires (the others yield) and carries the badge, so « D » keeps drawing the
 // last-used type as before. `Icon` (a component) replaces the shape's icon
 // element in the toolbar only (the shape pickers keep their own icon).
+//
+// `meshes`: the command is also offered in the Maillage module's 3D editor
+// (the measures: cote, ruler — drawn over the mailles, snapping on the cut
+// lines). Same guards as the « Ligne de coupe » command there (the module
+// has no « Outils de dessin » gate nor interaction mode); a second click on
+// the armed button disarms it, and the shape never becomes the remembered
+// « D » shape of the Dessin module.
 export default function createTemplatelessDrawCommand(
   shapeKey,
-  { Icon, usesSelection } = {}
+  { Icon, usesSelection, meshes = false } = {}
 ) {
   const shape = TEMPLATELESS_DRAWING_SHAPES.find((s) => s.key === shapeKey);
   if (!shape) throw new Error(`Unknown templateless shape ${shapeKey}`);
   const isRemembered = (ctx) =>
     getRememberedTemplatelessShapeKey(ctx) === shapeKey;
+  // Maillage module (`meshes` commands only): 3D editor, no draw gate.
+  const getMeshesState = (ctx) => {
+    if (!ctx.isThreedEditor) {
+      return { enabled: false, reason: "Disponible dans l'éditeur 3D" };
+    }
+    if (ctx.viewerMode) return { enabled: false, reason: ctx.readOnlyReason };
+    if (!ctx.selectedScopeId) {
+      return { enabled: false, reason: "Sélectionnez un plan de repérage" };
+    }
+    if (ctx.enabledDrawingMode) {
+      const active =
+        ctx.isTemplatelessDraft && ctx.newAnnotationType === shapeKey;
+      return active
+        ? { enabled: true, active: true }
+        : { enabled: false, reason: DRAW_IN_PROGRESS_REASON };
+    }
+    if (ctx.activeThreedTool) {
+      return { enabled: false, reason: TOOL_IN_PROGRESS_REASON };
+    }
+    return { enabled: true };
+  };
   return {
     key: `DRAW_${shapeKey}`,
     usesSelection,
@@ -66,6 +97,7 @@ export default function createTemplatelessDrawCommand(
       showBadgeWhen: isRemembered,
     },
     getState(ctx) {
+      if (meshes && ctx.viewerKey === "MESHES") return getMeshesState(ctx);
       // Templateless annotations belong to a scope of the Dessin module, or
       // locate the active object of a located business-objects listing —
       // never to the ZONES flows.
@@ -94,6 +126,19 @@ export default function createTemplatelessDrawCommand(
       return { enabled: true };
     },
     run(ctx, { dispatch, store }) {
+      if (meshes && ctx.viewerKey === "MESHES") {
+        if (ctx.enabledDrawingMode) {
+          // Armed: disarm (the Maillage module re-arms its meshing tools).
+          dispatch(setEnabledDrawingMode(null));
+          dispatch(setNewAnnotation({}));
+          return;
+        }
+        startTemplatelessDraw(dispatch, store.getState(), shapeKey, {
+          threed: true,
+          remember: false,
+        });
+        return;
+      }
       startTemplatelessDraw(dispatch, store.getState(), shapeKey, {
         threed: ctx.isThreedEditor,
         locate: ctx.locateBusinessObject,

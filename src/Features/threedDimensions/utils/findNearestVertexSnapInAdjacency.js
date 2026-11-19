@@ -5,15 +5,18 @@ import { Vector3 } from "three";
 // adjacency map (shape: Map<key, { position: Vector3, neighbors: Set<key> }>),
 // used for snapping onto the cut-contour vertices. Returns
 // `{ position: Vector3, kind: "VERTEX" }` or null when none is within
-// `pixelThreshold`.
+// `pixelThreshold`. `options.accept(position)` filters the candidates (the
+// next closest one then wins).
 export default function findNearestVertexSnapInAdjacency(
   adjacency,
   mouseNdc,
   camera,
   canvasSize,
-  pixelThreshold = 12
+  pixelThreshold = 12,
+  options = {}
 ) {
   if (!adjacency || adjacency.size === 0 || !camera || !canvasSize) return null;
+  const accept = options.accept ?? null;
 
   const halfW = canvasSize.width / 2;
   const halfH = canvasSize.height / 2;
@@ -32,10 +35,10 @@ export default function findNearestVertexSnapInAdjacency(
     const dx = sx - mouseX;
     const dy = sy - mouseY;
     const d2 = dx * dx + dy * dy;
-    if (d2 < bestSq) {
-      bestSq = d2;
-      best = node;
-    }
+    if (d2 >= bestSq) continue;
+    if (accept && !accept(node.position)) continue;
+    bestSq = d2;
+    best = node;
   }
 
   if (!best) return null;

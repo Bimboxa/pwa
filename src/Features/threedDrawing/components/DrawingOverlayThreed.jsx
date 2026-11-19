@@ -20,6 +20,7 @@ import DrawingLengthBadge from "Features/mapEditorGeneric/components/DrawingLeng
 import { setRectSideAxes } from "Features/mapEditor/mapEditorSlice";
 import intersectBaseMapPlane from "Features/threedBaseMapMove/utils/intersectBaseMapPlane";
 import { getSectionContourAdjacency } from "Features/threedDimensions/services/sectionContourSnapStore";
+import { getCutLineSnapAdjacency } from "Features/threedCutLines/services/cutLineSnapStore";
 import findNearestEdgeSnap from "Features/threedDimensions/utils/findNearestEdgeSnap";
 import findNearestVertexSnapInAdjacency from "Features/threedDimensions/utils/findNearestVertexSnapInAdjacency";
 import computeAxisLockSnap from "Features/threedAnnotationMove/utils/computeAxisLockSnap";
@@ -153,6 +154,16 @@ const SNAP_SQUARE_SIZE_PX = 10;
 // A surface under the cursor this close (m) to the locked polygon plane is
 // on it (computeSnapTarget's LOCK_PLANE_EPS_M).
 const DRAFT_PLANE_EPS_M = 5e-3;
+
+// Of two snap candidates (either may be null), the one closest to the
+// cursor on screen — `a` wins a tie.
+function closestSnap(a, b, mouseNdc, camera, canvasSize) {
+  if (!a?.position) return b ?? null;
+  if (!b?.position) return a;
+  const da = ndcDistance(a.position, mouseNdc, camera, canvasSize).distance;
+  const db = ndcDistance(b.position, mouseNdc, camera, canvasSize).distance;
+  return db < da ? b : a;
+}
 
 function colorForKind(kind) {
   switch (kind) {
@@ -1536,6 +1547,8 @@ export default function DrawingOverlayThreed() {
             // A cote measures on the section first: the cut contour of the
             // clipping plane (sectionContourSnapStore, empty without a cut)
             // takes priority over the full mesh — vertices and edges.
+            // The cut lines (cutLineSnapStore — fat lines, absent from the
+            // mesh index) then compete with the mesh: the closest wins.
             findNearestVertex: (mNdc, cam, sz, options) =>
               (isDimensionDraw
                 ? findNearestVertexSnapInAdjacency(
@@ -1544,7 +1557,23 @@ export default function DrawingOverlayThreed() {
                     cam,
                     sz
                   )
-                : null) ?? findNearestSnap(mNdc, cam, sz, undefined, options),
+                : null) ??
+              closestSnap(
+                isDimensionDraw
+                  ? findNearestVertexSnapInAdjacency(
+                      getCutLineSnapAdjacency(),
+                      mNdc,
+                      cam,
+                      sz,
+                      undefined,
+                      options
+                    )
+                  : null,
+                findNearestSnap(mNdc, cam, sz, undefined, options),
+                mNdc,
+                cam,
+                sz
+              ),
             findNearestEdge: (mNdc, cam, sz, options) =>
               (isDimensionDraw
                 ? findNearestEdgeSnap(
@@ -1556,13 +1585,28 @@ export default function DrawingOverlayThreed() {
                     options
                   )
                 : null) ??
-              findNearestEdgeSnap(
-                getMeshAdjacency(),
+              closestSnap(
+                isDimensionDraw
+                  ? findNearestEdgeSnap(
+                      getCutLineSnapAdjacency(),
+                      mNdc,
+                      cam,
+                      sz,
+                      undefined,
+                      options
+                    )
+                  : null,
+                findNearestEdgeSnap(
+                  getMeshAdjacency(),
+                  mNdc,
+                  cam,
+                  sz,
+                  undefined,
+                  options
+                ),
                 mNdc,
                 cam,
-                sz,
-                undefined,
-                options
+                sz
               ),
             intersectPlane,
             alignAdjacency: getMeshAdjacency(),
