@@ -15,6 +15,10 @@ export const COMMENT_BLOCK_TYPES = {
   // "Dessin auto" band of a listing locked on one of its procedures, like
   // the one of PopperMapListings (SectionListingProcedures).
   PROCEDURE_ACTION: "PROCEDURE_ACTION", // { listingId, procedureKey }
+  // List of annotation templates, shown like the template rows of
+  // PopperMapListings; a click on a row toggles the solo of that template.
+  // The stored order is not meaningful: the rows follow the panel order.
+  TEMPLATES_LIST: "TEMPLATES_LIST", // { annotationTemplateIds }
 };
 
 export function createCommentBlock(type, props = {}) {
@@ -38,6 +42,8 @@ export function createCommentBlock(type, props = {}) {
     };
   if (type === COMMENT_BLOCK_TYPES.PROCEDURE_ACTION)
     return { ...base, listingId: null, procedureKey: null, ...props };
+  if (type === COMMENT_BLOCK_TYPES.TEMPLATES_LIST)
+    return { ...base, annotationTemplateIds: [], ...props };
   return { ...base, ...props };
 }
 

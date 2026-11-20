@@ -2,6 +2,7 @@ import { useMemo } from "react";
 
 import {
     Box,
+    Checkbox,
     Typography,
     List,
     ListItemButton,
@@ -25,6 +26,10 @@ export default function SelectorAnnotationTemplateVariantDense({
     // Optional secondary text at the right of a row (e.g. the number of
     // selected annotations a template would affect).
     getItemSuffix = null,
+    // Multi-selection: when an array is given, each row shows a checkbox and
+    // is selected when its id is in the array (`selectedAnnotationTemplateId`
+    // is then ignored). `onChange(id)` is unchanged: the parent toggles.
+    selectedAnnotationTemplateIds = null,
 }) {
 
     // data
@@ -34,6 +39,11 @@ export default function SelectorAnnotationTemplateVariantDense({
     // helpers
 
     const noTemplates = !annotationTemplates?.length > 0;
+    const multiple = Array.isArray(selectedAnnotationTemplateIds);
+    const isSelected = (id) =>
+        multiple
+            ? selectedAnnotationTemplateIds.includes(id)
+            : id === selectedAnnotationTemplateId;
 
     const groups = useMemo(() => {
         if (!listings?.length || !annotationTemplates?.length) return null;
@@ -80,6 +90,16 @@ export default function SelectorAnnotationTemplateVariantDense({
                 size="small"
                 onClick={() => onChange(id)}
             >
+                {multiple && (
+                    <Checkbox
+                        size="small"
+                        edge="start"
+                        checked={selected}
+                        tabIndex={-1}
+                        disableRipple
+                        sx={{ p: 0.25, mr: 0.5 }}
+                    />
+                )}
                 <ListItemIcon>
                     <AnnotationTemplateIcon
                         template={annotation}
@@ -152,7 +172,7 @@ export default function SelectorAnnotationTemplateVariantDense({
                                         key={t.id}
                                         id={t.id}
                                         annotation={t}
-                                        selected={t.id === selectedAnnotationTemplateId}
+                                        selected={isSelected(t.id)}
                                     />
                                 );
                             })}
@@ -190,7 +210,7 @@ export default function SelectorAnnotationTemplateVariantDense({
                             );
                         }
                         const { id } = item;
-                        const selected = id === selectedAnnotationTemplateId;
+                        const selected = isSelected(id);
                         return (
                             <ListItem
                                 key={id}

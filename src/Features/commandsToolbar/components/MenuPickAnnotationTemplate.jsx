@@ -1,4 +1,4 @@
-import { Menu } from "@mui/material";
+import { Box, Menu } from "@mui/material";
 
 import ListPickAnnotationTemplate from "./ListPickAnnotationTemplate";
 
@@ -33,6 +33,9 @@ function getPlacement(anchorEl) {
 // `panelOrder` lists the templates in the order of the annotations panel.
 // Scrollable: never taller than the room between its anchor and the window
 // edge (getPlacement).
+// `selectedAnnotationTemplateIds` (array) turns the rows into checkboxes: the
+// caller toggles the ids in `onChange` and keeps the menu open; `footer` is
+// pinned at the bottom of the menu (validation button).
 export default function MenuPickAnnotationTemplate({
   open,
   anchorEl,
@@ -40,10 +43,12 @@ export default function MenuPickAnnotationTemplate({
   filterTemplate,
   onChange,
   selectedAnnotationTemplateId = null,
+  selectedAnnotationTemplateIds = null,
   emptyText,
   getItemSuffix,
   minWidth = 240,
   panelOrder = false,
+  footer = null,
   children,
 }) {
   // helpers
@@ -80,10 +85,27 @@ export default function MenuPickAnnotationTemplate({
           filterTemplate={filterTemplate}
           onChange={onChange}
           selectedAnnotationTemplateId={selectedAnnotationTemplateId}
+          selectedAnnotationTemplateIds={selectedAnnotationTemplateIds}
           emptyText={emptyText}
           getItemSuffix={getItemSuffix}
           panelOrder={panelOrder}
         />
+      )}
+      {footer && (
+        <Box
+          sx={{
+            position: "sticky",
+            bottom: 0,
+            zIndex: 1,
+            // the menu list has its own bottom padding: cover it
+            mb: -1,
+            bgcolor: "background.paper",
+            borderTop: "1px solid",
+            borderColor: "divider",
+          }}
+        >
+          {footer}
+        </Box>
       )}
     </Menu>
   );
