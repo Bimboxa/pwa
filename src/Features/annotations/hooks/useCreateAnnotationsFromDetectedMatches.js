@@ -7,6 +7,8 @@ import applyPasteTransformToPoints from "Features/mapEditor/utils/applyPasteTran
 
 import db from "App/db/db";
 import persistDetectedJunctionEdits from "../services/persistDetectedJunctionEdits";
+import requestSubtractOnContactSync from "../services/requestSubtractOnContactSync";
+import stripSubtractionReadFields from "../utils/stripSubtractionReadFields";
 
 /**
  * Bulk-paste the copied annotation at every detected pattern match.
@@ -60,6 +62,7 @@ export default function useCreateAnnotationsFromDetectedMatches() {
       annotationTemplate: _srcAnnotationTemplate,
       ...sourceAnnotationCleaned
     } = sourceAnnotation;
+    stripSubtractionReadFields(sourceAnnotationCleaned, sourceAnnotation);
 
     // Source mapping rows — read once, cloned per match.
     const sourceMappingRows = await db.relAnnotationMappingCategory
@@ -181,6 +184,8 @@ export default function useCreateAnnotationsFromDetectedMatches() {
           await db.relAnnotationMappingCategory.bulkAdd(allMappingRels);
       }
     );
+
+    requestSubtractOnContactSync(allAnnotations.map((a) => a.id));
 
     dispatch(triggerAnnotationsUpdate());
     return allAnnotations;

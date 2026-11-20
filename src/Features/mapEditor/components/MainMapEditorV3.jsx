@@ -135,6 +135,7 @@ import DialogChangeAnnotationImage from "Features/imageAnnotations/components/Di
 import { isBaseMapLinkDraft } from "Features/baseMapLinks/utils/startBaseMapLinkTools";
 import PopperDrawingHelper from "./PopperDrawingHelper";
 import { resyncBaseMapLinksForAnnotationIds } from "Features/baseMapLinks/services/resyncBaseMapLinkPlacementsService";
+import requestSubtractOnContactSync from "Features/annotations/services/requestSubtractOnContactSync";
 import useCreateAnnotationsFromDetectedStrips from "Features/smartDetect/hooks/useCreateAnnotationsFromDetectedStrips";
 import useCreateAnnotationsFromDetectedFeatures from "Features/smartDetect/hooks/useCreateAnnotationsFromDetectedFeatures";
 import useCommitLocalizedRepair from "Features/localizedRepair/hooks/useCommitLocalizedRepair";
@@ -1691,6 +1692,14 @@ export default function MainMapEditorV3({ forViewerKey = "MAP" }) {
       }
       await Promise.all(ops);
     });
+
+    // « Soustraire au contact »: the annotations reshaped by the vertex are
+    // re-tested against what they touch.
+    requestSubtractOnContactSync(
+      (annotations ?? [])
+        .filter((ann) => ann.points?.some((pt) => pt.id === pointId))
+        .map((ann) => ann.id)
+    );
 
     // Reflow a cut into the outer contour when the user drags one of its
     // vertices onto (or beyond) the host polygon's outer boundary. See

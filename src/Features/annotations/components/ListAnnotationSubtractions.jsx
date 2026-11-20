@@ -1,7 +1,7 @@
 import { useMemo } from "react";
 import { useLiveQuery } from "dexie-react-hooks";
 
-import { Box, Typography, IconButton, Tooltip } from "@mui/material";
+import { Box, Chip, Typography, IconButton, Tooltip } from "@mui/material";
 import { Close as CloseIcon } from "@mui/icons-material";
 
 import db from "App/db/db";
@@ -14,6 +14,7 @@ import { getAnnotationOwnLabel } from "Features/annotations/utils/getAnnotationL
 import getItemsByKey from "Features/misc/utils/getItemsByKey";
 
 import removeAnnotationSubtraction from "Features/annotations/services/removeAnnotationSubtraction";
+import { SUBTRACTION_ORIGIN_CONTACT } from "Features/annotations/services/syncSubtractOnContactService";
 
 /**
  * Reusable list of the annotations at the other end of a subtraction relation,
@@ -32,6 +33,12 @@ export default function ListAnnotationSubtractions({
   emptyLabel,
   direction = "TARGETS",
 }) {
+  // strings
+
+  const autoS = "auto";
+  const autoHelpS =
+    "Soustraction créée par « Soustraire au contact » : retirée automatiquement quand le contact disparaît";
+
   // data
 
   const { relsBySource, relsByTarget } = useAnnotationSubtractions();
@@ -125,6 +132,16 @@ export default function ListAnnotationSubtractions({
             <Typography variant="caption" noWrap sx={{ flex: 1, minWidth: 0 }}>
               {label}
             </Typography>
+            {rel.origin === SUBTRACTION_ORIGIN_CONTACT && (
+              <Tooltip title={autoHelpS}>
+                <Chip
+                  label={autoS}
+                  size="small"
+                  variant="outlined"
+                  sx={{ height: 18, fontSize: 10, flexShrink: 0 }}
+                />
+              </Tooltip>
+            )}
             <Tooltip title="Retirer la soustraction">
               <IconButton size="small" onClick={() => handleRemove(rel.id)}>
                 <CloseIcon fontSize="small" />

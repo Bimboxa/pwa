@@ -349,6 +349,7 @@ import { selectDisabledAnnotationListingIdsKey } from "Features/listings/selecto
 
 import collectReferencedPointIds from "Features/annotations/utils/collectReferencedPointIds";
 import resolvePoints from "Features/annotations/utils/resolvePoints";
+import resolveRowsAgainstOwnBaseMap from "Features/annotations/utils/resolveRowsAgainstOwnBaseMap";
 import resolveHeightCuts from "Features/heightCuts/utils/resolveHeightCuts";
 import computeHeightFaces from "Features/heightCuts/utils/computeHeightFaces";
 import getEffectiveAnnotationType from "Features/annotations/utils/getEffectiveAnnotationType";
@@ -624,47 +625,6 @@ async function resolveRevolutionAxes(annotations, baseMapById) {
     // explicitly switched off). An explicit sector above wins.
     arc.revolutionHalfView = axis.halfViewIn3d !== false;
   }
-}
-
-// Resolve the points of raw db.annotations rows hosted by OTHER base maps
-// than the queried one (so absent from `pointsIndex`): each row's points are
-// fetched and resolved against ITS OWN base map's reference frame. Returns a
-// Map id → resolved row. Shared by the cross-base-map subtraction targets and
-// the revolution footprints.
-async function resolveRowsAgainstOwnBaseMap(rows, baseMapById) {
-  const refIds = [];
-  for (const r of rows) {
-    for (const p of r.points ?? []) if (p?.id) refIds.push(p.id);
-    if (r.point?.id) refIds.push(r.point.id);
-  }
-  const ptRows = refIds.length ? await db.points.bulkGet(refIds) : [];
-  const ptIndex = {};
-  for (const p of ptRows) if (p?.id && !p.deletedAt) ptIndex[p.id] = p;
-
-  const byId = new Map();
-  for (const r of rows) {
-    const bm = baseMapById[r.baseMapId];
-    const imageSize = bm?.getImageSize?.() || bm?.image?.imageSize;
-    if (!imageSize) continue;
-    byId.set(r.id, {
-      ...r,
-      points: r.points
-        ? resolvePoints({
-            points: r.points,
-            pointsIndex: ptIndex,
-            imageSize,
-          })
-        : r.points,
-      point: r.point
-        ? resolvePoints({
-            points: [r.point],
-            pointsIndex: ptIndex,
-            imageSize,
-          })?.[0]
-        : r.point,
-    });
-  }
-  return byId;
 }
 
 export default function useAnnotationsV2(options) {

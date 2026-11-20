@@ -35,6 +35,7 @@ import useSelectedListing from "Features/listings/hooks/useSelectedListing";
 import useCreateEntity from "Features/entities/hooks/useCreateEntity";
 import { isTemplatelessAnnotation } from "../utils/templatelessAnnotations";
 import getNextAutoNumberLabelAsync from "../services/getNextAutoNumberLabelAsync";
+import requestSubtractOnContactSync from "../services/requestSubtractOnContactSync";
 
 // Annotations whose label is owned by another mechanism: never auto-numbered.
 function isAutoNumberExempt(annotation) {
@@ -164,6 +165,10 @@ export default function useCreateAnnotation() {
           },
         },
       });
+
+      // « Soustraire au contact »: a no-op unless the annotation (or its
+      // template) carries the option.
+      requestSubtractOnContactSync([_annotation.id]);
 
       // skipTriggers: a batch creating several annotations dispatches the
       // two triggers itself, once, after its last write.

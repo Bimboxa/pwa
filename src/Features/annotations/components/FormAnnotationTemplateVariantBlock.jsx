@@ -334,6 +334,12 @@ export default function FormAnnotationTemplateVariantBlock({
     onChange({ ...annotationTemplate, isProfile });
   }
 
+  // « Soustraire au contact »: the annotations of the template are
+  // automatically subtracted from the annotations they touch in 3D.
+  function handleSubtractOnContactChange(subtractOnContact) {
+    onChange({ ...annotationTemplate, subtractOnContact });
+  }
+
   // IMAGE: « Objet 2D » — a scaled symbol rather than a photo (fixed size,
   // no scale / change-image buttons, ignored by the Photos panel).
   function handleIsObject2DChange(isObject2D) {
@@ -953,6 +959,17 @@ export default function FormAnnotationTemplateVariantBlock({
               label="Profil"
               value={Boolean(annotationTemplate?.isProfile)}
               onChange={handleIsProfileChange}
+              options={{ type: "switch", showAsField: true }}
+            />
+          )}
+
+          {["POLYGON", "RECTANGLE", "POLYLINE", "STRIP"].includes(
+            drawingShape
+          ) && (
+            <FieldCheck
+              label="Soustraire au contact"
+              value={Boolean(annotationTemplate?.subtractOnContact)}
+              onChange={handleSubtractOnContactChange}
               options={{ type: "switch", showAsField: true }}
             />
           )}

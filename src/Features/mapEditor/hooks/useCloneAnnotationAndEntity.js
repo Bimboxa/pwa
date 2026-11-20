@@ -14,6 +14,8 @@ import applyStripElevation, {
   getStripElevationOffsetZ,
 } from "Features/annotations/utils/applyStripElevation";
 import duplicateAnnotationPoints from "Features/annotations/utils/duplicateAnnotationPoints";
+import requestSubtractOnContactSync from "Features/annotations/services/requestSubtractOnContactSync";
+import stripSubtractionReadFields from "Features/annotations/utils/stripSubtractionReadFields";
 
 import db from "App/db/db";
 
@@ -165,6 +167,7 @@ export default function useCloneAnnotationAndEntity() {
             delete annotationCleaned.annotationTemplate;
             delete annotationCleaned.annotationTemplateProps;
             delete annotationCleaned.annotationLabel;
+            stripSubtractionReadFields(annotationCleaned, annotation);
             const clonedAnnotation = {
                 ...annotationCleaned,
                 ...newAnnotation, // Apply new type/styles from store
@@ -313,6 +316,10 @@ export default function useCloneAnnotationAndEntity() {
             if (allMappingRels.length > 0)
                 await db.relAnnotationMappingCategory.bulkAdd(allMappingRels);
         });
+
+        // « Soustraire au contact »: each copy is subtracted from what it
+        // touches.
+        requestSubtractOnContactSync(allAnnotations.map((a) => a.id));
 
         // 6. Single set of Redux dispatches for the whole batch.
         dispatch(triggerAnnotationsUpdate());

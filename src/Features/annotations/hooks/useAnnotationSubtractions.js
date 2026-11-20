@@ -9,14 +9,15 @@ import db from "App/db/db";
  *
  * Indexed both ways: *BySource answers "what is subtracted from me?", *ByTarget
  * answers "which annotations am I carved out of?" (reverse pick mode + the
- * "Soustraite de" panel section).
+ * "Soustraite de" panel section). `origin` is "CONTACT" for the relations
+ * created by « soustraire au contact » (syncSubtractOnContactService).
  *
  * @returns {{
  *   rows: Array<{id, projectId, sourceAnnotationId, targetAnnotationId}>,
  *   targetIdsBySource: Map<string, string[]>,
- *   relsBySource: Map<string, Array<{id, targetAnnotationId}>>,
+ *   relsBySource: Map<string, Array<{id, targetAnnotationId, origin}>>,
  *   sourceIdsByTarget: Map<string, string[]>,
- *   relsByTarget: Map<string, Array<{id, sourceAnnotationId}>>,
+ *   relsByTarget: Map<string, Array<{id, sourceAnnotationId, origin}>>,
  * }}
  */
 export default function useAnnotationSubtractions() {
@@ -43,18 +44,22 @@ export default function useAnnotationSubtractions() {
           relsBySource.set(r.sourceAnnotationId, []);
         }
         targetIdsBySource.get(r.sourceAnnotationId).push(r.targetAnnotationId);
-        relsBySource
-          .get(r.sourceAnnotationId)
-          .push({ id: r.id, targetAnnotationId: r.targetAnnotationId });
+        relsBySource.get(r.sourceAnnotationId).push({
+          id: r.id,
+          targetAnnotationId: r.targetAnnotationId,
+          origin: r.origin,
+        });
 
         if (!sourceIdsByTarget.has(r.targetAnnotationId)) {
           sourceIdsByTarget.set(r.targetAnnotationId, []);
           relsByTarget.set(r.targetAnnotationId, []);
         }
         sourceIdsByTarget.get(r.targetAnnotationId).push(r.sourceAnnotationId);
-        relsByTarget
-          .get(r.targetAnnotationId)
-          .push({ id: r.id, sourceAnnotationId: r.sourceAnnotationId });
+        relsByTarget.get(r.targetAnnotationId).push({
+          id: r.id,
+          sourceAnnotationId: r.sourceAnnotationId,
+          origin: r.origin,
+        });
       }
       return {
         targetIdsBySource,

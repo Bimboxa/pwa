@@ -14,10 +14,19 @@ import db from "App/db/db";
  *
  * @param {Object} args
  * @param {string} args.projectId
- * @param {Array<{sourceAnnotationId: string, targetAnnotationId: string}>} args.pairs
+ * A pair may carry `origin` ("CONTACT" for the relations created by the
+ * « soustraire au contact » sync, see syncSubtractOnContactService): it is
+ * stored on the row and marks it as removable by that sync.
+ *
+ * @param {Array<{sourceAnnotationId: string, targetAnnotationId: string, origin?: string}>} args.pairs
+ * @param {boolean} [args.skipUndo] derived write: no undo entry
  * @returns {Promise<{addedIds: string[], skippedCount: number}>}
  */
-export default async function addAnnotationSubtractions({ projectId, pairs }) {
+export default async function addAnnotationSubtractions({
+  projectId,
+  pairs,
+  skipUndo = false,
+}) {
   if (!projectId || !pairs?.length) return { addedIds: [], skippedCount: 0 };
 
   const pairKey = (p) => `${p.sourceAnnotationId}::${p.targetAnnotationId}`;
@@ -37,7 +46,8 @@ export default async function addAnnotationSubtractions({ projectId, pairs }) {
     return { addedIds: [], skippedCount: pairs.length };
   }
 
-  return db.transaction("rw", db.relAnnotationSubtractions, async () => {
+  return db.transaction("rw", db.relAnnotationSubtractions, async (tx) => {
+    if (skipUndo) tx.skipUndo = true;
     const sourceIds = [...new Set(candidates.map((p) => p.sourceAnnotationId))];
     const existing = await db.relAnnotationSubtractions
       .where("sourceAnnotationId")
@@ -54,6 +64,7 @@ export default async function addAnnotationSubtractions({ projectId, pairs }) {
         projectId,
         sourceAnnotationId: p.sourceAnnotationId,
         targetAnnotationId: p.targetAnnotationId,
+        ...(p.origin ? { origin: p.origin } : {}),
       }));
 
     if (toAdd.length > 0) await db.relAnnotationSubtractions.bulkAdd(toAdd);
