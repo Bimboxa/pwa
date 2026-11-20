@@ -250,3 +250,19 @@ export const DEFAULT_LOUPE_ENABLED = false;
 export function selectIsLoupeEnabled(s) {
   return selectSelectedScopeConfig(s)?.loupeEnabled ?? DEFAULT_LOUPE_ENABLED;
 }
+
+// Suffixes offered in the meshes export table of the Maillage module (one
+// row per mesh and per active suffix: M-1-P, M-1-S, ...). Scope row > org
+// default (appConfig) > none. Every branch returns a stored array, so the
+// reference stays stable.
+export const DEFAULT_MESH_EXPORT_SUFFIXES = [];
+
+export function selectMeshExportSuffixes(s) {
+  const fromRow = selectSelectedScopeConfig(s)?.meshExportSuffixes;
+  if (Array.isArray(fromRow)) return fromRow;
+  const fromAppConfig =
+    s.appConfig.value?.features?.scopeConfig?.defaultMeshExportSuffixes;
+  return Array.isArray(fromAppConfig)
+    ? fromAppConfig
+    : DEFAULT_MESH_EXPORT_SUFFIXES;
+}
