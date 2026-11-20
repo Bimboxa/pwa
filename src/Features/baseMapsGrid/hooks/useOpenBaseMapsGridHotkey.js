@@ -8,11 +8,11 @@ import isEditableTarget from "../utils/isEditableTarget";
 
 export const BASE_MAPS_GRID_HOTKEY = "G";
 
-// "G" opens the base maps grid from a displayed 2D map editor (the grid
-// closes itself on the same key, see LayerBaseMapsGrid). Same guards as the
+// "G" toggles the base maps grid of a displayed 2D map editor (single
+// listener for the opening and the closing, see ButtonOpenBaseMapsGrid). Same guards as the
 // "T" 2D/3D toggle: plain key only, never while typing, never while drawing
 // (the in-draw keys belong to the drawing tools).
-export default function useOpenBaseMapsGridHotkey({ enabled, onOpen }) {
+export default function useOpenBaseMapsGridHotkey({ enabled, onToggle }) {
   const effectiveKey = useSelector(selectEffectiveViewerKey);
   const enabledDrawingMode = useSelector((s) => s.mapEditor.enabledDrawingMode);
   // The PDF editor layer covers the editor: no grid underneath it.
@@ -35,11 +35,17 @@ export default function useOpenBaseMapsGridHotkey({ enabled, onOpen }) {
       if (e.ctrlKey || e.metaKey || e.altKey) return;
       if (isEditableTarget(e.target)) return;
       if (e.key.toLowerCase() !== BASE_MAPS_GRID_HOTKEY.toLowerCase()) return;
-      // no-op when the grid is already opening / open (see useOpenBaseMapsGrid)
-      onOpen?.();
+      // no-op during the opening / closing transitions
+      onToggle?.();
     };
 
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [enabled, is2dEditorDisplayed, enabledDrawingMode, pdfEditorOpen, onOpen]);
+  }, [
+    enabled,
+    is2dEditorDisplayed,
+    enabledDrawingMode,
+    pdfEditorOpen,
+    onToggle,
+  ]);
 }

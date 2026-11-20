@@ -1,7 +1,7 @@
 import { useCallback } from "react";
 import { useSelector } from "react-redux";
 
-import { selectBaseMapsGridOpen } from "../baseMapsGridSlice";
+import { BASE_MAPS_GRID_PHASE } from "../constants/baseMapsGridConstants";
 import selectBaseMapsGridDessin from "../utils/selectBaseMapsGridDessin";
 
 import useOpenBaseMapsGrid from "../hooks/useOpenBaseMapsGrid";
@@ -13,8 +13,12 @@ import { GridView } from "@mui/icons-material";
 
 import ButtonBaseMapsGrid from "./ButtonBaseMapsGrid";
 
+import { getActiveBaseMapsGrid } from "../services/baseMapsGridRegistry";
+
 // Bottom bar button of the 2D map editors (SectionBaseMapsBottomBarControls):
-// opens the base maps grid.
+// the single toggle of the base maps grid, in every module — opens it, and
+// closes it through the handle of the mounted grid (the closing transition
+// is owned by LayerBaseMapsGrid).
 export default function ButtonOpenBaseMapsGrid() {
   // strings
 
@@ -22,7 +26,9 @@ export default function ButtonOpenBaseMapsGrid() {
 
   // data
 
-  const isOpen = useSelector(selectBaseMapsGridOpen);
+  const phase = useSelector((s) => s.baseMapsGrid.phase);
+  const isOpen = phase === BASE_MAPS_GRID_PHASE.OPEN;
+  const isClosed = phase === BASE_MAPS_GRID_PHASE.CLOSED;
   // The grid hands the sheet over in the print zone frame: not available in
   // the background-page mode.
   const showBgImage = useSelector((s) => s.bgImage.showBgImageInMapEditor);
@@ -34,11 +40,12 @@ export default function ButtonOpenBaseMapsGrid() {
   // handlers
 
   const openBaseMapsGrid = useOpenBaseMapsGrid();
-  const openGrid = useCallback(
-    () => openBaseMapsGrid({ fitAll: dessin }),
-    [openBaseMapsGrid, dessin]
-  );
-  useOpenBaseMapsGridHotkey({ enabled: !showBgImage, onOpen: openGrid });
+  // No-op during the opening / closing transitions.
+  const toggleGrid = useCallback(() => {
+    if (isOpen) getActiveBaseMapsGrid()?.close();
+    else if (isClosed) openBaseMapsGrid({ fitAll: dessin });
+  }, [isOpen, isClosed, openBaseMapsGrid, dessin]);
+  useOpenBaseMapsGridHotkey({ enabled: !showBgImage, onToggle: toggleGrid });
 
   // render
 
@@ -48,10 +55,11 @@ export default function ButtonOpenBaseMapsGrid() {
     <ButtonBaseMapsGrid
       title={titleS}
       icon={<GridView />}
-      disabled={isOpen}
+      active={isOpen}
+      disabled={!isOpen && !isClosed}
       shortcut={BASE_MAPS_GRID_HOTKEY}
       shortcutPlacement="top"
-      onClick={openGrid}
+      onClick={toggleGrid}
     />
   );
 }
