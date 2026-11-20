@@ -33,6 +33,7 @@ import changeStyleCommand from "./changeStyle/changeStyleCommand";
 import hideAnnotationCommand from "./hideAnnotation/hideAnnotationCommand";
 import cloneCommand from "./clone/cloneCommand";
 import mergeCommand from "./merge/mergeCommand";
+import alignAnnotationsCommands from "./alignAnnotations/alignAnnotationsCommands";
 import addIntersectionPointsCommand from "./addIntersectionPoints/addIntersectionPointsCommand";
 import dilateCommand from "./dilate/dilateCommand";
 import splitInSegmentsCommand from "./splitInSegments/splitInSegmentsCommand";
@@ -142,6 +143,7 @@ export const COMMANDS = [
   changeStyleCommand,
   cloneCommand,
   mergeCommand,
+  ...alignAnnotationsCommands,
   addIntersectionPointsCommand,
   dilateCommand,
   splitInSegmentsCommand,
