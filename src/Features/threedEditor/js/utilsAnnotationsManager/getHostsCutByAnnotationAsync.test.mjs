@@ -287,3 +287,101 @@ test("a pit of the plan cuts a wall drawn on a vertical base map", async () => {
   });
   assert.deepEqual(await detect(movedPit, [wall]), []);
 });
+
+// -- block instances (Features/blocks) --
+// The cutter is the INSTANCE: its solid is made of the carving members of
+// its block (`_blockCutters`, see getBlockCuttersByInstanceId), posed by the
+// instance's anchor and rotation.
+
+const BLOCKS = {
+  id: "blocks",
+  image: { imageSize: { width: W, height: H } },
+  meterByPx: M,
+  orientation: "HORIZONTAL",
+  position: { x: 0, y: 0, z: 0 },
+  isBlocksBaseMap: true,
+};
+baseMapsById.blocks = BLOCKS;
+
+// A block whose insertion point is at (2, 2) of its blocks base map, with
+// one pit member 1 m further along +X.
+function blockInstance({ id = "instance", x, z, rotation = 0, offsetZ = 0 }) {
+  const member = rect({
+    id: "member",
+    baseMapId: "blocks",
+    cx: 3,
+    cz: 2,
+    size: 0.4,
+    offsetZ: -0.2,
+    height: 0.2,
+  });
+  const anchor = toPlanPx(x, z);
+  return {
+    id,
+    type: "BLOCK_INSTANCE",
+    instanceOfBlockId: "block",
+    baseMapId: "plan",
+    bbox: { x: anchor.x, y: anchor.y, width: 0, height: 0 },
+    rotation,
+    offsetZ,
+    _blockCutters: {
+      blockId: "block",
+      originBaseMapId: "blocks",
+      originBaseMapForRender: getBaseMapForRender(BLOCKS),
+      originBaseMapTransform: getBaseMapTransform(BLOCKS),
+      originPx: toPlanPx(2, 2),
+      originZ: 0,
+      members: [
+        {
+          annotation: member,
+          baseMapForRender: getBaseMapForRender(BLOCKS),
+          baseMapTransform: getBaseMapTransform(BLOCKS),
+        },
+      ],
+    },
+  };
+}
+
+test("a block instance carves with the member of its block", async () => {
+  // Anchor at the slab centre: the pit lands 1 m beside it, inside the slab.
+  const hits = await detect(blockInstance({ x: 0, z: 0 }), [slab]);
+  assert.deepEqual(
+    hits.map((hit) => hit.annotation.id),
+    ["slab"]
+  );
+  assert.ok(Math.abs(hits[0].removed - 0.032) < 1e-3, `${hits[0].removed}`);
+});
+
+test("the member follows the instance's anchor and rotation", async () => {
+  // Anchor 0.5 m outside the slab (which spans ±3 m): the pit, 1 m further
+  // along +X, misses it...
+  assert.deepEqual(await detect(blockInstance({ x: 3.5, z: 0 }), [slab]), []);
+  // ...and falls back inside once the instance is turned half a turn.
+  const hits = await detect(
+    blockInstance({ x: 3.5, z: 0, rotation: 180 }),
+    [slab]
+  );
+  assert.deepEqual(
+    hits.map((hit) => hit.annotation.id),
+    ["slab"]
+  );
+  assert.ok(Math.abs(hits[0].removed - 0.032) < 1e-3, `${hits[0].removed}`);
+  // A quarter turn sends it 1 m along the other plan axis: still outside.
+  assert.deepEqual(
+    await detect(blockInstance({ x: 3.5, z: 0, rotation: 90 }), [slab]),
+    []
+  );
+});
+
+test("an instance lifted above the slab no longer carves it", async () => {
+  assert.deepEqual(
+    await detect(blockInstance({ x: 0, z: 0, offsetZ: 1 }), [slab]),
+    []
+  );
+});
+
+test("an instance whose block holds no carving member cuts nothing", async () => {
+  const instance = blockInstance({ x: 0, z: 0 });
+  delete instance._blockCutters;
+  assert.deepEqual(await detect(instance, [slab]), []);
+});

@@ -3,7 +3,87 @@ import {
   getShape3DKey,
 } from "Features/annotations/constants/shape3DConfig";
 
+import { getBlockInverseMatrix } from "../utilsBlocksManager/blockFrame";
 import createAnnotationObject3D from "./createAnnotationObject3D";
+import createBaseMapFrameGroup from "./createBaseMapFrameGroup";
+
+// Operand of a block INSTANCE (Features/blocks): the solids of the members of
+// its block that carve (`instance._blockCutters`, attached upstream — see
+// annotations/utils/getBlockCuttersByInstanceId), each posed where the
+// instance puts it.
+//
+// Same recipe as BlocksManager / createHeadlessBlockPrototypes: every member
+// is built in the frame of ITS OWN blocks base map, brought into the block
+// frame (getBlockInverseMatrix), then through the instance placeholder's
+// local pose. The returned solids are flat and expressed in the frame of the
+// INSTANCE's base map, like any other operand: the caller parents them to
+// that base map's group. They own their geometry (no shared clone).
+async function buildBlockInstanceSolidObjectsAsync(
+  instance,
+  baseMapForRender,
+  options
+) {
+  const cutters = instance._blockCutters;
+  if (!cutters?.members?.length || !cutters.originBaseMapForRender) return [];
+
+  const placeholder = createAnnotationObject3D(
+    { ...instance, _blockCutters: undefined },
+    baseMapForRender,
+    options
+  );
+  if (!placeholder) return [];
+  placeholder.updateMatrix();
+
+  const frames = new Map(); // blocks baseMapId → frame group
+  const getFrame = (baseMapId, transform) => {
+    if (!frames.has(baseMapId))
+      frames.set(baseMapId, createBaseMapFrameGroup(transform));
+    return frames.get(baseMapId);
+  };
+  const originFrame = getFrame(
+    cutters.originBaseMapId,
+    cutters.originBaseMapTransform
+  );
+
+  const solids = [];
+  for (const member of cutters.members) {
+    if (!member?.annotation || !member.baseMapForRender) continue;
+    const objects = await buildAnnotationSolidObjectsAsync(
+      member.annotation,
+      member.baseMapForRender,
+      options
+    );
+    const frame = getFrame(
+      member.annotation.baseMapId,
+      member.baseMapTransform
+    );
+    for (const object of objects) {
+      if (!object) continue;
+      frame.add(object);
+      solids.push(object);
+    }
+  }
+  if (solids.length === 0) return [];
+
+  frames.forEach((frame) => frame.updateMatrixWorld(true));
+  const inverse = getBlockInverseMatrix({
+    frame: originFrame,
+    baseMap: cutters.originBaseMapForRender,
+    originPx: cutters.originPx,
+    originZ: cutters.originZ,
+  });
+  if (!inverse) return [];
+
+  // instance base map frame ← placeholder ← block frame ← world of the frames
+  const toInstanceBaseMap = placeholder.matrix.clone().multiply(inverse);
+  for (const solid of solids) {
+    const local = toInstanceBaseMap.clone().multiply(solid.matrixWorld);
+    solid.removeFromParent();
+    local.decompose(solid.position, solid.quaternion, solid.scale);
+    solid.updateMatrix();
+  }
+  return solids;
+}
 
 /**
  * Resolve an annotation into one or more Object3D solids (to be used as the
@@ -21,6 +101,14 @@ export default async function buildAnnotationSolidObjectsAsync(
   options
 ) {
   if (!annotation || !baseMapForRender) return [];
+
+  if (annotation.type === "BLOCK_INSTANCE") {
+    return buildBlockInstanceSolidObjectsAsync(
+      annotation,
+      baseMapForRender,
+      options
+    );
+  }
 
   // A REVOLUTION operand must be the FULL solid (shape3D.solid builds it
   // watertight): the camera-driven 180° half-view is display-only and would

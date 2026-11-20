@@ -1,3 +1,4 @@
+import db from "App/db/db";
 import store from "App/store";
 import { onUndoRedoApplied } from "App/db/undoManager";
 
@@ -10,6 +11,9 @@ import syncSubtractOnContactService from "./syncSubtractOnContactService";
 const DEBOUNCE_MS = 150;
 
 const pendingIds = new Set();
+// Blocks whose instances must be re-tested (a member left the block or was
+// deleted: it is no longer there to stand for them).
+const pendingBlockIds = new Set();
 // The « soustraire au contact » annotations synced during this session: the
 // ones an undo / redo may have moved back (the sync writes no undo entry).
 const knownCutterIds = new Set();
@@ -30,13 +34,16 @@ async function flush() {
     schedule();
     return;
   }
-  if (pendingIds.size === 0) return;
+  if (pendingIds.size === 0 && pendingBlockIds.size === 0) return;
   const annotationIds = [...pendingIds];
+  const blockIds = [...pendingBlockIds];
   pendingIds.clear();
+  pendingBlockIds.clear();
   running = true;
   try {
     const { addedCount, cutterIds } = await syncSubtractOnContactService({
       annotationIds,
+      blockIds,
     });
     cutterIds.forEach((id) => knownCutterIds.add(id));
     if (addedCount > 0) {
@@ -54,7 +61,7 @@ async function flush() {
     console.warn("[subtractOnContact] sync failed", error);
   } finally {
     running = false;
-    if (pendingIds.size > 0) schedule();
+    if (pendingIds.size > 0 || pendingBlockIds.size > 0) schedule();
   }
 }
 
@@ -87,3 +94,64 @@ export default function requestSubtractOnContactSync(annotationIds) {
   registerUndoListener();
   schedule();
 }
+
+// -- Block instances (Features/blocks) --
+// An instance carves with the members of its block that carry the option
+// (see syncSubtractOnContactService). It is written from many places (2D
+// drag, toolbar, 3D placement / move / rotate, copies, procedures, undo):
+// the sync is requested from the table itself rather than from each of them.
+// The sync only writes db.relAnnotationSubtractions: no loop.
+
+const INSTANCE_POSE_KEYS = [
+  "bbox",
+  "rotation",
+  "offsetZ",
+  "baseMapId",
+  "instanceOfBlockId",
+  "deletedAt",
+];
+
+const MEMBER_SOLID_KEYS = [
+  "height",
+  "offsetZ",
+  "strokeWidth",
+  "strokeWidthUnit",
+  "shape3D",
+  "points",
+  "cuts",
+  "subtractOnContact",
+  "annotationTemplateId",
+];
+
+const touches = (modifications, keys) =>
+  Object.keys(modifications ?? {}).some((path) =>
+    keys.some((key) => path === key || path.startsWith(`${key}.`))
+  );
+
+function requestBlockInstancesSync(blockId) {
+  if (!blockId) return;
+  pendingBlockIds.add(blockId);
+  registerUndoListener();
+  schedule();
+}
+
+db.annotations.hook("creating", (primKey, obj) => {
+  if (obj?.type === "BLOCK_INSTANCE")
+    requestSubtractOnContactSync([obj.id ?? primKey]);
+});
+
+db.annotations.hook("updating", (modifications, primKey, obj) => {
+  if (obj?.type === "BLOCK_INSTANCE") {
+    if (touches(modifications, INSTANCE_POSE_KEYS))
+      requestSubtractOnContactSync([primKey]);
+    return;
+  }
+  if (!obj?.blockId) return;
+  // A member deleted or taken out of its block...
+  if (touches(modifications, ["blockId", "deletedAt"]))
+    requestBlockInstancesSync(obj.blockId);
+  // ...or whose solid changed from its own fields (its points are synced by
+  // the edit tools): the instances of its block follow.
+  else if (touches(modifications, MEMBER_SOLID_KEYS))
+    requestSubtractOnContactSync([primKey]);
+});

@@ -328,6 +328,40 @@ Le fond de plan principal décide de la **famille** de fonds de plan que les éd
 - **Infos** (module Infos) : `viewContext.isBlocksContext` enregistre à la création si le fond principal était un fond bloc ; seuls les **repères** posés dans la vue 2D / 3D suivent le contexte (`comments/utils/isCommentInBlocksContext`). Sans indicateur (défaut, infos existantes) = contexte normal. Le bandeau des infos et le panneau flottant gardent toutes les infos : ouvrir une info restaure sa vue, ce qui permet d'entrer dans un bloc ou d'en sortir.
 - Le rendu des instances n'est pas concerné : il lit les définitions par une requête dédiée (`useBlockDefinitions`).
 
+### 6.9 « Soustraire au contact » par les instances
+
+Un membre qui porte « Soustraire au contact » (sur l'annotation ou sur son
+modèle) creuse **partout où son bloc est instancié**.
+
+- **Relation** : `relAnnotationSubtractions` hôte → **instance**
+  (`origin: "CONTACT"`), sans champ nouveau. L'instance est l'opérande ; son
+  solide est celui des membres « coupeurs » du bloc, posés par l'instance
+  (`buildAnnotationSolidObjectsAsync`, branche `BLOCK_INSTANCE`, même repère
+  de bloc que § 6.5). Supprimer l'instance supprime la relation.
+- **Résolution** : `annotations/utils/getBlockCuttersByInstanceId` lit les
+  membres coupeurs (résolution légère : points + trous + champs du modèle) et
+  les attache à l'instance cible (`_blockCutters`) — dans `useAnnotationsV2`
+  (carve 3D, quantités) comme dans la synchro. L'hôte porte un scalaire
+  `_blockCuttersKey` : il se reconstruit quand un membre, l'origine du bloc ou
+  la pose de l'instance change.
+- **Synchro** (`syncSubtractOnContactService`) : demandée à chaque écriture
+  d'une instance (création, déplacement, rotation, altitude — hooks de table
+  dans `requestSubtractOnContactSync`) et à chaque modification d'un membre
+  (toutes les instances du bloc sont retestées). Test booléen 3D exact, comme
+  pour une annotation ordinaire.
+- **Cloisonnement** : une instance ne creuse que des annotations de fonds de
+  plan ordinaires ; un membre, à sa position de définition, ne creuse que des
+  annotations de fonds de plan de blocs.
+- **Quantités** : pour un hôte surfacique (POLYGON / RECTANGLE / STRIP) du même
+  fond de plan, la surface perd l'empreinte projetée des membres coupeurs
+  (`_footprintMultiPolygon`). Hôtes « feuille » et révolutions : surface
+  développée du carve, comme pour toute cible.
+- **Limites** : un membre dont le solide dépend d'un profil, d'une ligne guide,
+  de découpes de hauteur ou d'une révolution ne creuse pas via les instances ;
+  la quantité d'un hôte surfacique situé sur un autre fond de plan que
+  l'instance n'est pas réduite (limite générale des soustractions entre fonds
+  de plan).
+
 ## 7. Exemple de référence
 
 Un bloc « Bloc sanitaire » (un polygone + une polyligne) et quatre instances
@@ -362,7 +396,11 @@ pixels au 1:200), rotation positive dans le sens horaire à l'écran.
   dessinés en 2D, construits en 3D.
 - **3D — matériaux partagés** : un traitement qui modifie un matériau en place
   (au lieu de le remplacer) touche toutes les instances du bloc.
-- **3D — accrochage** : les instances sont hors de l'index d'accrochage.
+- **3D — accrochage** : en dessin, une instance n'offre que son point
+  d'insertion (ancre `snapAnchors` du placeholder). Les commandes Déplacer (M)
+  et Tourner (R) saisissent en plus n'importe quel sommet de son contenu
+  (`buildIndex` en mode `annotationsOnly` traverse le contenu d'une instance) ;
+  les copies multiples `*N` affichent le contenu du bloc.
 - **3D — bloc vide ou supprimé** : l'instance n'a rien de visible (pas de
   repère comme en 2D).
 - **Calques** : un calque masqué sur le fond de plan de blocs masque le membre

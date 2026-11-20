@@ -47,7 +47,9 @@ const COPLANAR_NORMAL_DOT = 0.9962;
 // options.annotationsOnly: only annotation meshes (an ancestor with
 // userData.nodeType === "ANNOTATION") are snappable — base map planes and
 // mailles are skipped. Used by the annotation move/rotate tools whose grab
-// click must land on an annotation.
+// click must land on an annotation. In that mode the content of a block
+// instance (Features/blocks) is walked too: an instance is out of the drawing
+// snaps, but it must be grabbable by one of its vertices.
 export function buildIndex(scene, options = {}) {
   const verts = [];
   // key -> { position, neighbors: Set<key>, nodeIds: Set<annotationId> }
@@ -98,8 +100,15 @@ export function buildIndex(scene, options = {}) {
       if (parent.userData?.isCopyGhost) return; // « copie multiple » preview
       // Imported model without « Accroche sur les sommets (3D) »: its meshes
       // are never walked (a heavy GLB = millions of entries). Snap-only
-      // anchors stay.
-      if (parent.userData?.noVertexSnap && !snapAnchors) return;
+      // anchors stay. So does the content of a block instance in the grab
+      // index (annotationsOnly) — a member that is itself an imported model
+      // keeps its own flag.
+      if (
+        parent.userData?.noVertexSnap &&
+        !snapAnchors &&
+        !(annotationsOnly && parent.userData?.instanceOfBlockId)
+      )
+        return;
       if (parent.userData?.nodeType === "ANNOTATION") {
         nodeId = parent.userData.nodeId ?? nodeId;
       }

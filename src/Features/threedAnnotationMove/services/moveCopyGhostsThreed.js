@@ -1,5 +1,6 @@
 import createAnnotationObject3D from "Features/threedEditor/js/utilsAnnotationsManager/createAnnotationObject3D";
 import getBaseMapForRender from "Features/threedEditor/js/utilsAnnotationsManager/getBaseMapForRender";
+import { BLOCK_CONTENT_FLAG } from "Features/threedEditor/js/utilsBlocksManager/blockFrame";
 import {
   disposeObject,
   getCanvasResolution,
@@ -50,11 +51,23 @@ export function getGrabMoveLength(grab) {
   return parseMoveLength(grab?.copyBuffer ?? "");
 }
 
+// The content of a block instance ghost is made of clones sharing the
+// geometries / materials of the block's prototypes (BlocksManager): taken
+// out before the dispose, never disposed.
+function disposeGhostObject(object) {
+  const shared = [];
+  object.traverse?.((child) => {
+    if (child.userData?.[BLOCK_CONTENT_FLAG]) shared.push(child);
+  });
+  shared.forEach((child) => child.parent?.remove(child));
+  disposeObject(object);
+}
+
 export function disposeCopyGhosts(grab) {
   if (!grab?.ghosts?.length) return;
   for (const ghost of grab.ghosts) {
     ghost.object.parent?.remove(ghost.object);
-    disposeObject(ghost.object);
+    disposeGhostObject(ghost.object);
   }
   grab.ghosts = [];
 }
@@ -99,6 +112,14 @@ export function buildCopyGhosts(editor, grab, annotations) {
         console.warn("[threedAnnotationMove] copy ghost build failed", err);
       }
       if (!object) continue;
+      // A block instance is an empty placeholder: filled like the real one.
+      if (annotation?.type === "BLOCK_INSTANCE") {
+        const content =
+          editor?.sceneManager?.blocksManager?.createBlockContent?.(
+            annotation.instanceOfBlockId
+          );
+        if (content) object.add(content);
+      }
       object.userData = { isCopyGhost: true };
       const startRotZ = startPose.rotZ || 0;
       object.position.copy(start);
@@ -178,7 +199,7 @@ export function holdCopyGhostsUntilBuilt(
     if (timer) clearTimeout(timer);
     for (const ghost of ghosts) {
       ghost.object.parent?.remove(ghost.object);
-      disposeObject(ghost.object);
+      disposeGhostObject(ghost.object);
     }
     onReleased?.();
     editor?.renderScene?.();

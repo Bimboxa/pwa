@@ -1,5 +1,8 @@
 import { Box3, Scene } from "three";
 
+import store from "App/store";
+
+import { bumpSnapIndexEpoch } from "Features/threedEditor/threedEditorSlice";
 import getBaseMapTransform from "Features/baseMaps/js/getBaseMapTransform";
 
 import AnnotationsManager from "./AnnotationsManager";
@@ -292,5 +295,8 @@ export default class BlocksManager {
     this.sceneManager.clippingManager?.reapply?.();
     this.sceneManager.renderModeManager?.onSceneStructureChanged?.();
     this.sceneManager.requestRender?.();
+    // The content of the instances changed (possibly long after the load: a
+    // member's async carve / GLB): the move / rotate grab index reads it.
+    store.dispatch(bumpSnapIndexEpoch());
   }
 }

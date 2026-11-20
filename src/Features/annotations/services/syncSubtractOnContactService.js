@@ -1,12 +1,15 @@
 import db from "App/db/db";
 
-import getBaseMapRenderScale from "Features/baseMaps/js/getBaseMapRenderScale";
 import getHostsCutByAnnotationAsync from "Features/threedEditor/js/utilsAnnotationsManager/getHostsCutByAnnotationAsync";
 import { getActiveThreedEditor } from "Features/threedEditor/services/threedEditorRegistry";
 
-import { getShape3DKey } from "../constants/shape3DConfig";
 import getAnnotationPropsFromAnnotationTemplateProps from "../utils/getAnnotationPropsFromAnnotationTemplateProps";
 import getAnnotationTemplateProps from "../utils/getAnnotationTemplateProps";
+import getBlockCuttersByInstanceId, {
+  asBaseMapForMerge,
+  isLightResolvable,
+  resolveBlockInstanceBboxPx,
+} from "../utils/getBlockCuttersByInstanceId";
 import isVolumeCutter, { CUTTER_TYPES } from "../utils/isVolumeCutter";
 import resolveRowsAgainstOwnBaseMap from "../utils/resolveRowsAgainstOwnBaseMap";
 import addAnnotationSubtractions from "./addAnnotationSubtractions";
@@ -19,35 +22,9 @@ export const SUBTRACTION_ORIGIN_CONTACT = "CONTACT";
 // What can be carved (same types as « Soustraire », plus 3D meshes).
 const HOST_TYPES = ["POLYGON", "RECTANGLE", "POLYLINE", "STRIP"];
 
-// Line refs a light headless resolution leaves unresolved: a host whose solid
-// depends on them is only testable from the 3D scene's resolved source.
-const UNRESOLVED_LINE_KEYS = [
-  "profileLines",
-  "guideLines",
-  "isoHeightLines",
-  "heightCuts",
-  "heightCutFaces",
-];
-
 const EMPTY_RESULT = { addedCount: 0, removedCount: 0, cutterIds: [] };
 
 const isLive = (row) => Boolean(row) && !row.deletedAt;
-
-const hasItems = (value) => Array.isArray(value) && value.length > 0;
-
-// Whether a light-resolved row (points + holes only) builds the same solid as
-// the fully resolved annotation of the pipeline.
-function isLightResolvable(row) {
-  if (UNRESOLVED_LINE_KEYS.some((key) => hasItems(row[key]))) return false;
-  const shapeKey = getShape3DKey(row.shape3D);
-  return shapeKey !== "REVOLUTION" && shapeKey !== "EXTRUSION_PROFILE";
-}
-
-// The template merge reads the scale through the BaseMap instance API.
-const asBaseMapForMerge = (baseMap) =>
-  baseMap?.getMeterByPx
-    ? baseMap
-    : { ...baseMap, getMeterByPx: () => getBaseMapRenderScale(baseMap) };
 
 /**
  * « Soustraire au contact »: keeps the subtraction relations of the given
@@ -62,9 +39,19 @@ const asBaseMapForMerge = (baseMap) =>
  *  - the "CONTACT" relations whose host is no longer cut are soft-deleted.
  * Relations created by hand are never removed.
  *
+ * Blocks (Features/blocks): a member carrying the option carves wherever its
+ * block is instantiated. The cutter is then the INSTANCE (relation host →
+ * instance, solid = the flagged members posed by the instance, see
+ * getBlockCuttersByInstanceId): syncing a member also syncs every instance
+ * of its block, and an instance whose block no longer carves loses its
+ * "CONTACT" relations. The two families never mix: an instance (like any
+ * annotation of a regular base map) only carves annotations of regular base
+ * maps, a member only annotations of blocks base maps — the definition
+ * position of a member means nothing on the real plans.
+ *
  * Headless and derived: the writes push no undo entry (undoing the edit that
  * triggered the sync re-runs it, see requestSubtractOnContactSync). Returns
- * immediately when no annotation carries the flag.
+ * early when no annotation carries the flag and no instance carves.
  *
  * Hosts are resolved from the live 3D scene when it holds an up-to-date
  * source (full pipeline resolution), else from the rows (points + holes):
@@ -73,20 +60,53 @@ const asBaseMapForMerge = (baseMap) =>
  *
  * @param {Object} args
  * @param {string[]} args.annotationIds
+ * @param {string[]} [args.blockIds] blocks whose instances must be re-tested
+ *   (a member left the block: it no longer stands for them)
  * @param {Function} [args.isCancelled]
  * @returns {Promise<{addedCount: number, removedCount: number, cutterIds: string[]}>}
  */
 export default async function syncSubtractOnContactService({
   annotationIds,
+  blockIds,
   isCancelled,
 }) {
   const ids = [...new Set((annotationIds ?? []).filter(Boolean))];
-  if (ids.length === 0) return EMPTY_RESULT;
+  const givenBlockIds = (blockIds ?? []).filter(Boolean);
+  if (ids.length === 0 && givenBlockIds.length === 0) return EMPTY_RESULT;
 
   // -- 1. the flagged cutters (cheap exit when the option is not used) --
 
-  const rows = (await db.annotations.bulkGet(ids)).filter(isLive);
-  if (rows.length === 0) return EMPTY_RESULT;
+  const givenRows =
+    ids.length > 0 ? (await db.annotations.bulkGet(ids)).filter(isLive) : [];
+  if (givenRows.length === 0 && givenBlockIds.length === 0) return EMPTY_RESULT;
+
+  // A member of a block stands for every instance of that block.
+  const memberBlockIds = [
+    ...new Set([
+      ...givenRows.map((r) => r.blockId).filter(Boolean),
+      ...givenBlockIds,
+    ]),
+  ];
+  const instancesOfMembers =
+    memberBlockIds.length > 0
+      ? (
+          await db.annotations
+            .where("instanceOfBlockId")
+            .anyOf(memberBlockIds)
+            .toArray()
+        ).filter(isLive)
+      : [];
+  const rowById = new Map();
+  for (const r of [...givenRows, ...instancesOfMembers]) rowById.set(r.id, r);
+  const rows = [...rowById.values()];
+
+  const instanceRows = rows.filter(
+    (r) =>
+      r.type === "BLOCK_INSTANCE" &&
+      r.instanceOfBlockId &&
+      r.baseMapId &&
+      r.projectId
+  );
 
   const templateById = new Map();
   const loadTemplates = async (templateIds) => {
@@ -114,13 +134,14 @@ export default async function syncSubtractOnContactService({
       !r.isOpening &&
       !r.isMeshCell
   );
-  if (cutterRows.length === 0) return EMPTY_RESULT;
+  if (cutterRows.length === 0 && instanceRows.length === 0) return EMPTY_RESULT;
 
   // -- 2. project context --
 
-  const projectIds = [...new Set(cutterRows.map((r) => r.projectId))];
-  const [projectRows, baseMapRows, listingRows, relRows] = await Promise.all([
-    db.annotations.where("projectId").anyOf(projectIds).toArray(),
+  const projectIds = [
+    ...new Set([...cutterRows, ...instanceRows].map((r) => r.projectId)),
+  ];
+  const [baseMapRows, listingRows, relRows] = await Promise.all([
     db.baseMaps.where("projectId").anyOf(projectIds).toArray(),
     db.listings.where("projectId").anyOf(projectIds).toArray(),
     db.relAnnotationSubtractions.where("projectId").anyOf(projectIds).toArray(),
@@ -146,6 +167,38 @@ export default async function syncSubtractOnContactService({
       targetIdsBySource.set(rel.sourceAnnotationId, new Set());
     targetIdsBySource.get(rel.sourceAnnotationId).add(rel.targetAnnotationId);
   }
+
+  const isOnBlocksBaseMap = (row) =>
+    Boolean(baseMapById[row.baseMapId]?.isBlocksBaseMap);
+
+  // The instances that carve: on a regular base map, with the carving
+  // members of their block (none → null: their contacts are all lost).
+  const liveInstanceRows = instanceRows.filter(
+    (r) => baseMapById[r.baseMapId] && !isOnBlocksBaseMap(r)
+  );
+  const blockCuttersByInstanceId =
+    liveInstanceRows.length > 0
+      ? await getBlockCuttersByInstanceId(liveInstanceRows, baseMapById)
+      : new Map();
+  if (isCancelled?.()) return EMPTY_RESULT;
+
+  // Cheap exit (the common case of an instance edit): no flagged annotation,
+  // and no instance that carves or holds a contact to drop.
+  const instanceJobRows = liveInstanceRows.filter(
+    (r) =>
+      blockCuttersByInstanceId.has(r.id) ||
+      (relsByTarget.get(r.id) ?? []).some(
+        (rel) => rel.origin === SUBTRACTION_ORIGIN_CONTACT
+      )
+  );
+  if (cutterRows.length === 0 && instanceJobRows.length === 0)
+    return EMPTY_RESULT;
+
+  const projectRows = await db.annotations
+    .where("projectId")
+    .anyOf(projectIds)
+    .toArray();
+  if (isCancelled?.()) return EMPTY_RESULT;
 
   const hostRows = projectRows.filter(
     (r) =>
@@ -207,15 +260,35 @@ export default async function syncSubtractOnContactService({
   const relIdsToRemove = [];
   const syncedCutterIds = [];
 
-  for (const cutterRow of cutterRows) {
-    if (isCancelled?.()) return EMPTY_RESULT;
-    // The cutter was just written: always from the rows, never from a scene
-    // source that may lag behind the edit.
-    const cutter = isLightResolvable(cutterRow)
-      ? resolveLight(cutterRow)
-      : getSceneSource(cutterRow);
-    if (!cutter || !isVolumeCutter(cutter)) continue;
+  const jobs = [
+    ...cutterRows.map((row) => ({ row, isInstance: false })),
+    ...instanceJobRows.map((row) => ({ row, isInstance: true })),
+  ];
 
+  for (const { row: cutterRow, isInstance } of jobs) {
+    if (isCancelled?.()) return EMPTY_RESULT;
+    let cutter;
+    if (isInstance) {
+      const entry = blockCuttersByInstanceId.get(cutterRow.id);
+      cutter = entry
+        ? {
+            ...resolveBlockInstanceBboxPx(
+              cutterRow,
+              baseMapById[cutterRow.baseMapId]
+            ),
+            _blockCutters: entry.cutters,
+          }
+        : null;
+    } else {
+      // The cutter was just written: always from the rows, never from a
+      // scene source that may lag behind the edit.
+      cutter = isLightResolvable(cutterRow)
+        ? resolveLight(cutterRow)
+        : getSceneSource(cutterRow);
+      if (!cutter || !isVolumeCutter(cutter)) continue;
+    }
+
+    const cutterOnBlocksBaseMap = isOnBlocksBaseMap(cutterRow);
     const cutterScopeId = getScopeId(cutterRow);
     const carvedByCutter = targetIdsBySource.get(cutterRow.id);
 
@@ -223,6 +296,8 @@ export default async function syncSubtractOnContactService({
       .filter((r) => {
         if (r.id === cutterRow.id || r.projectId !== cutterRow.projectId)
           return false;
+        // Block definitions and real plans never carve each other.
+        if (isOnBlocksBaseMap(r) !== cutterOnBlocksBaseMap) return false;
         // Two « soustraire au contact » annotations never carve each other.
         if (isFlagged(r)) return false;
         // Never close a cycle: an annotation the cutter is carved out of.
@@ -235,13 +310,16 @@ export default async function syncSubtractOnContactService({
       .map(resolveHost)
       .filter(Boolean);
 
-    const hits = await getHostsCutByAnnotationAsync({
-      cutter,
-      hosts,
-      baseMapsById: baseMapById,
-      buildOptions,
-      isCancelled,
-    });
+    // An instance whose block holds no carving member cuts nothing.
+    const hits = cutter
+      ? await getHostsCutByAnnotationAsync({
+          cutter,
+          hosts,
+          baseMapsById: baseMapById,
+          buildOptions,
+          isCancelled,
+        })
+      : [];
     if (isCancelled?.()) return EMPTY_RESULT;
 
     const touchedHostIds = new Set(hits.map((hit) => hit.annotation.id));
@@ -257,6 +335,7 @@ export default async function syncSubtractOnContactService({
         sourceAnnotationId: hostId,
         targetAnnotationId: cutterRow.id,
         origin: SUBTRACTION_ORIGIN_CONTACT,
+        projectId: cutterRow.projectId,
       });
     }
     for (const rel of existingRels) {
@@ -275,10 +354,7 @@ export default async function syncSubtractOnContactService({
   let addedCount = 0;
   if (pairsToAdd.length > 0) {
     const byProject = new Map();
-    for (const pair of pairsToAdd) {
-      const projectId = cutterRows.find(
-        (r) => r.id === pair.targetAnnotationId
-      ).projectId;
+    for (const { projectId, ...pair } of pairsToAdd) {
       if (!byProject.has(projectId)) byProject.set(projectId, []);
       byProject.get(projectId).push(pair);
     }
