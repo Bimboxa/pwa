@@ -10,8 +10,8 @@ import { useDispatch, useSelector } from "react-redux";
 
 import {
   setBaseMapsGridPhase,
-  setBaseMapsGridListingId,
   setBaseMapsGridSelectedBaseMapId,
+  toggleBaseMapsGridGroupHidden,
   setScopeGridWanted,
   setBaseMapsGridOpenFitAll,
 } from "../baseMapsGridSlice";
@@ -44,7 +44,7 @@ import BaseMapSheetSvg, {
   SHEET_SHADOW_FILTER_ID,
 } from "./BaseMapSheetSvg";
 import AddBaseMapSheetSvg from "./AddBaseMapSheetSvg";
-import BaseMapsGridTabs from "./BaseMapsGridTabs";
+import BaseMapsGridGroupLabelSvg from "./BaseMapsGridGroupLabelSvg";
 import ButtonBaseMapsGrid from "./ButtonBaseMapsGrid";
 import ButtonToggleThreedViewer from "Features/viewers/components/ButtonToggleThreedViewer";
 
@@ -57,7 +57,12 @@ import {
 } from "../services/baseMapsGridRegistry";
 import selectBaseMapsGridPinned from "../utils/selectBaseMapsGridPinned";
 import selectBaseMapsGridDessin from "../utils/selectBaseMapsGridDessin";
-import composeBaseMapsGridSheets from "../utils/composeBaseMapsGridSheets";
+import composeBaseMapsGridGroupedSheets, {
+  GROUP_LABEL_HEIGHT,
+  GROUP_LABEL_WIDTH,
+  isAddSheetId,
+} from "../utils/composeBaseMapsGridGroupedSheets";
+import getBaseMapsGridGroups from "../utils/getBaseMapsGridGroups";
 import resolveBaseMapImageDisplay from "Features/baseMaps/utils/resolveBaseMapImageDisplay";
 import getAlignedSheetsLayout from "../utils/getAlignedSheetsLayout";
 import flyCameraMatrix from "../utils/flyCameraMatrix";
@@ -70,23 +75,23 @@ import {
 } from "../utils/getAlignedCameraMatrices";
 
 import {
-  ADD_SHEET_ID,
   BASE_MAPS_GRID_PHASE,
   FADE_DURATION_MS,
   FIT_DURATION_MS,
   OPENED_SHEET_PADDING,
-  TABS_HEIGHT,
   ZOOM_DURATION_MS,
 } from "../constants/baseMapsGridConstants";
 
 const FIT_ALL_PADDING = {
-  top: TABS_HEIGHT + 48,
+  top: 48,
   right: 64,
   bottom: 80,
   left: 64,
 };
 
-// The base maps of a listing laid like sheets of paper on a table, with their
+// The base maps laid like sheets of paper on a table, GROUPED BY FOLDER (the
+// folder name in light grey under each group, with an eye hiding the whole
+// group — no listing tabs), with their
 // annotations (same context as the map editor underneath). Covers the map
 // editor it is mounted in — SAME screen rect, so a sheet can be handed over
 // between the editor camera and the grid camera without moving on screen:
@@ -163,11 +168,14 @@ export default function LayerBaseMapsGrid({ forViewerKey }) {
   const hiddenAnnotationsIds = useSelector(
     (s) => s.baseMapsGrid.hiddenAnnotationsBaseMapIds
   );
+  const hiddenGroupIds = useSelector((s) => s.baseMapsGrid.hiddenGroupIds);
 
   const listings = useProjectBaseMapListings();
-  // Dessin: the blocks base maps (Features/blocks, no folder) lie on the
-  // table too, after the folders — the way to reach them from the grid.
-  const { value: baseMaps } = useBaseMaps({ includeBlocksBaseMaps: dessin });
+  // The blocks base maps (Features/blocks) lie on the table too, in their
+  // own « Blocs » group after the folders — the way to reach them from the
+  // grid. SCOPE (pinned): only as sheets of the « all listings » table
+  // (useScopeGridSheets).
+  const { value: baseMaps } = useBaseMaps({ includeBlocksBaseMaps: true });
   const spriteImage = useAnnotationSpriteImage();
   // same counts as the base map chips (whole scope, solo ignored)
   const annotationsCountByBaseMapId = useAnnotationsCountByBaseMapId();
@@ -216,23 +224,33 @@ export default function LayerBaseMapsGrid({ forViewerKey }) {
   });
   const rightOffset = panelKey ? panelWidth + 24 : 24;
 
-  // Displayed table: a listing tab, (pinned) the scope selection, or
-  // (Dessin) every base map of the scope — the "+" frame then creates in the
-  // folder of the main base map (the tab set at the opening).
+  // Displayed table: every base map (Fonds de plan, Dessin) or (pinned) the
+  // scope selection, grouped by folder. The "+" frames: one per folder in
+  // the Fonds de plan module; the folder of the main base map (set at the
+  // opening) in Dessin; the selected folder of the scope panel when pinned.
   const tabListingId = listings?.some((l) => l.id === selectedListingId)
     ? selectedListingId
     : (listings?.[0]?.id ?? null);
-  const listingId = pinned ? scopeSheets.addListingId : tabListingId;
   const listingRankById = useMemo(() => {
     const map = {};
     listings?.forEach((l, index) => (map[l.id] = index));
     return map;
   }, [listings]);
-  // Dessin: the sheets in the order of the folders (then the base maps'
-  // own order), so the rows of the table read like the Fonds de plan list.
-  const dessinBaseMapIds = useMemo(() => {
-    if (!dessin || !baseMaps) return null;
-    return baseMaps
+  const addListingIds = useMemo(() => {
+    if (pinned)
+      return scopeSheets.addListingId ? [scopeSheets.addListingId] : [];
+    if (dessin) return tabListingId ? [tabListingId] : [];
+    return (listings ?? []).map((l) => l.id);
+  }, [pinned, dessin, scopeSheets.addListingId, tabListingId, listings]);
+
+  // helpers - sheets of the table, by folder
+
+  const groups = useMemo(() => {
+    if (!baseMaps) return [];
+    const sheetIdSet = pinned ? new Set(scopeSheets.baseMapIds) : null;
+    // in the order of the folders, then the base maps' own order
+    const tableBaseMaps = baseMaps
+      .filter((baseMap) => !sheetIdSet || sheetIdSet.has(baseMap.id))
       .map((baseMap, index) => ({ baseMap, index }))
       .sort(
         (a, b) =>
@@ -240,45 +258,54 @@ export default function LayerBaseMapsGrid({ forViewerKey }) {
             (listingRankById[b.baseMap.listingId] ?? Infinity) ||
           a.index - b.index
       )
-      .map(({ baseMap }) => baseMap.id);
-  }, [dessin, baseMaps, listingRankById]);
-  const explicitBaseMapIds = pinned ? scopeSheets.baseMapIds : dessinBaseMapIds;
-  const folderNameById = useMemo(() => {
-    const map = {};
-    listings?.forEach((l) => (map[l.id] = l.name));
-    return map;
-  }, [listings]);
-
-  const countByListingId = useMemo(() => {
-    const counts = {};
-    baseMaps?.forEach((baseMap) => {
-      counts[baseMap.listingId] = (counts[baseMap.listingId] ?? 0) + 1;
+      .map(({ baseMap }) => baseMap);
+    return getBaseMapsGridGroups({
+      baseMaps: tableBaseMaps,
+      listings,
+      ensureListingIds: addListingIds,
+      blocksLabel: blocksS,
     });
-    return counts;
-  }, [baseMaps]);
+  }, [
+    baseMaps,
+    listings,
+    pinned,
+    scopeSheets.baseMapIds,
+    listingRankById,
+    addListingIds,
+    blocksS,
+  ]);
 
-  // helpers - sheets of the displayed listing
-
-  const { items, addSheet } = useMemo(
+  const { items, addSheets, groupLabels } = useMemo(
     () =>
-      composeBaseMapsGridSheets({
-        baseMaps,
-        listingId,
-        baseMapIds: explicitBaseMapIds,
+      composeBaseMapsGridGroupedSheets({
+        groups,
+        hiddenGroupIds,
+        addListingIds,
         positions,
       }),
-    [baseMaps, listingId, explicitBaseMapIds, positions]
+    [groups, hiddenGroupIds, addListingIds, positions]
   );
 
   const sheetById = useMemo(() => {
     const map = {};
     items.forEach((item) => (map[item.sheet.id] = item.sheet));
     // part of the table: framed by "fit all"
-    if (listingId) map[ADD_SHEET_ID] = addSheet;
+    addSheets.forEach((sheet) => (map[sheet.id] = sheet));
+    groupLabels.forEach(
+      (label) =>
+        (map[`__GROUP__:${label.id}`] = {
+          x: label.x,
+          y: label.y,
+          width: GROUP_LABEL_WIDTH,
+          height: GROUP_LABEL_HEIGHT,
+        })
+    );
     return map;
-  }, [items, addSheet, listingId]);
+  }, [items, addSheets, groupLabels]);
   const sheetByIdRef = useRef(sheetById);
   sheetByIdRef.current = sheetById;
+  const addSheetsRef = useRef(addSheets);
+  addSheetsRef.current = addSheets;
   // base map of each sheet (the Dessin navigation of the pinned grid)
   const baseMapByIdRef = useRef({});
   baseMapByIdRef.current = useMemo(() => {
@@ -352,13 +379,9 @@ export default function LayerBaseMapsGrid({ forViewerKey }) {
     return getGridCameraFitBounds({
       bounds: getSheetsBounds(Object.values(sheetByIdRef.current)),
       viewport: viewport.getViewportSize(),
-      // no tabs band on the pinned / Dessin table
-      padding:
-        pinned || dessin
-          ? { ...FIT_ALL_PADDING, top: FIT_ALL_PADDING.top - TABS_HEIGHT }
-          : FIT_ALL_PADDING,
+      padding: FIT_ALL_PADDING,
     });
-  }, [pinned, dessin]);
+  }, []);
 
   // effect - opening: pose the grid camera on the editor's one, then reveal
 
@@ -447,13 +470,9 @@ export default function LayerBaseMapsGrid({ forViewerKey }) {
     return () => clearActiveBaseMapsGrid(handle);
   }, [mainBaseMapId]);
 
-  // effect - tab change: frame the sheets of the new table
+  // effect - the table changed (sheet set, group hidden / shown): frame it
 
-  // Pinned / Dessin: the table changes with the sheet set instead (same
-  // re-framing when it changes).
-  const tableKey = explicitBaseMapIds
-    ? explicitBaseMapIds.join(",")
-    : listingId;
+  const tableKey = `${baseMapIds.join(",")}|${hiddenGroupIds.join(",")}`;
   const framedTableKeyRef = useRef(null);
   useEffect(() => {
     if (!isOpen || !tableKey) return;
@@ -580,20 +599,24 @@ export default function LayerBaseMapsGrid({ forViewerKey }) {
   // Tidies the hand-made arrangement (same rows, same order, aligned tops,
   // constant gaps).
   function handleAlign() {
+    // group by group: the folders keep their place on the table
+    const sheetsByGroupId = {};
+    items.forEach((item) => {
+      if (!sheetsByGroupId[item.groupId]) sheetsByGroupId[item.groupId] = [];
+      sheetsByGroupId[item.groupId].push(item.sheet);
+    });
     setSheetPositions(
-      getAlignedSheetsLayout({ sheets: items.map((item) => item.sheet) })
+      Object.values(sheetsByGroupId).reduce(
+        (acc, sheets) => ({ ...acc, ...getAlignedSheetsLayout({ sheets }) }),
+        {}
+      )
     );
     // frame the table once the sheets are on their aligned slots
     later(() => flyGridCamera(getFitAllCamera(), FIT_DURATION_MS), 0);
   }
 
-  function handleListingChange(id) {
-    dispatch(setBaseMapsGridListingId(id));
-    dispatch(setBaseMapsGridSelectedBaseMapId(null));
-  }
-
-  function handleAddBaseMap() {
-    // the new base map lands in the listing of the displayed table
+  function handleAddBaseMap(listingId) {
+    // the new base map lands in the folder of the clicked "+" frame
     dispatch(setSelectedBaseMapsListingId(listingId));
     dispatch(setShowCreateBaseMapSection(true));
   }
@@ -605,11 +628,21 @@ export default function LayerBaseMapsGrid({ forViewerKey }) {
   const lastCleanClickRef = useRef(null);
   function handleTableClick({ event }) {
     if (!isOpen) return;
+    // eye of a group label: hides / shows every sheet of the folder
+    const groupId =
+      event?.target?.closest?.("[data-group-eye-id]")?.dataset?.groupEyeId ??
+      null;
+    if (groupId) {
+      lastCleanClickRef.current = null;
+      dispatch(toggleBaseMapsGridGroupHidden(groupId));
+      return;
+    }
     const sheetId =
       event?.target?.closest?.("[data-sheet-id]")?.dataset?.sheetId ?? null;
     lastCleanClickRef.current = sheetId ? { sheetId, at: Date.now() } : null;
-    if (sheetId === ADD_SHEET_ID) {
-      handleAddBaseMap();
+    if (isAddSheetId(sheetId)) {
+      const addSheet = addSheetsRef.current.find((s) => s.id === sheetId);
+      if (addSheet) handleAddBaseMap(addSheet.listingId);
       return;
     }
     if (sheetId) {
@@ -643,7 +676,7 @@ export default function LayerBaseMapsGrid({ forViewerKey }) {
     if (!pinned || !isOpen || reorganizing) return;
     const sheetId =
       event.target?.closest?.("[data-sheet-id]")?.dataset?.sheetId ?? null;
-    if (!sheetId || sheetId === ADD_SHEET_ID) return;
+    if (!sheetId || isAddSheetId(sheetId)) return;
     const last = lastCleanClickRef.current;
     if (last?.sheetId !== sheetId || Date.now() - last.at > 500) return;
     lastCleanClickRef.current = null;
@@ -753,15 +786,6 @@ export default function LayerBaseMapsGrid({ forViewerKey }) {
                     ? undefined
                     : annotationsByBaseMapId[baseMap.id]
                 }
-                // across folders (pinned without a folder, Dessin): the
-                // folder under the name
-                subtitle={
-                  (pinned && !listingId) || dessin
-                    ? baseMap.isBlocksBaseMap
-                      ? blocksS
-                      : folderNameById[baseMap.listingId]
-                    : undefined
-                }
                 annotationsCount={
                   countFromSheets
                     ? (annotationsByBaseMapId[baseMap.id]?.length ?? 0)
@@ -785,13 +809,24 @@ export default function LayerBaseMapsGrid({ forViewerKey }) {
             );
           })}
 
-          {listingId && (
+          {addSheets.map((addSheet) => (
             <AddBaseMapSheetSvg
+              key={addSheet.id}
               sheet={addSheet}
               visible={revealed}
               disabled={!isOpen}
             />
-          )}
+          ))}
+
+          {/* folder name + eye under each group of sheets */}
+          {groupLabels.map((label) => (
+            <BaseMapsGridGroupLabelSvg
+              key={label.id}
+              label={label}
+              visible={revealed}
+              disabled={!isOpen}
+            />
+          ))}
         </MapEditorViewport>
       </Box>
 
@@ -802,18 +837,6 @@ export default function LayerBaseMapsGrid({ forViewerKey }) {
           pointerEvents: isOpen ? "auto" : "none",
         }}
       >
-        {/* SCOPE module: no listing tabs, the scope content drives the
-            table. Dessin module: no tabs either, every base map lies on
-            the table. */}
-        {!pinned && !dessin && (
-          <BaseMapsGridTabs
-            listings={listings}
-            countByListingId={countByListingId}
-            selectedListingId={listingId}
-            onSelect={handleListingChange}
-          />
-        )}
-
         <Box
           sx={{
             position: "absolute",

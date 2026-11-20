@@ -23,14 +23,6 @@ export const LIFT_OFFSET = 12;
 // Screen px kept free around the sheet once opened in the editor.
 export const OPENED_SHEET_PADDING = 32;
 
-export const TABS_HEIGHT = 44;
-
-// The table keeps the editor background (theme background.default); the
-// tabs band and the unselected tabs are darker shades of it.
-export const TABS_BAND_DARKEN = 0.1;
-export const TAB_DARKEN = 0.05;
-export const TAB_HOVER_DARKEN = 0.02;
-
 // Placeholder sheet ("+", creates a base map) closing the grid: A3 landscape.
 export const ADD_SHEET_ID = "__ADD_BASE_MAP__";
 export const ADD_SHEET_SIZE = { width: 1191, height: 842 };

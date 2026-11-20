@@ -57,6 +57,7 @@ import TogglePhotoOrFlattened from "Features/photoPlans/components/TogglePhotoOr
 import DialogDeleteRessource from "Features/layout/components/DialogDeleteRessource";
 import FieldTextV2 from "Features/form/components/FieldTextV2";
 import FieldBaseMapOpacity from "./FieldBaseMapOpacity";
+import FieldBaseMapIsBlocks from "Features/blocks/components/FieldBaseMapIsBlocks";
 import FieldBaseMapBlueprintScale from "./FieldBaseMapBlueprintScale";
 import PanelBaseMapPrintZone from "./PanelBaseMapPrintZone";
 import CardBaseMapPrintZone from "./CardBaseMapPrintZone";
@@ -376,6 +377,9 @@ export default function PanelBaseMapProperties() {
             <ChevronRight color="action" />
           </ButtonBase>
         </WhiteSectionGeneric>
+
+        {/* Blocks base map (Features/blocks): the page defines blocks */}
+        <FieldBaseMapIsBlocks baseMap={baseMap} />
 
         <FieldBaseMapVersions baseMap={baseMap} />
       </BoxFlexVStretch>

@@ -2,6 +2,7 @@ import { useMemo } from "react";
 import { useSelector } from "react-redux";
 
 import useBaseMaps from "Features/baseMaps/hooks/useBaseMaps";
+import useBlocksBaseMaps from "Features/blocks/hooks/useBlocksBaseMaps";
 import useAnnotationsV2 from "Features/annotations/hooks/useAnnotationsV2";
 import useDisabledBaseMapListingIds from "Features/baseMapEditor/hooks/useDisabledBaseMapListingIds";
 import useScopeListing from "./useScopeListing";
@@ -21,7 +22,11 @@ const EMPTY_IDS = [];
 //     fresh Krto) -> every base map of the project, so the table and the
 //     "Fonds de plan" rows are not empty; the annotated-only rule takes
 //     over with the first annotation. A selected but empty listing keeps
-//     an empty table (its filter band says why).
+//     an empty table (its filter band says why);
+//   - "Afficher toutes les listes" also lays the blocks base maps
+//     (Features/blocks) at the end of the table: their annotations only count
+//     through the block instances, so the annotated-only rule would never
+//     list them — the table is the way to reach them from the module.
 // Folders hidden by the eye of the scope panel
 // (scope.baseMapsSettings.disabledListingIds) are already out of useBaseMaps
 // and useAnnotationsV2; a hidden folder selected in the panel shows an empty
@@ -32,6 +37,7 @@ export default function useScopeGridSheets() {
 
   const projectId = useSelector((s) => s.projects.selectedProjectId);
   const { value: baseMaps } = useBaseMaps({ filterByProject: projectId });
+  const blocksBaseMaps = useBlocksBaseMaps();
   const hiddenListingsIds = useSelector(
     (s) => s.listings.hiddenListingsIds || EMPTY_IDS
   );
@@ -90,16 +96,24 @@ export default function useScopeGridSheets() {
     // of them, then re-laid for the annotated ones.
     const fallbackAll =
       !listing?.id && annotations !== undefined && annotatedIds.size === 0;
+    // all-listings mode: the blocks base maps close the table
+    const blocksBaseMapIds = listing?.id
+      ? []
+      : (blocksBaseMaps ?? []).map((baseMap) => baseMap.id);
     return {
-      baseMapIds: (fallbackAll
-        ? visibleBaseMaps
-        : visibleBaseMaps.filter((baseMap) => annotatedIds.has(baseMap.id))
-      ).map((baseMap) => baseMap.id),
+      baseMapIds: [
+        ...(fallbackAll
+          ? visibleBaseMaps
+          : visibleBaseMaps.filter((baseMap) => annotatedIds.has(baseMap.id))
+        ).map((baseMap) => baseMap.id),
+        ...blocksBaseMapIds,
+      ],
       addListingId: null,
       ready: baseMaps !== undefined && annotations !== undefined,
     };
   }, [
     baseMaps,
+    blocksBaseMaps,
     disabledListingIds,
     isBaseMapListing,
     listing?.id,

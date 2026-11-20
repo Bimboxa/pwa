@@ -292,8 +292,16 @@ export default memo(function BaseMapSheetSvg({
           width={sheet.width}
           height={sheet.height}
           fill="none"
-          stroke={selected ? theme.palette.primary.main : "rgba(0,0,0,0.12)"}
-          strokeWidth={selected ? 2 : 1}
+          // blocks base map (Features/blocks): secondary outline, so the
+          // pages defining blocks stand out from the plans
+          stroke={
+            selected
+              ? theme.palette.primary.main
+              : baseMap?.isBlocksBaseMap
+                ? theme.palette.secondary.main
+                : "rgba(0,0,0,0.12)"
+          }
+          strokeWidth={selected || baseMap?.isBlocksBaseMap ? 2 : 1}
           vectorEffect="non-scaling-stroke"
         />
         <clipPath id={`${clipId}-name`}>
