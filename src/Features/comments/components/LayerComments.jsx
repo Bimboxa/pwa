@@ -40,27 +40,17 @@ function LayerCommentsContent({ withPins }) {
   // data
 
   const { commentListings, selectedListing } = useCommentListings();
-  const allComments = useComments({ listingId: selectedListing?.id });
-  // Blocks context: on a blocks base map, the infos written there alone;
-  // on a regular one, none of them. The numbers stay the listing's ones.
+  const comments = useComments({ listingId: selectedListing?.id });
+  // Blocks context: the PINS drawn over the editors are the ones of the
+  // infos written in the displayed context (on a blocks base map, those
+  // written there alone; on a regular one, none of them). The strip and the
+  // floating panel keep every info: opening one restores its view, which is
+  // the way into — and out of — a block.
   const mainBaseMap = useMainBaseMap();
   const isBlocksContext = Boolean(mainBaseMap?.isBlocksBaseMap);
-  const openedCommentId = useSelector((s) => s.comments.openedCommentId);
-  const comments = useMemo(
-    () =>
-      allComments.filter((c) => isCommentInBlocksContext(c, isBlocksContext)),
-    [allComments, isBlocksContext]
-  );
-  // The opened info stays readable whatever the context (opened from the
-  // Infos panel without a main base map switch).
-  const popperComments = useMemo(
-    () =>
-      allComments.filter(
-        (c) =>
-          c.id === openedCommentId ||
-          isCommentInBlocksContext(c, isBlocksContext)
-      ),
-    [allComments, isBlocksContext, openedCommentId]
+  const contextComments = useMemo(
+    () => comments.filter((c) => isCommentInBlocksContext(c, isBlocksContext)),
+    [comments, isBlocksContext]
   );
   const { canEdit, canLocate } = useCanEditComments();
   const isLocating = useSelector((s) => s.comments.isLocating);
@@ -69,7 +59,7 @@ function LayerCommentsContent({ withPins }) {
   // panel step aside (the drawing helper and its toolbar take the screen, and
   // a pin must not take a click of the drawing).
   const isDrawing = useSelector((s) => Boolean(s.mapEditor.enabledDrawingMode));
-  const editorPins = useEditorCommentPins(comments);
+  const editorPins = useEditorCommentPins(contextComments);
 
   // state
 
@@ -170,7 +160,7 @@ function LayerCommentsContent({ withPins }) {
             (over the top bar when dragged), laid over the editors area. */}
         <PortalEditorFloatingPanels>
           <PopperComment
-            comments={popperComments}
+            comments={comments}
             canEdit={canEdit}
             hidden={isDrawing}
           />
