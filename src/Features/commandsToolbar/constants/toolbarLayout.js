@@ -190,6 +190,20 @@ const DEFAULT_SECTIONS = [
       "CHANGE_STYLE",
       "CLONE",
       "MERGE",
+      // align / centre the selected annotations (PowerPoint-like)
+      {
+        type: "group",
+        key: "ALIGN",
+        label: "Aligner",
+        commandKeys: [
+          "ALIGN_LEFT",
+          "ALIGN_CENTER_H",
+          "ALIGN_RIGHT",
+          "ALIGN_TOP",
+          "ALIGN_MIDDLE",
+          "ALIGN_BOTTOM",
+        ],
+      },
       "JOIN_ANNOTATIONS",
       "ADD_INTERSECTION_POINTS",
       "DILATE",

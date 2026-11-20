@@ -49,6 +49,7 @@ import ToolbarAnnotationActions from "./ToolbarAnnotationActions";
 import SelectorAnnotationTemplateVariantDense from "./SelectorAnnotationTemplateVariantDense";
 import ChipLayerSelector from "Features/layers/components/ChipLayerSelector";
 import ChipBlockLink from "Features/blocks/components/ChipBlockLink";
+import ButtonsAlignAnnotations from "Features/annotationAlign/components/ButtonsAlignAnnotations";
 import useBlocks from "Features/blocks/hooks/useBlocks";
 import {
   BLOCK_LABEL,
@@ -65,10 +66,12 @@ import BoxFlexVStretch from "Features/layout/components/BoxFlexVStretch";
 // Properties toolbar of SEVERAL selected annotations (template groups,
 // batch height / offset / isExt / 3D shape, layer, delete). The annotation
 // COMMANDS (Dupliquer, Fusionner, Découper…) live in the unified commands
-// toolbar (Features/commandsToolbar).
+// toolbar (Features/commandsToolbar) — the align / centre ones are also
+// offered here (`enableAlign`: 2D editor only).
 export default function ToolbarEditAnnotations({
   allAnnotations,
   onDragStart,
+  enableAlign = false,
 }) {
   const dispatch = useDispatch();
 
@@ -597,6 +600,14 @@ export default function ToolbarEditAnnotations({
             hideClone
             hideResize
             onDelete={handleDeleteClick}
+            extraActions={
+              enableAlign ? (
+                <ButtonsAlignAnnotations
+                  annotations={annotations}
+                  allAnnotations={allAnnotations}
+                />
+              ) : null
+            }
             layerChip={
               annotations.length > 0 ? (
                 <>

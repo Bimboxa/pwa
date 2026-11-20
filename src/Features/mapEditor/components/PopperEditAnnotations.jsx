@@ -16,6 +16,9 @@ export default function PopperEditAnnotations({
   viewerKey = null,
   allAnnotations,
   renderExtraSection = null,
+  // Align / centre buttons of the multi-selection toolbar: 2D editor only
+  // (a 3D selection mixes base maps and vertical planes).
+  enableAlign = false,
 }) {
   // data
 
@@ -85,6 +88,7 @@ export default function PopperEditAnnotations({
         <ToolbarEditAnnotations
           allAnnotations={allAnnotations}
           onDragStart={handleDragStart}
+          enableAlign={enableAlign}
         />
         {renderExtraSection?.({ onDragStart: handleDragStart })}
       </Box>

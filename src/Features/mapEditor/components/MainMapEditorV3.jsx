@@ -3172,6 +3172,7 @@ export default function MainMapEditorV3({ forViewerKey = "MAP" }) {
             <PopperEditAnnotations
               viewerKey={forViewerKey}
               allAnnotations={annotations}
+              enableAlign
             />
           </PortalEditorFloatingPanels>
           <PopperEditScale viewerKey={forViewerKey} />
