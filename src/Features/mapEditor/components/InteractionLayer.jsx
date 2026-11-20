@@ -2708,13 +2708,14 @@ const InteractionLayer = forwardRef(({
   const segmentLengthBadgeRef = useRef(null);
   // Rectangle preview: X / Y side-length badges (imperative, see
   // handleRectanglePreview). The raw typed buffers are mirrored in a ref:
-  // the badge text is written from the mouse-move path.
+  // the badge text is written from the mouse-move path. Assigned during
+  // render (not in an effect): the preview re-trigger effect on typed X / Y
+  // is declared earlier, so an effect-based sync would run after it and the
+  // badge would lag one keystroke behind.
   const rectDimBadgeRefs = useRef([]);
   const rectDimBadgesShownRef = useRef(false);
   const rectBuffersRef = useRef({ x: "", y: "" });
-  useEffect(() => {
-    rectBuffersRef.current = { x: rectXBuffer, y: rectYBuffer };
-  }, [rectXBuffer, rectYBuffer]);
+  rectBuffersRef.current = { x: rectXBuffer, y: rectYBuffer };
   const cursorAltitudeIndex = useMemo(() => {
     const byId = new Map();
     (annotations || []).forEach((a) => {
