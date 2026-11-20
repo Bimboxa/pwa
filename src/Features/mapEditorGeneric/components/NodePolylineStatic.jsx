@@ -1587,6 +1587,8 @@ function NodePolylineStatic({
   // selects the annotation.
   const inlineExtrusionBand = useMemo(() => {
     if (type !== "POLYLINE") return null;
+    // « Masquer l'empreinte » (SectionAnnotationProfileLines).
+    if (mergedAnnotation.hideProfileFootprint) return null;
     if (!mergedAnnotation.profileLines?.some((l) => l?.points?.length >= 2)) {
       return null;
     }

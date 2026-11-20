@@ -9,9 +9,12 @@ import {
   setSubSelection,
 } from "Features/selection/selectionSlice";
 
-import { Box, Button, Typography } from "@mui/material";
+import { Box, Button, Switch, Typography } from "@mui/material";
 import SwapHorizIcon from "@mui/icons-material/SwapHoriz";
 import DeleteOutlineIcon from "@mui/icons-material/DeleteOutline";
+
+import WhiteSectionGeneric from "Features/form/components/WhiteSectionGeneric";
+import WhiteSectionTitle from "Features/form/components/WhiteSectionTitle";
 
 import db from "App/db/db";
 import { withUndoGroup } from "App/db/undoManager";
@@ -24,7 +27,9 @@ import useDeleteProfileLine from "Features/annotations/hooks/useDeleteProfileLin
 // profiles of a POLYLINE (annotation.profileLines — « Ajouter un profil »),
 // each with « Inverser » (swap sides of the guide line,
 // mirrorProfileLineService) and « Supprimer » (useDeleteProfileLine, the
-// polyline comes back flat; Ctrl+Z restores). Self-hiding without profile.
+// polyline comes back flat; Ctrl+Z restores), plus « Masquer l'empreinte »
+// (annotation.hideProfileFootprint: hides the 2D extrusion band drawn by
+// NodePolylineStatic). Self-hiding without profile.
 export default function SectionAnnotationProfileLines({ annotation }) {
   const dispatch = useDispatch();
   const deleteProfileLine = useDeleteProfileLine();
@@ -39,6 +44,7 @@ export default function SectionAnnotationProfileLines({ annotation }) {
   const sourceS = (label) => `Depuis « ${label} »`;
   const mirrorS = "Inverser";
   const deleteS = "Supprimer";
+  const hideFootprintS = "Masquer l'empreinte";
   const mirroredS = "Profil inversé (Ctrl+Z pour annuler)";
   const mirrorFailedS = "Inversion impossible";
   const deletedS = "Profil supprimé (Ctrl+Z pour annuler)";
@@ -120,70 +126,89 @@ export default function SectionAnnotationProfileLines({ annotation }) {
     }
   }
 
+  async function handleHideFootprintChange(e) {
+    if (!annotation?.id) return;
+    await db.annotations.update(annotation.id, {
+      hideProfileFootprint: e.target.checked,
+    });
+    dispatch(triggerAnnotationsUpdate());
+  }
+
   // render
 
   if (!annotation?.id || !lines.length) return null;
 
   return (
-    <Box
-      sx={{
-        p: 2,
-        display: "flex",
-        flexDirection: "column",
-        gap: 1,
-        borderTop: "1px solid",
-        borderColor: "divider",
-      }}
-    >
-      <Typography variant="body2" sx={{ fontWeight: "bold" }}>
-        {titleS}
-      </Typography>
-      <Typography variant="caption" color="text.secondary">
-        {descriptionS}
-      </Typography>
-      {lines.map(({ line, index }) => {
-        const sourceLabel = line.sourceAnnotationId
-          ? sourceLabelOf(line.sourceAnnotationId)
-          : null;
-        return (
-          <Box
-            key={index}
-            sx={{ display: "flex", flexDirection: "column", gap: 0.5 }}
-          >
-            <Typography variant="body2">
-              {labelS(index, line.points.length)}
-            </Typography>
-            {sourceLabel && (
-              <Typography variant="caption" color="text.secondary">
-                {sourceS(sourceLabel)}
+    <WhiteSectionGeneric>
+      <Box sx={{ display: "flex", flexDirection: "column", gap: 0.5 }}>
+        <WhiteSectionTitle>{titleS}</WhiteSectionTitle>
+        <Typography variant="caption" color="text.secondary">
+          {descriptionS}
+        </Typography>
+        {lines.map(({ line, index }) => {
+          const sourceLabel = line.sourceAnnotationId
+            ? sourceLabelOf(line.sourceAnnotationId)
+            : null;
+          return (
+            <Box
+              key={index}
+              sx={{
+                display: "flex",
+                flexDirection: "column",
+                gap: 0.5,
+                mt: 0.5,
+              }}
+            >
+              <Typography variant="body2">
+                {labelS(index, line.points.length)}
               </Typography>
-            )}
-            <Box sx={{ display: "flex", gap: 1 }}>
-              <Button
-                variant="outlined"
-                size="small"
-                startIcon={<SwapHorizIcon />}
-                onClick={() => handleMirror(index)}
-                disabled={busy}
-                sx={{ textTransform: "none" }}
-              >
-                {mirrorS}
-              </Button>
-              <Button
-                variant="outlined"
-                size="small"
-                color="inherit"
-                startIcon={<DeleteOutlineIcon />}
-                onClick={() => handleDelete(index)}
-                disabled={busy}
-                sx={{ textTransform: "none" }}
-              >
-                {deleteS}
-              </Button>
+              {sourceLabel && (
+                <Typography variant="caption" color="text.secondary">
+                  {sourceS(sourceLabel)}
+                </Typography>
+              )}
+              <Box sx={{ display: "flex", gap: 1 }}>
+                <Button
+                  variant="outlined"
+                  size="small"
+                  startIcon={<SwapHorizIcon />}
+                  onClick={() => handleMirror(index)}
+                  disabled={busy}
+                  sx={{ textTransform: "none" }}
+                >
+                  {mirrorS}
+                </Button>
+                <Button
+                  variant="outlined"
+                  size="small"
+                  color="inherit"
+                  startIcon={<DeleteOutlineIcon />}
+                  onClick={() => handleDelete(index)}
+                  disabled={busy}
+                  sx={{ textTransform: "none" }}
+                >
+                  {deleteS}
+                </Button>
+              </Box>
             </Box>
-          </Box>
-        );
-      })}
-    </Box>
+          );
+        })}
+        <Box
+          sx={{
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            mt: 0.5,
+          }}
+        >
+          <Typography variant="body2">{hideFootprintS}</Typography>
+          <Switch
+            size="small"
+            checked={Boolean(annotation.hideProfileFootprint)}
+            onChange={handleHideFootprintChange}
+          />
+        </Box>
+      </Box>
+    </WhiteSectionGeneric>
   );
 }
