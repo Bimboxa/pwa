@@ -4,6 +4,7 @@ import { Box, IconButton, InputBase, Tooltip, Typography } from "@mui/material";
 import { alpha } from "@mui/material/styles";
 import AddIcon from "@mui/icons-material/Add";
 import ArrowUpwardIcon from "@mui/icons-material/ArrowUpward";
+import DrawOutlinedIcon from "@mui/icons-material/DrawOutlined";
 import CloseIcon from "@mui/icons-material/Close";
 import KeyboardArrowDownIcon from "@mui/icons-material/KeyboardArrowDown";
 import KeyboardArrowUpIcon from "@mui/icons-material/KeyboardArrowUp";
@@ -11,6 +12,8 @@ import LinkIcon from "@mui/icons-material/Link";
 import YouTubeIcon from "@mui/icons-material/YouTube";
 
 import CommentBlocksRenderer from "./CommentBlocksRenderer";
+import CommentBlockDrawActionEditor from "./CommentBlockDrawActionEditor";
+import MenuPickAnnotationTemplate from "Features/commandsToolbar/components/MenuPickAnnotationTemplate";
 
 import {
   COMMENT_BLOCK_TYPES,
@@ -21,6 +24,7 @@ import { COMMENT_COLORS } from "../commentsDarkTheme";
 import addCommentImageFileService from "../services/addCommentImageFileService";
 import parseYoutubeVideoId from "../utils/parseYoutubeVideoId";
 import normalizeLinkUrl from "../utils/normalizeLinkUrl";
+import getCommentDrawActionTools from "../utils/getCommentDrawActionTools";
 
 const COMPOSER_MODES = { TEXT: "TEXT", LINK: "LINK", YOUTUBE: "YOUTUBE" };
 
@@ -67,7 +71,8 @@ function buildBlockFromInput(mode, raw) {
 //   edited in place; hovering a block shows its move / delete actions.
 // - at the bottom, the COMPOSER: one input that appends to the flow (Enter;
 //   Shift+Enter for a line break), where images can be pasted or dropped, and
-//   a row of options under it (image file, link, YouTube video).
+//   a row of options under it (image file, link, YouTube video, drawing
+//   action: a button starting the drawing of a picked annotation template).
 // Images are stored as soon as they are added (db.files, comment listing) —
 // the draft only holds their file name.
 export default function CommentBlocksEditor({
@@ -89,6 +94,8 @@ export default function CommentBlocksEditor({
   const addImageS = "Ajouter des images";
   const addLinkS = "Ajouter un lien";
   const addYoutubeS = "Ajouter une vidéo YouTube";
+  const addDrawActionS = "Ajouter une action de dessin";
+  const noTemplateS = "Aucun modèle d'annotation dans ce plan de repérage";
   const sendS = "Ajouter à l'info (Entrée)";
   const hintS = "Entrée pour ajouter · Maj+Entrée pour un saut de ligne";
   const dropS = "Déposez les images ici";
@@ -107,6 +114,7 @@ export default function CommentBlocksEditor({
   const [error, setError] = useState(null);
   const [addingImage, setAddingImage] = useState(false);
   const [dragging, setDragging] = useState(false);
+  const [drawActionAnchorEl, setDrawActionAnchorEl] = useState(null);
 
   // helpers
 
@@ -204,6 +212,21 @@ export default function CommentBlocksEditor({
     if (!files.some(isImageFile)) return;
     e.preventDefault();
     addImageFiles(files);
+  }
+
+  // Drawing action: the picked template with its own tool (default tool,
+  // else the first of its shape) — changed on the block, in the flow.
+  function handlePickDrawTemplate(templateId, template) {
+    setDrawActionAnchorEl(null);
+    if (!template) return;
+    const { activeTool } = getCommentDrawActionTools(template, null);
+    appendBlocks([
+      createCommentBlock(COMMENT_BLOCK_TYPES.DRAW_ACTION, {
+        annotationTemplateId: templateId,
+        listingId: template.listingId ?? null,
+        toolKey: activeTool?.key ?? null,
+      }),
+    ]);
   }
 
   function handleDragOver(e) {
@@ -350,6 +373,13 @@ export default function CommentBlocksEditor({
               <CommentBlocksRenderer blocks={[block]} />
             )}
 
+            {block.type === COMMENT_BLOCK_TYPES.DRAW_ACTION && (
+              <CommentBlockDrawActionEditor
+                block={block}
+                onChange={(patch) => updateBlock(block.id, patch)}
+              />
+            )}
+
             {/* move / delete, shown over the block on hover */}
             <Box
               className="block-actions"
@@ -467,6 +497,15 @@ export default function CommentBlocksEditor({
                 <YouTubeIcon sx={{ fontSize: 18 }} />
               </IconButton>
             </Tooltip>
+            <Tooltip title={addDrawActionS} arrow>
+              <IconButton
+                size="small"
+                onClick={(e) => setDrawActionAnchorEl(e.currentTarget)}
+                sx={optionButtonSx(Boolean(drawActionAnchorEl))}
+              >
+                <DrawOutlinedIcon sx={{ fontSize: 18 }} />
+              </IconButton>
+            </Tooltip>
             <Typography
               variant="caption"
               noWrap
@@ -504,6 +543,18 @@ export default function CommentBlocksEditor({
           </Box>
         </Box>
       </Box>
+
+      <MenuPickAnnotationTemplate
+        open={Boolean(drawActionAnchorEl)}
+        anchorEl={drawActionAnchorEl}
+        onClose={() => setDrawActionAnchorEl(null)}
+        filterTemplate={(template, { listings }) =>
+          Boolean(listings?.some((l) => l.id === template.listingId))
+        }
+        onChange={handlePickDrawTemplate}
+        emptyText={noTemplateS}
+        panelOrder
+      />
 
       <Box
         component="input"

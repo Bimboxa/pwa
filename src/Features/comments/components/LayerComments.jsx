@@ -19,8 +19,13 @@ import useCommentListings from "../hooks/useCommentListings";
 import useComments from "../hooks/useComments";
 import useCanEditComments from "../hooks/useCanEditComments";
 import useCommentLocateCapture from "../hooks/useCommentLocateCapture";
+import useEditorCommentPins from "../hooks/useEditorCommentPins";
+import isCommandsToolbarModuleKey from "Features/commandsToolbar/utils/isCommandsToolbarModuleKey";
+import { selectDisabledModuleKeys } from "Features/scopeConfig/utils/scopeConfigSelectors";
 
-function LayerCommentsContent() {
+// `withPins`: the module displays the shared 2D / 3D editors the pins are
+// projected on.
+function LayerCommentsContent({ withPins }) {
   const dispatch = useDispatch();
 
   // strings
@@ -34,8 +39,14 @@ function LayerCommentsContent() {
 
   const { commentListings, selectedListing } = useCommentListings();
   const comments = useComments({ listingId: selectedListing?.id });
-  const canEdit = useCanEditComments();
+  const { canEdit, canLocate } = useCanEditComments();
   const isLocating = useSelector((s) => s.comments.isLocating);
+  const pinsHidden = useSelector((s) => s.comments.pinsHidden);
+  // A drawing / tool mode is armed: the strip, the pins and the floating
+  // panel step aside (the drawing helper and its toolbar take the screen, and
+  // a pin must not take a click of the drawing).
+  const isDrawing = useSelector((s) => Boolean(s.mapEditor.enabledDrawingMode));
+  const editorPins = useEditorCommentPins(comments);
 
   // state
 
@@ -43,7 +54,7 @@ function LayerCommentsContent() {
 
   // helpers
 
-  const locating = Boolean(isLocating && canEdit);
+  const locating = Boolean(isLocating && canLocate);
   const locateCursorRef = useRef(null);
   const handleMiss = useCallback(() => setMissed(true), []);
   useCommentLocateCapture({
@@ -54,11 +65,11 @@ function LayerCommentsContent() {
 
   // effects
 
-  // The pick only lives in the Comments module: leaving it (or losing the
-  // edit rights) disarms it.
+  // The pick only lives where infos are written: leaving such a module (or
+  // losing the edit rights) disarms it.
   useEffect(() => {
-    if (isLocating && !canEdit) dispatch(setIsLocatingComment(false));
-  }, [isLocating, canEdit, dispatch]);
+    if (isLocating && !canLocate) dispatch(setIsLocatingComment(false));
+  }, [isLocating, canLocate, dispatch]);
 
   useEffect(() => {
     if (!locating) setMissed(false);
@@ -84,12 +95,20 @@ function LayerCommentsContent() {
             pointerEvents: "none",
           }}
         >
-          <LayerCommentPins comments={comments} />
-          <StripCommentPills
-            comments={comments}
-            commentListings={commentListings}
-            selectedListing={selectedListing}
-          />
+          {withPins && !pinsHidden && !isDrawing && (
+            <LayerCommentPins pins={editorPins} />
+          )}
+          {!isDrawing && (
+            <StripCommentPills
+              comments={comments}
+              commentListings={commentListings}
+              selectedListing={selectedListing}
+              canEdit={canEdit}
+              canLocate={canLocate}
+              pinsCount={withPins ? editorPins.length : null}
+              pinsHidden={pinsHidden}
+            />
+          )}
           {locating && <CommentLocateCursor ref={locateCursorRef} />}
           {locating && (
             <Box
@@ -127,7 +146,11 @@ function LayerCommentsContent() {
         {/* Floating panel of the opened comment: rendered in the layout host
             (over the top bar when dragged), laid over the editors area. */}
         <PortalEditorFloatingPanels>
-          <PopperComment comments={comments} canEdit={canEdit} />
+          <PopperComment
+            comments={comments}
+            canEdit={canEdit}
+            hidden={isDrawing}
+          />
         </PortalEditorFloatingPanels>
       </ThemeProvider>
 
@@ -136,18 +159,31 @@ function LayerCommentsContent() {
   );
 }
 
-// Comments shown over the displayed editor (2D or 3D): the pills strip, the
-// pins of the located comments and the floating panel of the opened comment.
-// Mounted in the Comments module (where comments are written) and in the
-// Viewer module — hence in a Krto shared with `?mode=viewer` — where they
-// guide the reader.
+// Infos shown over the displayed module: the pills strip (with its two "add
+// an info" buttons where infos are written — every module but the Viewer),
+// the pins of the located infos over the 2D / 3D editors and the floating
+// panel of the opened info.
+// Mounted in the Infos module, in the Viewer module — hence in a Krto shared
+// with `?mode=viewer` — where they guide the reader, and, while the Infos
+// module is enabled in the scope, in EVERY other module: opening an info
+// sends the reader to the module it was written from
+// (restoreCommentViewContextService), the strip follows.
 export default function LayerComments() {
   // data
 
   const moduleKey = useSelector((s) => s.viewers.selectedViewerKey);
+  const commentsModuleEnabled = useSelector(
+    (s) => !selectDisabledModuleKeys(s).includes(COMMENTS_MODULE_KEY)
+  );
 
   // render
 
-  if (moduleKey !== COMMENTS_MODULE_KEY && moduleKey !== "THREED") return null;
-  return <LayerCommentsContent />;
+  const isInfosOrViewer =
+    moduleKey === COMMENTS_MODULE_KEY || moduleKey === "THREED";
+  if (!isInfosOrViewer && !commentsModuleEnabled) return null;
+  return (
+    <LayerCommentsContent
+      withPins={isInfosOrViewer || isCommandsToolbarModuleKey(moduleKey)}
+    />
+  );
 }

@@ -135,8 +135,10 @@ function CommentEditorBody({ comment, onDone }) {
 // editor). Header: number pill + title, previous / next comment, edit and
 // delete (Comments module only), close. Body: the blocks, read-only or in
 // their editor.
+// `hidden` (a drawing mode is armed): not displayed but kept mounted, so an
+// unsaved draft of the editor survives the drawing.
 // ---------------------------------------------------------------------------
-export default function PopperComment({ comments, canEdit }) {
+export default function PopperComment({ comments, canEdit, hidden = false }) {
   const dispatch = useDispatch();
 
   // strings
@@ -231,7 +233,7 @@ export default function PopperComment({ comments, canEdit }) {
                 offsetY: position.y,
               }),
             }),
-        display: "flex",
+        display: hidden ? "none" : "flex",
         flexDirection: "column",
         overflow: "hidden",
         borderRadius: 3,
@@ -251,7 +253,8 @@ export default function PopperComment({ comments, canEdit }) {
         sx={{
           flexShrink: 0,
           display: "flex",
-          alignItems: "center",
+          // top-aligned: the title wraps on as many lines as it needs
+          alignItems: "flex-start",
           gap: 1,
           pl: 1.25,
           pr: 0.5,
@@ -271,11 +274,14 @@ export default function PopperComment({ comments, canEdit }) {
         />
         <Typography
           variant="body1"
-          noWrap
           sx={{
             flex: 1,
             minWidth: 0,
+            // centers a one-line title on the 26 px pill / the controls
+            py: "3px",
+            lineHeight: "20px",
             fontWeight: 600,
+            overflowWrap: "anywhere",
             color: comment.title ? "text.primary" : "text.secondary",
           }}
         >
@@ -284,7 +290,12 @@ export default function PopperComment({ comments, canEdit }) {
         {comment.location && (
           <Tooltip title={locatedS} arrow>
             <PlaceOutlinedIcon
-              sx={{ fontSize: 16, color: "text.secondary", flexShrink: 0 }}
+              sx={{
+                mt: "5px",
+                fontSize: 16,
+                color: "text.secondary",
+                flexShrink: 0,
+              }}
             />
           </Tooltip>
         )}
@@ -343,7 +354,11 @@ export default function PopperComment({ comments, canEdit }) {
         />
       ) : (
         <Box sx={{ flex: 1, overflow: "auto", p: 1.75 }}>
-          <CommentBlocksRenderer blocks={comment.blocks} emptyLabel={emptyS} />
+          <CommentBlocksRenderer
+            blocks={comment.blocks}
+            emptyLabel={emptyS}
+            sourceModuleKey={comment.viewContext?.moduleKey ?? null}
+          />
         </Box>
       )}
 

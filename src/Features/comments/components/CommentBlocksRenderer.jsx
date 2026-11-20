@@ -8,6 +8,7 @@ import OpenInNewIcon from "@mui/icons-material/OpenInNew";
 import FullscreenIcon from "@mui/icons-material/Fullscreen";
 
 import DialogImageViewer from "Features/images/components/DialogImageViewer";
+import CommentBlockDrawAction from "./CommentBlockDrawAction";
 
 import { COMMENT_BLOCK_TYPES } from "../constants/commentBlocks";
 import { COMMENT_COLORS } from "../commentsDarkTheme";
@@ -232,16 +233,21 @@ const BLOCK_COMPONENTS = {
   [COMMENT_BLOCK_TYPES.IMAGE]: BlockImage,
   [COMMENT_BLOCK_TYPES.LINK]: BlockLink,
   [COMMENT_BLOCK_TYPES.YOUTUBE]: BlockYoutube,
+  [COMMENT_BLOCK_TYPES.DRAW_ACTION]: CommentBlockDrawAction,
 };
 
 // Read-only body of a comment: its blocks in order. Unknown block types
 // (written by a newer version) are skipped. `imageFullscreen: false` drops
 // the "view large" button of the images (the editor shows its own block
-// actions in that corner).
+// actions in that corner). `interactive: false` (editor previews) keeps the
+// drawing action buttons inert; `sourceModuleKey` is the module the info was
+// written from (viewContext.moduleKey), where those buttons draw.
 export default function CommentBlocksRenderer({
   blocks,
   emptyLabel,
   imageFullscreen = true,
+  interactive = true,
+  sourceModuleKey = null,
 }) {
   // helpers
 
@@ -262,7 +268,13 @@ export default function CommentBlocksRenderer({
       {items.map((block) => {
         const Block = BLOCK_COMPONENTS[block.type];
         return (
-          <Block key={block.id} block={block} fullscreen={imageFullscreen} />
+          <Block
+            key={block.id}
+            block={block}
+            fullscreen={imageFullscreen}
+            interactive={interactive}
+            sourceModuleKey={sourceModuleKey}
+          />
         );
       })}
     </Box>

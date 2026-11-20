@@ -22,15 +22,16 @@ import { isThreedFamilyViewerKey } from "Features/viewers/utils/threedViewerKeys
 
 const PIN_SIZE = 26;
 
-// Pins of the LOCATED comments, drawn over the displayed editor at the very
-// point picked by the author:
+// Pins of the LOCATED comments (`pins`: the ones the displayed editor can
+// show — useEditorCommentPins), drawn over it at the very point picked by
+// the author:
 // - 2D: comments located on the main base map, at their normalized point;
 // - 3D: every comment with a world position, projected through the camera
 //   (no occlusion: a pin stays visible through the model).
 // A DOM layer, not scene objects: same pill as the strip, crisp at any zoom,
 // and nothing to keep out of the annotations pipeline. Positions are written
 // straight to the elements on every frame (no React render per camera move).
-export default function LayerCommentPins({ comments }) {
+export default function LayerCommentPins({ pins }) {
   const dispatch = useDispatch();
   const store = useStore();
 
@@ -48,12 +49,6 @@ export default function LayerCommentPins({ comments }) {
   // helpers
 
   const isThreed = isThreedFamilyViewerKey(effectiveKey);
-  const mainBaseMapId = mainBaseMap?.id ?? null;
-  const pins = comments.filter((c) =>
-    isThreed
-      ? Boolean(c.location?.worldPosition)
-      : Boolean(c.location?.point) && c.location.baseMapId === mainBaseMapId
-  );
 
   // state
 

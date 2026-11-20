@@ -28,6 +28,7 @@ import { resolveSelectedAnnotationPart } from "Features/annotations/hooks/useSel
 import useAnnotationPermissions from "Features/mapEditor/hooks/useAnnotationPermissions";
 import useMainBaseMap from "Features/mapEditor/hooks/useMainBaseMap";
 import useReadOnlyScope from "Features/scopes/hooks/useReadOnlyScope";
+import { selectDisabledModuleKeys } from "Features/scopeConfig/utils/scopeConfigSelectors";
 import useDrawingToolsAvailability from "./useDrawingToolsAvailability";
 
 import { EDITOR_2D, EDITOR_3D } from "../constants/commandEditors";
@@ -79,6 +80,11 @@ export default function useCommandsContext({ enabled = true } = {}) {
   const selectedScopeId = useSelector((s) => s.scopes.selectedScopeId);
   // "+ Commentaire localisé" armed (Features/comments).
   const isLocatingComment = useSelector((s) => s.comments.isLocating);
+  // Infos module enabled in the scope: its two creation commands are then
+  // offered in the other modules too.
+  const commentsModuleEnabled = useSelector(
+    (s) => !selectDisabledModuleKeys(s).includes("COMMENTS")
+  );
   const { showDrawingTools, isLocateBusinessObjectMode, locateBusinessObject } =
     useDrawingToolsAvailability();
 
@@ -343,6 +349,7 @@ export default function useCommandsContext({ enabled = true } = {}) {
       readOnlyReason: READ_ONLY_REASON,
       // comments module
       isLocatingComment,
+      commentsModuleEnabled,
     }),
     [
       viewerKey,
@@ -402,6 +409,7 @@ export default function useCommandsContext({ enabled = true } = {}) {
       selectionEditable,
       readOnly,
       isLocatingComment,
+      commentsModuleEnabled,
     ]
   );
 
