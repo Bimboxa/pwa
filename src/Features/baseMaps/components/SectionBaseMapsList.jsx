@@ -67,6 +67,7 @@ import DialogCreateBaseMapVersion from "Features/baseMapEditor/components/Dialog
 import RowPanelOptionCheckbox from "Features/layout/components/RowPanelOptionCheckbox";
 
 import db from "App/db/db";
+import { triggerEntitiesTableUpdate } from "Features/entities/entitiesSlice";
 import useHideOtherBaseMaps from "../hooks/useHideOtherBaseMaps";
 import createBaseMapVersionFromSource from "../services/createBaseMapVersionFromSource";
 import useBaseMaps from "../hooks/useBaseMaps";
@@ -139,6 +140,9 @@ import { getScene3dDisplay3d } from "Features/scene3d/constants/scene3dConstants
 
 // Collision detection of the single DndContext: pointer position first
 // (accurate over rows and headers), rect intersection as a fallback.
+// Id of the « Blocs » section (blocks base maps, Features/blocks).
+const BLOCKS_GROUP_ID = "__BLOCKS__";
+
 function listCollisionDetection(args) {
   const within = pointerWithin(args);
   if (within.length > 0) return within;
@@ -159,6 +163,7 @@ export default function SectionBaseMapsList({
 
   const emptyS = "Aucun fond de plan";
   const othersS = "Autres";
+  const blocksS = "Blocs";
   const versionS = "Version";
   const scansHiddenGloballyS =
     "3D masquée par le sélecteur Scan 3D de la barre du bas";
@@ -178,7 +183,14 @@ export default function SectionBaseMapsList({
     (s) => s.popperMapListings.autoBaseMapVisibility
   );
   const hideOtherBaseMaps = useHideOtherBaseMaps();
-  const { value: baseMaps = [] } = useBaseMaps({});
+  // Fonds de plan and SCOPE modules: the blocks base maps (Features/blocks)
+  // are listed too, under their own « Blocs » section.
+  const includeBlocksBaseMaps = useSelector(
+    (s) =>
+      s.viewers.selectedViewerKey === "BASE_MAPS" ||
+      s.viewers.selectedViewerKey === "SCOPE"
+  );
+  const { value: baseMaps = [] } = useBaseMaps({ includeBlocksBaseMaps });
   const listings = useProjectBaseMapListings() ?? [];
   const mainBaseMap = useMainBaseMap();
   const selectMainBaseMap = useSelectMainBaseMap();
@@ -300,7 +312,13 @@ export default function SectionBaseMapsList({
                 Boolean(annotationsModeByBaseMapId?.[bm.id])))
     );
     const byListing = new Map();
+    const blocksBaseMaps = [];
     for (const bm of enabled) {
+      // blocks base maps: their own section, whatever their folder
+      if (bm.isBlocksBaseMap) {
+        blocksBaseMaps.push(bm);
+        continue;
+      }
       const key = bm.listingId ?? "__none__";
       if (!byListing.has(key)) byListing.set(key, []);
       byListing.get(key).push(bm);
@@ -323,12 +341,22 @@ export default function SectionBaseMapsList({
       // leftover group (no / unknown listing): not sortable
       ordered.push({ id: key, name: othersS, listing: null, baseMaps: bms });
     }
+    // « Blocs » section: last, not sortable (no folder behind it)
+    if (blocksBaseMaps.length > 0) {
+      ordered.push({
+        id: BLOCKS_GROUP_ID,
+        name: blocksS,
+        listing: null,
+        baseMaps: blocksBaseMaps,
+      });
+    }
     return ordered;
   }, [
     baseMaps,
     listings,
     mainBaseMap,
     othersS,
+    blocksS,
     hideEmpty,
     annotationsCountByBaseMapId,
     visibleIds,
@@ -510,7 +538,7 @@ export default function SectionBaseMapsList({
     const targetListing = listings.find((l) => l.id === target.listingId);
     if (!baseMap || !targetListing) return;
     const targetGroup = baseMaps.filter(
-      (bm) => bm.listingId === targetListing.id
+      (bm) => bm.listingId === targetListing.id && !bm.isBlocksBaseMap
     );
     try {
       if (targetListing.id === sourceListingId) {
@@ -632,7 +660,14 @@ export default function SectionBaseMapsList({
   }
 
   async function handleConfirmRenameBaseMap(map, listing) {
-    await updateEntity(map.id, { name: tempTitle }, { listing });
+    if (map.isBlocksBaseMap) {
+      // Direct write: a blocks base map may have no folder, and updateEntity
+      // would then fall back to the SELECTED listing (wrong table).
+      await db.baseMaps.update(map.id, { name: tempTitle });
+      dispatch(triggerEntitiesTableUpdate("baseMaps"));
+    } else {
+      await updateEntity(map.id, { name: tempTitle }, { listing });
+    }
     setEditingItemId(null);
   }
 

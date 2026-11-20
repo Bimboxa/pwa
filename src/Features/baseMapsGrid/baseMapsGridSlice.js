@@ -31,6 +31,9 @@ const initialState = {
   // scope.
   hiddenImageBaseMapIds: [],
   hiddenAnnotationsBaseMapIds: [],
+  // Groups of sheets (base maps folders, see getBaseMapsGridGroups) hidden
+  // from the 2D table by the eye of their label.
+  hiddenGroupIds: [],
   // SCOPE module: the grid is wanted (the keepers open it under the
   // displayed editor) from the module entry / a scope change until the user
   // leaves it (double-click on a sheet, G, Escape, close button, nav
@@ -99,6 +102,9 @@ export const baseMapsGridSlice = createSlice({
         action.payload
       );
     },
+    toggleBaseMapsGridGroupHidden: (state, action) => {
+      state.hiddenGroupIds = toggleId(state.hiddenGroupIds, action.payload);
+    },
     // « Supprimer les filtres » (SCOPE module « Contenu » tab): every sheet
     // shown again (image + annotations), no sheet selected.
     resetBaseMapsGridSheetFilters: (state) => {
@@ -125,6 +131,7 @@ export const baseMapsGridSlice = createSlice({
       closeGrid(state);
       state.hiddenImageBaseMapIds = [];
       state.hiddenAnnotationsBaseMapIds = [];
+      state.hiddenGroupIds = [];
       state.scopeGridWanted = true;
     };
     builder
@@ -153,6 +160,7 @@ export const {
   setBaseMapsGridOpenEditorRect,
   toggleBaseMapsGridImageHidden,
   toggleBaseMapsGridAnnotationsHidden,
+  toggleBaseMapsGridGroupHidden,
   resetBaseMapsGridSheetFilters,
 } = baseMapsGridSlice.actions;
 
