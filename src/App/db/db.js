@@ -536,7 +536,8 @@ db.version(44).stores({
 //       imageSize, caption} | {id, type: "LINK", url, label} |
 //       {id, type: "YOUTUBE", url, videoId} | {id, type: "DRAW_ACTION",
 //       annotationTemplateId, listingId, toolKey, label} |
-//       {id, type: "PROCEDURE_ACTION", listingId, procedureKey}],
+//       {id, type: "PROCEDURE_ACTION", listingId, procedureKey} |
+//       {id, type: "TEMPLATES_LIST", annotationTemplateIds}],
 //     location: null | {baseMapId, point: {x, y} | null,
 //       worldPosition: {x, y, z} | null} — point INLINE, normalized [0..1] on
 //       the base map image (never a db.points row: the Krto points filter

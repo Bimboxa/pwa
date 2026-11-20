@@ -1,9 +1,17 @@
 import { useEffect, useRef, useState } from "react";
 
-import { Box, IconButton, InputBase, Tooltip, Typography } from "@mui/material";
+import {
+  Box,
+  Button,
+  IconButton,
+  InputBase,
+  Tooltip,
+  Typography,
+} from "@mui/material";
 import { alpha } from "@mui/material/styles";
 import AddIcon from "@mui/icons-material/Add";
 import ArrowUpwardIcon from "@mui/icons-material/ArrowUpward";
+import ChecklistIcon from "@mui/icons-material/Checklist";
 import DrawOutlinedIcon from "@mui/icons-material/DrawOutlined";
 import CloseIcon from "@mui/icons-material/Close";
 import KeyboardArrowDownIcon from "@mui/icons-material/KeyboardArrowDown";
@@ -75,7 +83,9 @@ function buildBlockFromInput(mode, raw) {
 //   Shift+Enter for a line break), where images can be pasted or dropped, and
 //   a row of options under it (image file, link, YouTube video, drawing
 //   action: a button starting the drawing of a picked annotation template,
-//   procedure action: the "Dessin auto" band of a picked listing procedure).
+//   procedure action: the "Dessin auto" band of a picked listing procedure,
+//   templates list: annotation templates ticked in a menu, whose rows toggle
+//   the solo of their template).
 // Images are stored as soon as they are added (db.files, comment listing) —
 // the draft only holds their file name.
 export default function CommentBlocksEditor({
@@ -102,6 +112,10 @@ export default function CommentBlocksEditor({
   const addProcedureActionS = "Ajouter un dessin auto";
   const noProcedureS =
     "Aucune procédure de dessin auto dans ce plan de repérage";
+  const addTemplatesListS = "Ajouter une liste de modèles";
+  const editTemplatesListS = "Modifier la liste";
+  const addS = "Ajouter";
+  const updateS = "Mettre à jour";
   const sendS = "Ajouter à l'info (Entrée)";
   const hintS = "Entrée pour ajouter · Maj+Entrée pour un saut de ligne";
   const dropS = "Déposez les images ici";
@@ -122,6 +136,8 @@ export default function CommentBlocksEditor({
   const [dragging, setDragging] = useState(false);
   const [drawActionAnchorEl, setDrawActionAnchorEl] = useState(null);
   const [procedureAnchorEl, setProcedureAnchorEl] = useState(null);
+  // templates list menu: { anchorEl, blockId (null = new block), ids }
+  const [templatesListMenu, setTemplatesListMenu] = useState(null);
 
   // helpers
 
@@ -245,6 +261,44 @@ export default function CommentBlocksEditor({
         procedureKey,
       }),
     ]);
+  }
+
+  // Templates list: the menu stays open while templates are ticked; its
+  // footer button creates the block, or updates the one being edited.
+  function handleOpenTemplatesListMenu(e, block = null) {
+    setTemplatesListMenu({
+      anchorEl: e.currentTarget,
+      blockId: block?.id ?? null,
+      ids: block?.annotationTemplateIds ?? [],
+    });
+  }
+
+  function handleToggleTemplatesListId(templateId) {
+    setTemplatesListMenu((menu) =>
+      menu
+        ? {
+            ...menu,
+            ids: menu.ids.includes(templateId)
+              ? menu.ids.filter((id) => id !== templateId)
+              : [...menu.ids, templateId],
+          }
+        : menu
+    );
+  }
+
+  function handleValidateTemplatesList() {
+    const { blockId, ids } = templatesListMenu ?? {};
+    setTemplatesListMenu(null);
+    if (!ids?.length) return;
+    if (blockId) {
+      updateBlock(blockId, { annotationTemplateIds: ids });
+    } else {
+      appendBlocks([
+        createCommentBlock(COMMENT_BLOCK_TYPES.TEMPLATES_LIST, {
+          annotationTemplateIds: ids,
+        }),
+      ]);
+    }
   }
 
   function handleDragOver(e) {
@@ -402,6 +456,27 @@ export default function CommentBlocksEditor({
               <CommentBlocksRenderer blocks={[block]} interactive={false} />
             )}
 
+            {block.type === COMMENT_BLOCK_TYPES.TEMPLATES_LIST && (
+              <>
+                <CommentBlocksRenderer blocks={[block]} interactive={false} />
+                <Button
+                  size="small"
+                  startIcon={<ChecklistIcon sx={{ fontSize: 16 }} />}
+                  onClick={(e) => handleOpenTemplatesListMenu(e, block)}
+                  sx={{
+                    mt: 0.25,
+                    px: 0.5,
+                    py: 0,
+                    minWidth: 0,
+                    color: COMMENT_COLORS.textSecondary,
+                    "&:hover": { color: COMMENT_COLORS.text },
+                  }}
+                >
+                  {editTemplatesListS}
+                </Button>
+              </>
+            )}
+
             {/* move / delete, shown over the block on hover */}
             <Box
               className="block-actions"
@@ -537,6 +612,17 @@ export default function CommentBlocksEditor({
                 <PlayCircleOutlineIcon sx={{ fontSize: 18 }} />
               </IconButton>
             </Tooltip>
+            <Tooltip title={addTemplatesListS} arrow>
+              <IconButton
+                size="small"
+                onClick={(e) => handleOpenTemplatesListMenu(e)}
+                sx={optionButtonSx(
+                  Boolean(templatesListMenu && !templatesListMenu.blockId)
+                )}
+              >
+                <ChecklistIcon sx={{ fontSize: 18 }} />
+              </IconButton>
+            </Tooltip>
             <Typography
               variant="caption"
               noWrap
@@ -585,6 +671,33 @@ export default function CommentBlocksEditor({
         onChange={handlePickDrawTemplate}
         emptyText={noTemplateS}
         panelOrder
+      />
+
+      <MenuPickAnnotationTemplate
+        open={Boolean(templatesListMenu)}
+        anchorEl={templatesListMenu?.anchorEl ?? null}
+        onClose={() => setTemplatesListMenu(null)}
+        filterTemplate={(template, { listings }) =>
+          Boolean(listings?.some((l) => l.id === template.listingId))
+        }
+        onChange={handleToggleTemplatesListId}
+        selectedAnnotationTemplateIds={templatesListMenu?.ids ?? []}
+        emptyText={noTemplateS}
+        panelOrder
+        footer={
+          <Box sx={{ display: "flex", justifyContent: "flex-end", p: 1 }}>
+            <Button
+              size="small"
+              variant="contained"
+              disabled={!templatesListMenu?.ids?.length}
+              onClick={handleValidateTemplatesList}
+            >
+              {`${templatesListMenu?.blockId ? updateS : addS} (${
+                templatesListMenu?.ids?.length ?? 0
+              })`}
+            </Button>
+          </Box>
+        }
       />
 
       <MenuPickListingProcedure

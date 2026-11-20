@@ -500,6 +500,18 @@ export default function remapDexieExportIds(jsonData, opts) {
                 }
               : block
           );
+          // templates list blocks point to annotation templates
+          row.blocks = row.blocks.map((block) =>
+            block?.type === "TEMPLATES_LIST" &&
+            Array.isArray(block.annotationTemplateIds)
+              ? {
+                  ...block,
+                  annotationTemplateIds: block.annotationTemplateIds.map((id) =>
+                    remapId("annotationTemplates", id)
+                  ),
+                }
+              : block
+          );
         }
         const extras = row.viewContext?.extras;
         if (extras) {

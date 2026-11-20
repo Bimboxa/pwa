@@ -33,6 +33,8 @@ export default function ListPickAnnotationTemplate({
   filterTemplate,
   onChange,
   selectedAnnotationTemplateId = null,
+  // multi-selection (checkbox rows), see SelectorAnnotationTemplateVariantDense
+  selectedAnnotationTemplateIds = null,
   emptyText = "Aucun modèle éligible",
   getItemSuffix = null,
   panelOrder = false,
@@ -79,6 +81,7 @@ export default function ListPickAnnotationTemplate({
   return (
     <SelectorAnnotationTemplateVariantDense
       selectedAnnotationTemplateId={selectedAnnotationTemplateId}
+      selectedAnnotationTemplateIds={selectedAnnotationTemplateIds}
       onChange={handleChange}
       annotationTemplates={templates}
       listings={listings}
