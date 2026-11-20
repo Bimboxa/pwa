@@ -325,7 +325,7 @@ Le fond de plan principal décide de la **famille** de fonds de plan que les éd
 - `useExtraBaseMapIdsIn3d` filtre à la lecture les modes d'affichage persistés : rien n'est écrit, chaque famille retrouve ses œils en revenant dans son contexte.
 - `useAnnotationsV2` : avec `filterByMainBaseMap`, les `extraBaseMapIds` d'une autre famille sont ignorés (sauf module Scope, dont la table montre les deux familles) ; `filterByBlocksContext` (opt-in) applique la même règle aux requêtes sans fond de plan qui alimentent les compteurs.
 - Restent complets : le sélecteur de la barre du haut (point de passage entre les deux contextes), les modules Fonds de plan et Scope ; leurs badges comptent toutes les familles (`useAnnotationsCountByBaseMapId({ allFamilies: true })`).
-- **Infos** (module Infos) : `viewContext.isBlocksContext` enregistre à la création si le fond principal était un fond bloc ; la bande de pastilles, les repères et la navigation du panneau flottant ne montrent que les infos du contexte courant (`comments/utils/isCommentInBlocksContext`). Sans indicateur (défaut, infos existantes) = contexte normal. Le panneau du module Infos liste tout.
+- **Infos** (module Infos) : `viewContext.isBlocksContext` enregistre à la création si le fond principal était un fond bloc ; seuls les **repères** posés dans la vue 2D / 3D suivent le contexte (`comments/utils/isCommentInBlocksContext`). Sans indicateur (défaut, infos existantes) = contexte normal. Le bandeau des infos et le panneau flottant gardent toutes les infos : ouvrir une info restaure sa vue, ce qui permet d'entrer dans un bloc ou d'en sortir.
 - Le rendu des instances n'est pas concerné : il lit les définitions par une requête dédiée (`useBlockDefinitions`).
 
 ## 7. Exemple de référence
