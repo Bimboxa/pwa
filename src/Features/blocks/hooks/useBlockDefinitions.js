@@ -49,6 +49,9 @@ export default function useBlockDefinitions() {
     extraBaseMapIds,
     filterBySelectedScope: true,
     hideBaseMapAnnotations: true,
+    // A definition is always complete: a solo dims / hides the INSTANCES
+    // (useAnnotationsV2 template focus), never the members they draw.
+    ignoreSolo: true,
   });
 
   // main

@@ -3,6 +3,8 @@ import { useDispatch, useSelector } from "react-redux";
 import { triggerAnnotationsUpdate } from "Features/annotations/annotationsSlice";
 import { setToaster } from "Features/layout/layoutSlice";
 
+import db from "App/db/db";
+
 import createBlockInstanceService from "../services/createBlockInstanceService";
 
 // Commit of the one-click placement armed by usePlaceBlockInstance.
@@ -16,6 +18,8 @@ export default function useCommitBlockInstance() {
   const nestedS =
     "Un bloc ne peut pas être inséré sur un fond de plan de blocs.";
   const noScopeS = "Sélectionnez un Krto avant d'insérer un bloc.";
+  const emptyBlockS =
+    "Ce bloc n'a pas encore d'annotation : dessinez-les sur son fond de plan de blocs (propriétés du modèle).";
 
   // data
 
@@ -25,7 +29,11 @@ export default function useCommitBlockInstance() {
 
   // main
 
-  return async function commitBlockInstance({ newAnnotation, baseMap, pointPx }) {
+  return async function commitBlockInstance({
+    newAnnotation,
+    baseMap,
+    pointPx,
+  }) {
     const imageSize = baseMap?.getImageSize?.();
     if (!imageSize?.width || !imageSize?.height || !pointPx) return null;
 
@@ -35,6 +43,15 @@ export default function useCommitBlockInstance() {
     }
     if (!projectId || !scopeId) {
       dispatch(setToaster({ message: noScopeS, severity: "warning" }));
+      return null;
+    }
+
+    // an empty block (no annotation linked yet) would drop invisible rows
+    const block = newAnnotation?.instanceOfBlockId
+      ? await db.blocks.get(newAnnotation.instanceOfBlockId)
+      : null;
+    if (!block?.origin) {
+      dispatch(setToaster({ message: emptyBlockS, severity: "info" }));
       return null;
     }
 
@@ -48,6 +65,7 @@ export default function useCommitBlockInstance() {
       projectId,
       scopeId,
       layerId: activeLayerId ?? null,
+      annotationTemplateId: newAnnotation?.annotationTemplateId ?? null,
     });
     if (instance) dispatch(triggerAnnotationsUpdate());
     return instance;

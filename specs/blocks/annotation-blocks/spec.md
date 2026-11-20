@@ -279,6 +279,38 @@ tampons GPU partagés. Ce qu'elle n'apporte pas : la réduction du nombre de dra
 calls (un par mesh et par instance). `InstancedMesh` reste une phase 6
 optionnelle, à décider sur mesure.
 
+### 6.7 Modèle d'annotation « Bloc »
+
+Un bloc se liste parmi les modèles d'une liste grâce à un modèle de type
+« Bloc » (`drawingShape: "BLOCK"`, `template.blockId`) :
+
+- **Création** : « Nouveau modèle » → forme « Bloc ». Le champ « Bloc » propose
+  « Nouveau bloc » (créé avec le libellé du modèle) ou un bloc existant du
+  Krto. `syncBlockOfTemplateService` (appelé à la création et à chaque mise à
+  jour du modèle) crée le bloc manquant, aligne son libellé sur celui du
+  modèle et rattache au modèle les instances du bloc qui n'en portent pas.
+- **Instances** : un clic sur la ligne du modèle arme la pose en un clic (2D
+  et 3D). L'instance reste une ligne « sans modèle » au niveau du Krto
+  (`isTemplateless`, `scopeId`, `listingId: null`) mais porte
+  `annotationTemplateId` : l'œil, le solo et le compteur (« N u ») de la ligne
+  du modèle s'appliquent à ses instances. Une pose depuis la bibliothèque
+  retrouve le modèle du bloc (`findBlockTemplateId`).
+- **Solo** : le solo du modèle « Bloc » ne garde que ses instances ; le solo
+  du modèle d'un membre garde les instances des blocs qui contiennent ce
+  modèle (`useTemplateSoloBlockIdSet`). Les définitions de bloc ignorent le
+  solo (`useBlockDefinitions`, `ignoreSolo`) : seul l'état de l'instance
+  compte.
+- **Propriétés** : `PanelBlockTemplateProperties` (libellé, instances
+  affichées + tout sélectionner, quantités d'une instance, fonds de plan de
+  blocs qui portent le bloc — clic = ouverture —, pose d'instances).
+- **Procédures** : une procédure qui crée un bloc crée aussi son modèle
+  « Bloc » après son commit et y rattache ses instances (piscine :
+  `ensurePiscinePodiumBlockTemplate`, groupe « Blocs » de la liste du modèle
+  des membres).
+- **Limites** : l'œil de la LISTE du modèle ne masque pas les instances
+  (elles n'ont pas de `listingId`) ; changer le modèle d'une instance n'est
+  pas proposé ; supprimer le modèle supprime ses instances, pas le bloc.
+
 ## 7. Exemple de référence
 
 Un bloc « Bloc sanitaire » (un polygone + une polyligne) et quatre instances

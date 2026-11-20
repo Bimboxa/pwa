@@ -11,7 +11,9 @@ import { BLOCK_INSTANCE_TYPE } from "../utils/blockTypes";
 export default function usePlaceBlockInstance() {
   const dispatch = useDispatch();
 
-  return function placeBlockInstance(block) {
+  // options.annotationTemplate: the BLOCK template the instances join (its
+  // properties panel); from the library the commit resolves it itself.
+  return function placeBlockInstance(block, { annotationTemplate } = {}) {
     if (!block?.id) return;
     dispatch(
       setNewAnnotation({
@@ -19,6 +21,9 @@ export default function usePlaceBlockInstance() {
         instanceOfBlockId: block.id,
         isTemplateless: true,
         label: block.label,
+        ...(annotationTemplate?.id
+          ? { annotationTemplateId: annotationTemplate.id }
+          : {}),
       })
     );
     dispatch(setEnabledDrawingMode("ONE_CLICK"));

@@ -3,6 +3,7 @@ import { forwardRef } from "react";
 import { useSelector } from "react-redux";
 import { useLiveQuery } from "dexie-react-hooks";
 import { Paper, Typography, Box } from "@mui/material";
+import { WidgetsOutlined as BlockIcon } from "@mui/icons-material";
 
 import db from "App/db/db";
 
@@ -15,6 +16,7 @@ import useAnnotationTaskHours from "Features/businessObjects/hooks/useAnnotation
 import useAnnotationLinkedBusinessObjectRows from "Features/businessObjects/hooks/useAnnotationLinkedBusinessObjectRows";
 import { formatHours } from "Features/businessObjects/utils/hoursRatioConversions";
 import { CUT_LINE_LABEL } from "Features/threedCutLines/constants/cutLineStyle";
+import { BLOCK_LABEL } from "Features/blocks/utils/blockTypes";
 import getBaseMapLinkNavTargetId from "Features/baseMapLinks/utils/getBaseMapLinkNavTargetId";
 import getRevolutionAxisPlacementNavTargetId from "Features/revolutionAxes/utils/getRevolutionAxisPlacementNavTargetId";
 
@@ -119,11 +121,25 @@ const MapTooltip = forwardRef(
         : null
     );
 
-    // helper - template label (a cut line has no template: its type name)
-    const templateLabel =
-      annotation?.annotationTemplateProps?.label ||
-      annotation?.templateLabel ||
-      (annotation?.type === "CUT_LINE" ? CUT_LINE_LABEL : undefined);
+    // data - block of a hovered block instance (an instance has no template:
+    // the tooltip names its block)
+    const instanceOfBlockId =
+      annotation?.type === "BLOCK_INSTANCE"
+        ? annotation?.instanceOfBlockId
+        : null;
+    const block = useLiveQuery(
+      async () => (instanceOfBlockId ? db.blocks.get(instanceOfBlockId) : null),
+      [instanceOfBlockId]
+    );
+    const isBlockInstance = Boolean(instanceOfBlockId);
+
+    // helper - template label (a cut line has no template: its type name;
+    // a block instance: the label of its block)
+    const templateLabel = isBlockInstance
+      ? block?.label || BLOCK_LABEL
+      : annotation?.annotationTemplateProps?.label ||
+        annotation?.templateLabel ||
+        (annotation?.type === "CUT_LINE" ? CUT_LINE_LABEL : undefined);
 
     // helper - annotation label (entity label when entity-linked, else own label)
     const annotationLabel =
@@ -340,11 +356,15 @@ const MapTooltip = forwardRef(
                 `annotation.annotationTemplate`: a stale copy of the source
                 template that the clone flow used to persist on the row. */}
         <Box sx={{ display: "flex", alignItems: "center", gap: 0.75 }}>
-          <AnnotationTemplateIcon
-            template={annotation}
-            size={16}
-            spriteImage={spriteImage}
-          />
+          {isBlockInstance ? (
+            <BlockIcon sx={{ fontSize: 16, color: "#90caf9" }} />
+          ) : (
+            <AnnotationTemplateIcon
+              template={annotation}
+              size={16}
+              spriteImage={spriteImage}
+            />
+          )}
           {templateLabel && (
             <Typography
               variant="caption"

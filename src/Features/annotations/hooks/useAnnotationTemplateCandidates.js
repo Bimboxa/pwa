@@ -50,6 +50,8 @@ export function isTemplateCompatibleWithAnnotation(
   { variant, currentTemplate = null } = {}
 ) {
   if (!annotation || !template) return false;
+  // A block instance draws its block: its template is the block's one.
+  if (annotation.type === "BLOCK_INSTANCE") return false;
   const { annotationKind, referenceShape } = getReferenceShape(
     annotation,
     currentTemplate

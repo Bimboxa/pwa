@@ -10,6 +10,7 @@ import FieldColorV2 from "Features/form/components/FieldColorV2";
 import FieldImageV2 from "Features/form/components/FieldImageV2";
 import FieldObject3D from "Features/object3D/components/FieldObject3D";
 import FieldSystemListing from "Features/systems/components/FieldSystemListing";
+import FieldBlockOfTemplate from "Features/blocks/components/FieldBlockOfTemplate";
 import FieldAnnotationTemplateComponentItems from "Features/annotationComponents/components/FieldAnnotationTemplateComponentItems";
 import FieldAnnotationTemplatePathArray from "Features/pathArray/components/FieldAnnotationTemplatePathArray";
 import FieldIcon from "Features/form/components/FieldIcon";
@@ -213,6 +214,17 @@ export default function FormAnnotationTemplateVariantBlock({
 
   function handleSystemListingChange(systemListingId) {
     onChange({ ...annotationTemplate, systemListingId });
+  }
+
+  // BLOCK: picking an existing block names a still unnamed template after it.
+  function handleBlockChange(blockId, block) {
+    onChange({
+      ...annotationTemplate,
+      blockId,
+      ...(block?.label && !annotationTemplate?.label?.trim()
+        ? { label: block.label }
+        : {}),
+    });
   }
 
   function handleComponentItemsChange(componentItems) {
@@ -591,6 +603,16 @@ export default function FormAnnotationTemplateVariantBlock({
             </Box>
           )}
 
+          {/* Block field (BLOCK): the block the template points to */}
+          {drawingShape === "BLOCK" && (
+            <Box sx={{ width: 1 }}>
+              <FieldBlockOfTemplate
+                value={annotationTemplate?.blockId}
+                onChange={handleBlockChange}
+              />
+            </Box>
+          )}
+
           {/* Component items (COMPONENT): the templates it generates */}
           {drawingShape === "COMPONENT" && (
             <Box sx={{ width: 1 }}>
@@ -783,15 +805,17 @@ export default function FormAnnotationTemplateVariantBlock({
           {/* RULER is a measurement object and FREE_TEXT a pure text box:
               they produce no quantities, so the main-quantity selector would
               be misleading. */}
-          {drawingShape !== "RULER" && drawingShape !== "FREE_TEXT" && (
-            <FieldQty
-              value={mainQtyKey}
-              onChange={handleMainQtyKeyChange}
-              label={qtyS}
-              drawingShape={drawingShape}
-              withLayoutLength={Boolean(annotationTemplate?.hasLayoutLines)}
-            />
-          )}
+          {drawingShape !== "RULER" &&
+            drawingShape !== "FREE_TEXT" &&
+            drawingShape !== "BLOCK" && (
+              <FieldQty
+                value={mainQtyKey}
+                onChange={handleMainQtyKeyChange}
+                label={qtyS}
+                drawingShape={drawingShape}
+                withLayoutLength={Boolean(annotationTemplate?.hasLayoutLines)}
+              />
+            )}
         </>
       )}
 
