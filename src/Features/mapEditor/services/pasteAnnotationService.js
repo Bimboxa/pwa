@@ -13,6 +13,8 @@ import fitAffine2d from "Features/annotationMesh3d/utils/fitAffine2d";
 import { applyAffineToMesh3dSource } from "Features/annotationMesh3d/utils/mesh3dSource";
 import applyAffineToSurfaceCuts from "Features/threedFaceCut/utils/applyAffineToSurfaceCuts";
 import { isTemplatelessAnnotation } from "Features/annotations/utils/templatelessAnnotations";
+import requestSubtractOnContactSync from "Features/annotations/services/requestSubtractOnContactSync";
+import stripSubtractionReadFields from "Features/annotations/utils/stripSubtractionReadFields";
 import getBaseMapImageSizeFromRecord from "Features/baseMaps/utils/getBaseMapImageSizeFromRecord";
 import applyPasteTransformToPoints from "Features/mapEditor/utils/applyPasteTransformToPoints";
 
@@ -220,6 +222,12 @@ export default async function pasteAnnotationService({
       heightCutFaces: _srcHeightCutFaces,
       ...sourceAnnotationCleaned
     } = storedAnnotation ?? sourceAnnotation;
+
+    // Read-time subtraction fields (hydrated fallback source only).
+    stripSubtractionReadFields(
+      sourceAnnotationCleaned,
+      storedAnnotation ? null : sourceAnnotation
+    );
 
     const newAnnotationId = keepSourceIds ? sourceAnnotation.id : nanoid();
     const clonedAnnotation = {
@@ -657,6 +665,10 @@ export default async function pasteAnnotationService({
       if (allSourceIds[i]) idMapOut.set(allSourceIds[i], annotation.id);
     });
   }
+
+  // « Soustraire au contact »: the pasted (or moved) annotations carrying the
+  // option are subtracted from what they now touch.
+  requestSubtractOnContactSync(allAnnotations.map((a) => a.id));
 
   // Single Redux dispatch after the transaction commits — one liveQuery rerun.
   if (dispatch && triggerAnnotationsUpdate) {

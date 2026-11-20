@@ -9,6 +9,10 @@ import syncBlockOfTemplateService from "Features/blocks/services/syncBlockOfTemp
 
 import useUpdateEntity from "Features/entities/hooks/useUpdateEntity";
 
+import db from "App/db/db";
+
+import requestSubtractOnContactSync from "../services/requestSubtractOnContactSync";
+
 export default function useUpdateAnnotationTemplate() {
   const dispatch = useDispatch();
 
@@ -40,5 +44,15 @@ export default function useUpdateAnnotationTemplate() {
 
     dispatch(triggerAnnotationTemplatesUpdate());
     if (blockId) dispatch(triggerAnnotationsUpdate());
+
+    // « Soustraire au contact » template: its annotations follow the option
+    // (and the template-driven height / offsetZ) — debounced, in background.
+    if (updates.subtractOnContact === true && updates.id) {
+      const annotationIds = await db.annotations
+        .where("annotationTemplateId")
+        .equals(updates.id)
+        .primaryKeys();
+      requestSubtractOnContactSync(annotationIds);
+    }
   };
 }

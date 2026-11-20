@@ -8,6 +8,8 @@ import {
 
 import useMainBaseMap from "./useMainBaseMap";
 import { createAutoNumberLabelAllocator } from "Features/annotations/services/getNextAutoNumberLabelAsync";
+import requestSubtractOnContactSync from "Features/annotations/services/requestSubtractOnContactSync";
+import stripSubtractionReadFields from "Features/annotations/utils/stripSubtractionReadFields";
 
 import getPolygonsPointsFromStripAnnotation from "Features/annotations/utils/getPolygonsPointsFromStripAnnotation";
 import applyStripElevation, {
@@ -105,6 +107,7 @@ export default function useCloneAnnotationsAndEntities() {
         delete annotationCleaned.annotationTemplate;
         delete annotationCleaned.annotationTemplateProps;
         delete annotationCleaned.annotationLabel;
+        stripSubtractionReadFields(annotationCleaned, annotation);
         const clonedAnnotation = {
           ...annotationCleaned,
           ...newAnnotation,
@@ -214,6 +217,9 @@ export default function useCloneAnnotationsAndEntities() {
         await db.relAnnotationMappingCategory.bulkAdd(allMappingRels);
       }
     });
+
+    // « Soustraire au contact »: each copy is subtracted from what it touches.
+    requestSubtractOnContactSync(allAnnotations.map((a) => a.id));
 
     // 4. Single Redux dispatches
     dispatch(triggerAnnotationsUpdate());

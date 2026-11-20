@@ -1,6 +1,7 @@
 import db from "App/db/db";
 import { withUndoGroup } from "App/db/undoManager";
 import { nanoid } from "@reduxjs/toolkit";
+import requestSubtractOnContactSync from "Features/annotations/services/requestSubtractOnContactSync";
 
 import applyAffineToMesh3d from "Features/annotationMesh3d/utils/applyAffineToMesh3d";
 import fitAffine2d from "Features/annotationMesh3d/utils/fitAffine2d";
@@ -60,7 +61,14 @@ const EMPTY_RESULT = { movedMeshPaintIds: [], refreshedMeshPaintIds: [] };
  *   sync.syncedAt was bumped (they were not « à vérifier » before).
  */
 export default async function commitWrapperTransform(params) {
-  return withUndoGroup(() => commitWrapperTransformWrites(params));
+  const result = await withUndoGroup(() =>
+    commitWrapperTransformWrites(params)
+  );
+  // « Soustraire au contact »: a moved / reshaped annotation carrying the
+  // option is re-tested against what it touches (debounced, so the caller's
+  // follow-up writes — e.g. the 3D move's offsetZ — are seen too).
+  requestSubtractOnContactSync(params?.selectedAnnotationIds);
+  return result;
 }
 
 async function commitWrapperTransformWrites({

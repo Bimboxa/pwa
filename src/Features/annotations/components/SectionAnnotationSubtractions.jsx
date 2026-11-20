@@ -21,6 +21,8 @@ import useBaseMap from "Features/baseMaps/hooks/useBaseMap";
 import WhiteSectionGeneric from "Features/form/components/WhiteSectionGeneric";
 import ListAnnotationSubtractions from "./ListAnnotationSubtractions";
 
+import requestSubtractOnContactSync from "../services/requestSubtractOnContactSync";
+
 import bakeAnnotationSubtractionsService, {
   getBakeSubtractionMessage,
   isAnnotationSubtractionBakeable,
@@ -80,6 +82,12 @@ export default function SectionAnnotationSubtractions({ annotation }) {
         updatedAt: new Date().toISOString(),
       })
     );
+    // « Soustraire au contact »: re-test this annotation and the ones
+    // subtracted from it (e.g. after a height / offsetZ change).
+    requestSubtractOnContactSync([
+      annotation.id,
+      ...rels.map((rel) => rel.targetAnnotationId),
+    ]);
     dispatch(
       setToaster({ message: "Soustraction recalculée", severity: "info" })
     );

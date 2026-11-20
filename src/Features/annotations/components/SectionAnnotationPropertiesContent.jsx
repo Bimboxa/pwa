@@ -25,6 +25,7 @@ import FieldAnnotationIsEraser from "./FieldAnnotationIsEraser";
 import FieldAnnotationIsExt from "./FieldAnnotationIsExt";
 import FieldAnnotationIsLayer from "./FieldAnnotationIsLayer";
 import FieldAnnotationIsProfile from "./FieldAnnotationIsProfile";
+import FieldAnnotationSubtractOnContact from "./FieldAnnotationSubtractOnContact";
 import FieldAnnotationHiddenIn3d from "./FieldAnnotationHiddenIn3d";
 import FieldAnnotationLabel from "./FieldAnnotationLabel";
 import FieldAnnotationLabelStub from "./FieldAnnotationLabelStub";
@@ -281,6 +282,9 @@ export default function SectionAnnotationPropertiesContent({
           <FieldAnnotationIsExt annotation={annotation} />
         )}
         {type === "STRIP" && <FieldAnnotationIsLayer annotation={annotation} />}
+        {["POLYGON", "RECTANGLE", "POLYLINE", "STRIP"].includes(type) && (
+          <FieldAnnotationSubtractOnContact annotation={annotation} />
+        )}
         {!isFreeText && <FieldAnnotationHiddenIn3d annotation={annotation} />}
       </Box>
 

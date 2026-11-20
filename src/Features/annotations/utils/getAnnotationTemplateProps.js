@@ -73,6 +73,12 @@ export default function getAnnotationTemplateProps(annotationTemplate) {
     // (annotation.isProfile || template.isProfile), never written back.
     isProfile: annotationTemplate?.isProfile,
 
+    // « Soustraire au contact » template: its annotations are automatically
+    // subtracted from the annotations they touch in 3D. Effective flag
+    // (annotation.subtractOnContact || template.subtractOnContact), never
+    // written back — see syncSubtractOnContactService.
+    subtractOnContact: annotationTemplate?.subtractOnContact,
+
     // « Objet 2D » IMAGE template: its annotations are scaled symbols, not
     // photos (fixed size, no overlay buttons, ignored by the Photos panel).
     // Effective flag derived from the template, never written back.

@@ -2,6 +2,7 @@ import { triggerAnnotationsUpdate } from "Features/annotations/annotationsSlice"
 import getBaseMapImageSizeFromRecord from "Features/baseMaps/utils/getBaseMapImageSizeFromRecord";
 import reflowOpeningsForHost from "Features/mapEditor/services/reflowOpeningsForHostService";
 import { resyncBaseMapLinksForAnnotationIds } from "Features/baseMapLinks/services/resyncBaseMapLinkPlacementsService";
+import requestSubtractOnContactSync from "./requestSubtractOnContactSync";
 
 import db from "App/db/db";
 
@@ -81,6 +82,14 @@ export default async function applyPointsMovesService({
   });
 
   dispatch?.(triggerAnnotationsUpdate());
+
+  // « Soustraire au contact »: every annotation reshaped by the moved points
+  // (shared rows included) is re-tested against what it touches.
+  requestSubtractOnContactSync(
+    baseMapAnns
+      .filter((ann) => ann.points?.some((pt) => movedIdsSet.has(pt?.id)))
+      .map((ann) => ann.id)
+  );
 
   // Reposition openings anchored on a moved vertex (glued openings follow
   // their host wall) + refresh their carve. Fire-and-forget like the vertex

@@ -6,6 +6,7 @@ import { withUndoGroup } from "App/db/undoManager";
 import { triggerAnnotationsUpdate } from "Features/annotations/annotationsSlice";
 
 import { createAutoNumberLabelAllocator } from "Features/annotations/services/getNextAutoNumberLabelAsync";
+import requestSubtractOnContactSync from "Features/annotations/services/requestSubtractOnContactSync";
 import duplicateAnnotationPoints from "Features/annotations/utils/duplicateAnnotationPoints";
 import applyAffineToMesh3d from "Features/annotationMesh3d/utils/applyAffineToMesh3d";
 import { applyAffineToMesh3dSource } from "Features/annotationMesh3d/utils/mesh3dSource";
@@ -320,5 +321,7 @@ export default async function createTransformedAnnotationCopiesService({
 
   dispatch?.(triggerAnnotationsUpdate());
   result.newAnnotationIds = newAnnotations.map((a) => a.id);
+  // « Soustraire au contact »: each copy is subtracted from what it touches.
+  requestSubtractOnContactSync(result.newAnnotationIds);
   return result;
 }

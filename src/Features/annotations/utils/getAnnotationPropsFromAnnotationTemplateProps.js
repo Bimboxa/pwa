@@ -21,7 +21,7 @@ export default function getAnnotationPropsFromAnnotationTemplateProps(annotation
 
     // 2. On parcourt toutes les clés des props du template
     Object.keys(annotationTemplateProps).forEach((key) => {
-        if (key === "overrideFields" || key === "hidden" || key === "hideSlope" || key === "slopeFontSize" || key === "isProfile" || key === "isObject2D" || key === "material3d" || key === "color3D" || key === "opacity3D" || key === "color2DEnabled" || key === "color2D" || key === "deltaOffsetZ3d" || key === "colorChannel" || key === "componentDetectSurfacesWithSource") return;
+        if (key === "overrideFields" || key === "hidden" || key === "hideSlope" || key === "slopeFontSize" || key === "isProfile" || key === "subtractOnContact" || key === "isObject2D" || key === "material3d" || key === "color3D" || key === "opacity3D" || key === "color2DEnabled" || key === "color2D" || key === "deltaOffsetZ3d" || key === "colorChannel" || key === "componentDetectSurfacesWithSource") return;
 
         // Only override fields explicitly listed in overrideFields
         if (!Array.isArray(overrideFields) || !overrideFields.includes(key)) {
@@ -109,6 +109,12 @@ export default function getAnnotationPropsFromAnnotationTemplateProps(annotation
     // switch stays the stored value).
     if (annotationTemplateProps.isProfile === true) {
         result.isProfile = true;
+    }
+
+    // subtractOnContact (« Soustraire au contact » template): same
+    // effective-flag rule.
+    if (annotationTemplateProps.subtractOnContact === true) {
+        result.subtractOnContact = true;
     }
 
     // isObject2D (« Objet 2D » IMAGE template): same effective-flag rule.
