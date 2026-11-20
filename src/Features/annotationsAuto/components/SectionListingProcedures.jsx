@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useDispatch, useSelector } from "react-redux";
+import { useDispatch, useSelector, useStore } from "react-redux";
 import { useLiveQuery } from "dexie-react-hooks";
 
 import { setToaster } from "Features/layout/layoutSlice";
@@ -94,9 +94,23 @@ const EMPTY = [];
  * not edited since (getPromptIaOutputs): the delete button sweeps them.
  *
  * Renders nothing when the listing links no procedure.
+ *
+ * Embedded use (PROCEDURE_ACTION block of an info): `procedureKey` locks the
+ * band on that linked procedure (no selector, the shared active key is left
+ * alone; nothing rendered when the listing does not link it), `disabled`
+ * keeps it read-only (no launch, no delete) and `onBeforePlay(procedure)` is
+ * awaited before any launch (e.g. to switch to a module that draws).
  */
-export default function SectionListingProcedures({ listingId, baseMapId, sx }) {
+export default function SectionListingProcedures({
+  listingId,
+  baseMapId,
+  procedureKey = null,
+  disabled = false,
+  onBeforePlay = null,
+  sx,
+}) {
   const dispatch = useDispatch();
+  const store = useStore();
 
   // strings
 
@@ -130,10 +144,6 @@ export default function SectionListingProcedures({ listingId, baseMapId, sx }) {
   const deleteOutputs = useDeleteProcedureOutputs();
   const runReplacing = useRunProcedureReplacing();
   const axes = useRevolutionAxes();
-  // the drawn-source launch arms a 2D draw (its commit opens the dialog)
-  const isThreedToggledEditor = useSelector((s) =>
-    isThreedFamilyViewerKey(selectEffectiveViewerKey(s))
-  );
   // shared with the annotation toolbar band (RowProcedureActionAuto)
   const activeKey = useSelector(
     (s) => s.annotationsAuto.activeProcedureKeyByListingId[listingId]
@@ -155,10 +165,12 @@ export default function SectionListingProcedures({ listingId, baseMapId, sx }) {
     ? [...registryProcedures, PROMPT_IA_PROCEDURE]
     : registryProcedures;
   const hasProcedures = linkedProcedures.length > 0;
-  const procedure =
-    linkedProcedures.find((p) => p.key === activeKey) ?? linkedProcedures[0];
+  const procedure = procedureKey
+    ? linkedProcedures.find((p) => p.key === procedureKey)
+    : (linkedProcedures.find((p) => p.key === activeKey) ??
+      linkedProcedures[0]);
   const isPromptIa = isPromptIaProcedure(procedure);
-  const showSelector = linkedProcedures.length > 1;
+  const showSelector = !procedureKey && linkedProcedures.length > 1;
 
   const isAxisSystem =
     !isPromptIa &&
@@ -275,7 +287,9 @@ export default function SectionListingProcedures({ listingId, baseMapId, sx }) {
   // template that links the procedure (same link the commit reads to
   // auto-open the params dialog).
   async function armSourceDrawing() {
-    if (isThreedToggledEditor) {
+    // the drawn-source launch arms a 2D draw (its commit opens the dialog).
+    // Read at call time: onBeforePlay may just have changed the editor.
+    if (isThreedFamilyViewerKey(selectEffectiveViewerKey(store.getState()))) {
       dispatch(setToaster({ message: drawIn2dS, severity: "warning" }));
       return;
     }
@@ -299,7 +313,8 @@ export default function SectionListingProcedures({ listingId, baseMapId, sx }) {
   }
 
   async function handlePlay() {
-    if (busy) return;
+    if (busy || disabled) return;
+    if (onBeforePlay) await onBeforePlay(procedure);
     if (isDrawnSourceSystem && sourceAnnotationIds.length === 0) {
       await armSourceDrawing();
       return;
@@ -358,7 +373,7 @@ export default function SectionListingProcedures({ listingId, baseMapId, sx }) {
 
   // render
 
-  if (!hasProcedures) return null;
+  if (!hasProcedures || !procedure) return null;
 
   const playTitle = isPromptIa
     ? openPromptIaS
@@ -376,12 +391,12 @@ export default function SectionListingProcedures({ listingId, baseMapId, sx }) {
         hasOutputs={hasOutputs}
         busy={busy}
         // the Prompt IA zip is built from the displayed base map
-        playDisabled={isPromptIa && !baseMapId}
+        playDisabled={disabled || (isPromptIa && !baseMapId)}
         playTitle={playTitle}
         deleteTitle={deleteS}
         onPlay={handlePlay}
         // per-axis delete lives in the axis launch dialog
-        onDelete={isAxisSystem ? null : handleDelete}
+        onDelete={isAxisSystem || disabled ? null : handleDelete}
         actions={
           showSelector ? (
             <Tooltip title={selectS}>
@@ -403,7 +418,7 @@ export default function SectionListingProcedures({ listingId, baseMapId, sx }) {
                   value={paramValues[param.key] ?? ""}
                   onChange={(id) => handleParamChange(param.key, id)}
                   label={param.label}
-                  disabled={busy}
+                  disabled={busy || disabled}
                   sx={{ bgcolor: "background.paper", borderRadius: 1 }}
                 />
               ) : null

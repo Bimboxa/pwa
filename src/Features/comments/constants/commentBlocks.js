@@ -12,6 +12,9 @@ export const COMMENT_BLOCK_TYPES = {
   // like a click on the template row of PopperMapListings
   // (runCommentDrawActionService). `toolKey` null = the template's own tool.
   DRAW_ACTION: "DRAW_ACTION", // { annotationTemplateId, listingId, toolKey, label }
+  // "Dessin auto" band of a listing locked on one of its procedures, like
+  // the one of PopperMapListings (SectionListingProcedures).
+  PROCEDURE_ACTION: "PROCEDURE_ACTION", // { listingId, procedureKey }
 };
 
 export function createCommentBlock(type, props = {}) {
@@ -33,6 +36,8 @@ export function createCommentBlock(type, props = {}) {
       label: "",
       ...props,
     };
+  if (type === COMMENT_BLOCK_TYPES.PROCEDURE_ACTION)
+    return { ...base, listingId: null, procedureKey: null, ...props };
   return { ...base, ...props };
 }
 

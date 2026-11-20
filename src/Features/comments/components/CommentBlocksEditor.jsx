@@ -9,11 +9,13 @@ import CloseIcon from "@mui/icons-material/Close";
 import KeyboardArrowDownIcon from "@mui/icons-material/KeyboardArrowDown";
 import KeyboardArrowUpIcon from "@mui/icons-material/KeyboardArrowUp";
 import LinkIcon from "@mui/icons-material/Link";
+import PlayCircleOutlineIcon from "@mui/icons-material/PlayCircleOutline";
 import YouTubeIcon from "@mui/icons-material/YouTube";
 
 import CommentBlocksRenderer from "./CommentBlocksRenderer";
 import CommentBlockDrawActionEditor from "./CommentBlockDrawActionEditor";
 import MenuPickAnnotationTemplate from "Features/commandsToolbar/components/MenuPickAnnotationTemplate";
+import MenuPickListingProcedure from "./MenuPickListingProcedure";
 
 import {
   COMMENT_BLOCK_TYPES,
@@ -72,7 +74,8 @@ function buildBlockFromInput(mode, raw) {
 // - at the bottom, the COMPOSER: one input that appends to the flow (Enter;
 //   Shift+Enter for a line break), where images can be pasted or dropped, and
 //   a row of options under it (image file, link, YouTube video, drawing
-//   action: a button starting the drawing of a picked annotation template).
+//   action: a button starting the drawing of a picked annotation template,
+//   procedure action: the "Dessin auto" band of a picked listing procedure).
 // Images are stored as soon as they are added (db.files, comment listing) —
 // the draft only holds their file name.
 export default function CommentBlocksEditor({
@@ -96,6 +99,9 @@ export default function CommentBlocksEditor({
   const addYoutubeS = "Ajouter une vidéo YouTube";
   const addDrawActionS = "Ajouter une action de dessin";
   const noTemplateS = "Aucun modèle d'annotation dans ce plan de repérage";
+  const addProcedureActionS = "Ajouter un dessin auto";
+  const noProcedureS =
+    "Aucune procédure de dessin auto dans ce plan de repérage";
   const sendS = "Ajouter à l'info (Entrée)";
   const hintS = "Entrée pour ajouter · Maj+Entrée pour un saut de ligne";
   const dropS = "Déposez les images ici";
@@ -115,6 +121,7 @@ export default function CommentBlocksEditor({
   const [addingImage, setAddingImage] = useState(false);
   const [dragging, setDragging] = useState(false);
   const [drawActionAnchorEl, setDrawActionAnchorEl] = useState(null);
+  const [procedureAnchorEl, setProcedureAnchorEl] = useState(null);
 
   // helpers
 
@@ -225,6 +232,17 @@ export default function CommentBlocksEditor({
         annotationTemplateId: templateId,
         listingId: template.listingId ?? null,
         toolKey: activeTool?.key ?? null,
+      }),
+    ]);
+  }
+
+  // Procedure action: the "Dessin auto" band of the picked listing procedure.
+  function handlePickProcedure({ listingId, procedureKey }) {
+    setProcedureAnchorEl(null);
+    appendBlocks([
+      createCommentBlock(COMMENT_BLOCK_TYPES.PROCEDURE_ACTION, {
+        listingId,
+        procedureKey,
       }),
     ]);
   }
@@ -380,6 +398,10 @@ export default function CommentBlocksEditor({
               />
             )}
 
+            {block.type === COMMENT_BLOCK_TYPES.PROCEDURE_ACTION && (
+              <CommentBlocksRenderer blocks={[block]} interactive={false} />
+            )}
+
             {/* move / delete, shown over the block on hover */}
             <Box
               className="block-actions"
@@ -506,6 +528,15 @@ export default function CommentBlocksEditor({
                 <DrawOutlinedIcon sx={{ fontSize: 18 }} />
               </IconButton>
             </Tooltip>
+            <Tooltip title={addProcedureActionS} arrow>
+              <IconButton
+                size="small"
+                onClick={(e) => setProcedureAnchorEl(e.currentTarget)}
+                sx={optionButtonSx(Boolean(procedureAnchorEl))}
+              >
+                <PlayCircleOutlineIcon sx={{ fontSize: 18 }} />
+              </IconButton>
+            </Tooltip>
             <Typography
               variant="caption"
               noWrap
@@ -554,6 +585,14 @@ export default function CommentBlocksEditor({
         onChange={handlePickDrawTemplate}
         emptyText={noTemplateS}
         panelOrder
+      />
+
+      <MenuPickListingProcedure
+        open={Boolean(procedureAnchorEl)}
+        anchorEl={procedureAnchorEl}
+        onClose={() => setProcedureAnchorEl(null)}
+        onChange={handlePickProcedure}
+        emptyText={noProcedureS}
       />
 
       <Box

@@ -534,7 +534,9 @@ db.version(44).stores({
 //     (the displayed number is the rank in the sortIndex order, not stored)
 //     blocks: [{id, type: "TEXT", markdown} | {id, type: "IMAGE", fileName,
 //       imageSize, caption} | {id, type: "LINK", url, label} |
-//       {id, type: "YOUTUBE", url, videoId}],
+//       {id, type: "YOUTUBE", url, videoId} | {id, type: "DRAW_ACTION",
+//       annotationTemplateId, listingId, toolKey, label} |
+//       {id, type: "PROCEDURE_ACTION", listingId, procedureKey}],
 //     location: null | {baseMapId, point: {x, y} | null,
 //       worldPosition: {x, y, z} | null} — point INLINE, normalized [0..1] on
 //       the base map image (never a db.points row: the Krto points filter
