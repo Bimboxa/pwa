@@ -74,7 +74,10 @@ export default function useApplyBaseMapVisibilityIn3d({
     (s) => s.threedEditor.hiddenScene3dBaseMapIdsIn3d
   );
   const mainBaseMap = useMainBaseMap();
-  const { value: baseMaps = [] } = useBaseMaps();
+  // blocks context: the extra base maps are of the main one's family
+  const { value: baseMaps = [] } = useBaseMaps({
+    filterByBlocksContext: true,
+  });
   const { disabledIds, disabledKey } = useDisabledBaseMapIds();
   // Main base map = plan view of revolution axes: the base maps their
   // profiles are drawn on participate for those annotations alone (see

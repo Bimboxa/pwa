@@ -9,6 +9,8 @@ import { selectDisabledBaseMapListingIdsKey } from "Features/scopes/selectors/se
 
 import BaseMap from "../js/BaseMap";
 
+import isInBlocksContext from "Features/blocks/utils/isInBlocksContext";
+
 export default function useBaseMaps(options) {
   // options
 
@@ -24,6 +26,11 @@ export default function useBaseMaps(options) {
   // `includeDetails` (the by-id join opt-in) unless set explicitly.
   const includeBlocksBaseMaps =
     options?.includeBlocksBaseMaps ?? includeDetails;
+  // Opt-in, for the editors' lists (popper, 2D overlays, 3D scene): follow
+  // the blocks context — the base maps of the same family as the MAIN one
+  // (see isInBlocksContext): the blocks base maps alone when it is one, the
+  // regular ones alone otherwise. Wins over `includeBlocksBaseMaps`.
+  const filterByBlocksContext = options?.filterByBlocksContext ?? false;
   // Base maps of the folders hidden in the selected scope
   // (scope.baseMapsSettings.disabledListingIds, eye of the SCOPE module) are
   // excluded by default: a hidden folder does not exist for the scope. Opt in
@@ -38,6 +45,11 @@ export default function useBaseMaps(options) {
     (s) => s.entities.entitiesTableUpdatedAt?.["baseMaps"]
   );
   const disabledListingIdsKey = useSelector(selectDisabledBaseMapListingIdsKey);
+  // read only with the option: the other callers must not re-run on a
+  // main base map change
+  const mainBaseMapId = useSelector((s) =>
+    filterByBlocksContext ? s.mapEditor.selectedBaseMapId : null
+  );
 
   // helpers
 
@@ -69,7 +81,12 @@ export default function useBaseMaps(options) {
     if (!includeDetails) {
       records = records.filter((r) => !r.isDetail);
     }
-    if (!includeBlocksBaseMaps) {
+    if (filterByBlocksContext) {
+      const isBlocksContext = Boolean(
+        records.find((r) => r.id === mainBaseMapId)?.isBlocksBaseMap
+      );
+      records = records.filter((r) => isInBlocksContext(r, isBlocksContext));
+    } else if (!includeBlocksBaseMaps) {
       records = records.filter((r) => !r.isBlocksBaseMap);
     }
 
@@ -128,6 +145,8 @@ export default function useBaseMaps(options) {
     filterByProjectId,
     includeDetails,
     includeBlocksBaseMaps,
+    filterByBlocksContext,
+    mainBaseMapId,
     disabledKey,
   ]);
 

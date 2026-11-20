@@ -342,6 +342,7 @@ import useAnnotationTemplates from "Features/annotations/hooks/useAnnotationTemp
 import useBaseMaps from "Features/baseMaps/hooks/useBaseMaps";
 import useMainBaseMap from "Features/mapEditor/hooks/useMainBaseMap";
 import expandBlockInstancesForQties from "Features/blocks/utils/expandBlockInstancesForQties";
+import isInBlocksContext from "Features/blocks/utils/isInBlocksContext";
 import useAppConfig from "Features/appConfig/hooks/useAppConfig";
 import useSelectedScope from "Features/scopes/hooks/useSelectedScope";
 import { selectDisabledBaseMapListingIdsKey } from "Features/scopes/selectors/selectDisabledBaseMapListingIds";
@@ -649,8 +650,8 @@ export default function useAnnotationsV2(options) {
     // primary one (used by the 3D viewer to show other base maps'
     // annotations). Each annotation is resolved against its own base map
     // (via `baseMapById`) further down, so geometry stays correct.
-    const extraBaseMapIds = options?.extraBaseMapIds || [];
-    const extraBaseMapIdsKey = extraBaseMapIds.join("-");
+    // Narrowed to the blocks context below (see `extraBaseMapIds`).
+    const requestedExtraBaseMapIds = options?.extraBaseMapIds || [];
 
     // Opt-in: append read-only "footprint" annotations for the subtraction
     // targets hosted by ANOTHER base map (see FOREIGN_FOOTPRINT_ID_PREFIX).
@@ -676,6 +677,11 @@ export default function useAnnotationsV2(options) {
     // Opt-in to keep them all. Queries targeting base maps are untouched.
     const includeBlocksBaseMapAnnotations =
       options?.includeBlocksBaseMapAnnotations;
+    // Opt-in, for the project / listing wide queries feeding the counters:
+    // follow the blocks context instead (see isInBlocksContext) — on a blocks
+    // base map, the annotations of the blocks base maps only; on a regular
+    // one, none of them.
+    const filterByBlocksContext = options?.filterByBlocksContext;
 
     // Opt-in, with `withQties`: count the block INSTANCES of the query —
     // each one as a copy of every member of its block (N instances × the
@@ -967,6 +973,19 @@ export default function useAnnotationsV2(options) {
       [baseMaps]
     );
 
+    // Blocks context: the base maps loaded alongside the MAIN one are of its
+    // family — never a regular base map next to a blocks one, nor the other
+    // way round. Unknown ids pass (resolved, or dropped, further down). Not
+    // in the SCOPE module: its grid shows the sheets of both families.
+    const mainIsBlocksBaseMap = Boolean(baseMap?.isBlocksBaseMap);
+    const extraBaseMapIds = filterByMainBaseMap && !ignoreHiddenListings
+      ? requestedExtraBaseMapIds.filter((id) => {
+          const extra = baseMapById?.[id];
+          return !extra || isInBlocksContext(extra, mainIsBlocksBaseMap);
+        })
+      : requestedExtraBaseMapIds;
+    const extraBaseMapIdsKey = extraBaseMapIds.join("-");
+
     // helper - selected items
 
     const baseMapId =
@@ -1171,7 +1190,11 @@ export default function useAnnotationsV2(options) {
       }
 
       // -- BLOCKS BASE MAPS --
-      if (!baseMapId && !includeBlocksBaseMapAnnotations) {
+      if (!baseMapId && filterByBlocksContext) {
+        _annotations = _annotations.filter((a) =>
+          isInBlocksContext(baseMapById[a.baseMapId], mainIsBlocksBaseMap)
+        );
+      } else if (!baseMapId && !includeBlocksBaseMapAnnotations) {
         const mainBaseMapId = baseMap?.id;
         _annotations = _annotations.filter((a) => {
           const host = baseMapById[a.baseMapId];
@@ -1185,7 +1208,11 @@ export default function useAnnotationsV2(options) {
       // count; stage B computes their quantities like any annotation, then
       // expands them into virtual rows. Fresh row objects (never the shared
       // cache's): tagging them is safe.
-      if (expandBlockInstances && projectId) {
+      // Blocks context: the instances live on the regular base maps, none
+      // counts there.
+      const skipBlockInstances =
+        !baseMapId && filterByBlocksContext && mainIsBlocksBaseMap;
+      if (expandBlockInstances && projectId && !skipBlockInstances) {
         const blockRows = (
           scope?.id
             ? await db.blocks.where("scopeId").equals(scope.id).toArray()
@@ -2998,6 +3025,8 @@ export default function useAnnotationsV2(options) {
       showBaseMapLinks,
       onlyBaseMapLinks,
       includeBlocksBaseMapAnnotations,
+      filterByBlocksContext,
+      mainIsBlocksBaseMap,
       expandBlockInstances,
     ]);
 

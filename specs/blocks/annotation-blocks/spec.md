@@ -311,6 +311,23 @@ Un bloc se liste parmi les modèles d'une liste grâce à un modèle de type
   (elles n'ont pas de `listingId`) ; changer le modèle d'une instance n'est
   pas proposé ; supprimer le modèle supprime ses instances, pas le bloc.
 
+### 6.8 Contexte bloc
+
+Le fond de plan principal décide de la **famille** de fonds de plan que les éditeurs montrent : les fonds de plan bloc quand il en est un (« contexte bloc »), les fonds de plan normaux sinon. Les deux familles ne sont jamais mélangées (prédicat unique `blocks/utils/isInBlocksContext`).
+
+| | Contexte bloc | Contexte normal |
+|---|---|---|
+| Liste des fonds de plan du popper / panneau Dessin | fonds bloc seuls (section « Blocs ») | aucun fond bloc |
+| Overlays 2D, images et annotations extras en 3D | fonds bloc seuls | fonds normaux seuls |
+| Compteurs des modèles | annotations des fonds bloc affichés | annotations des plans + instances × bloc, jamais les définitions |
+
+- `useBaseMaps({ filterByBlocksContext: true })` (opt-in) : les fonds de la famille du fond principal — liste `SectionBaseMapsList` hors modules Fonds de plan / Scope, overlays 2D, chargement et visibilité des images 3D, grille Dessin 3D.
+- `useExtraBaseMapIdsIn3d` filtre à la lecture les modes d'affichage persistés : rien n'est écrit, chaque famille retrouve ses œils en revenant dans son contexte.
+- `useAnnotationsV2` : avec `filterByMainBaseMap`, les `extraBaseMapIds` d'une autre famille sont ignorés (sauf module Scope, dont la table montre les deux familles) ; `filterByBlocksContext` (opt-in) applique la même règle aux requêtes sans fond de plan qui alimentent les compteurs.
+- Restent complets : le sélecteur de la barre du haut (point de passage entre les deux contextes), les modules Fonds de plan et Scope ; leurs badges comptent toutes les familles (`useAnnotationsCountByBaseMapId({ allFamilies: true })`).
+- **Infos** (module Infos) : `viewContext.isBlocksContext` enregistre à la création si le fond principal était un fond bloc ; la bande de pastilles, les repères et la navigation du panneau flottant ne montrent que les infos du contexte courant (`comments/utils/isCommentInBlocksContext`). Sans indicateur (défaut, infos existantes) = contexte normal. Le panneau du module Infos liste tout.
+- Le rendu des instances n'est pas concerné : il lit les définitions par une requête dédiée (`useBlockDefinitions`).
+
 ## 7. Exemple de référence
 
 Un bloc « Bloc sanitaire » (un polygone + une polyligne) et quatre instances

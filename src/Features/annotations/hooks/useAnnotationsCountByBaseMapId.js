@@ -12,10 +12,21 @@ import useAnnotationsV2 from "./useAnnotationsV2";
 // its "all project annotations" fetch path (see useAnnotationsV2.js ~L693) —
 // every baseMap is counted, not just the ones currently visible in 3D. Used
 // by the base maps list / top bar badges.
-export default function useAnnotationsCountByBaseMapId() {
+//
+// Blocks base maps (Features/blocks): by default the counts follow the blocks
+// context — the base maps of the main one's family (on a blocks base map,
+// every blocks base map; on a regular one, none of them). The lists showing
+// BOTH families (top bar selector, Fonds de plan / SCOPE modules, sheets
+// grid) pass `allFamilies` to count every base map.
+export default function useAnnotationsCountByBaseMapId({
+  allFamilies = false,
+} = {}) {
   const annotations = useAnnotationsV2({
     caller: "useAnnotationsCountByBaseMapId",
     filterBySelectedScope: true,
+    ...(allFamilies
+      ? { includeBlocksBaseMapAnnotations: true }
+      : { filterByBlocksContext: true }),
     excludeProfileTemplates: true,
     hideBaseMapAnnotations: true,
     ignoreSolo: true,

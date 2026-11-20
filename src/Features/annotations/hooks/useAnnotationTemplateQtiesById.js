@@ -24,6 +24,8 @@ export default function useAnnotationTemplateQtiesById({
     caller: "useAnnotationTemplateQtiesById",
     filterByProjectId: projectId,
     withQties: true,
+    // blocks context: on a blocks base map, the blocks' own quantities
+    filterByBlocksContext: true,
     // block instances count as copies of their block's members
     expandBlockInstances: true,
   });

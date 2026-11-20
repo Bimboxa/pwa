@@ -178,7 +178,9 @@ export default function LayerBaseMapsGrid({ forViewerKey }) {
   const { value: baseMaps } = useBaseMaps({ includeBlocksBaseMaps: true });
   const spriteImage = useAnnotationSpriteImage();
   // same counts as the base map chips (whole scope, solo ignored)
-  const annotationsCountByBaseMapId = useAnnotationsCountByBaseMapId();
+  const annotationsCountByBaseMapId = useAnnotationsCountByBaseMapId({
+    allFamilies: true,
+  });
   const selectMainBaseMap = useSelectMainBaseMap();
   const {
     positions,

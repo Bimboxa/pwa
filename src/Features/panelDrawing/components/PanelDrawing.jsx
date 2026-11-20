@@ -112,6 +112,9 @@ export default function PanelDrawing() {
     caller: "PanelDrawing",
     filterByMainBaseMap: !isAllScope,
     filterBySelectedScope: true,
+    // whole scope: follows the blocks context (the blocks base maps alone on
+    // a blocks base map, none of their annotations otherwise)
+    filterByBlocksContext: true,
     hideBaseMapAnnotations: true,
     ignoreSolo: true,
     keepHiddenTemplates: true,
@@ -134,6 +137,9 @@ export default function PanelDrawing() {
   const painted = usePaintedPartsQties({
     filterByMainBaseMap: !isAllScope,
     filterBySelectedScope: true,
+    // whole scope: follows the blocks context (the blocks base maps alone on
+    // a blocks base map, none of their annotations otherwise)
+    filterByBlocksContext: true,
     keepHiddenTemplates: true,
     ...(isThreedEditor && !isAllScope
       ? {

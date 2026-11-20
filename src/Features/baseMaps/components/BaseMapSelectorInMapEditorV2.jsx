@@ -75,7 +75,7 @@ export default function BaseMapSelectorInMapEditorV2({ showImageToggle = false }
     const hideAnnotationsBadge = useSelector(
         (s) => s.viewers.selectedViewerKey === "BASE_MAPS" && !s.baseMapEditor.showAnnotations
     );
-    const annotationsCountByBaseMapId = useAnnotationsCountByBaseMapId();
+    const annotationsCountByBaseMapId = useAnnotationsCountByBaseMapId({ allFamilies: true });
     const annotationsCount = annotationsCountByBaseMapId[activeBaseMap?.id] ?? 0;
     const { imageOn, annotationsOn, toggleImage, toggleAnnotations } =
         useMainBaseMapVisibilityToggles();

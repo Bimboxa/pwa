@@ -88,6 +88,8 @@ export default function SectionPopperBaseMaps({
     caller: "SectionPopperBaseMaps",
     enabled: !detached,
     filterBySelectedScope: true,
+    // blocks context: on a blocks base map, the blocks base maps' counts
+    filterByBlocksContext: true,
     hideBaseMapAnnotations: true,
     ignoreSolo: true,
   });

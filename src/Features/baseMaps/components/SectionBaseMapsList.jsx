@@ -190,13 +190,22 @@ export default function SectionBaseMapsList({
       s.viewers.selectedViewerKey === "BASE_MAPS" ||
       s.viewers.selectedViewerKey === "SCOPE"
   );
-  const { value: baseMaps = [] } = useBaseMaps({ includeBlocksBaseMaps });
+  // Everywhere else the list follows the blocks context: on a blocks base
+  // map, the blocks base maps alone (« Blocs » section); on a regular one,
+  // none of them.
+  const { value: baseMaps = [] } = useBaseMaps(
+    includeBlocksBaseMaps
+      ? { includeBlocksBaseMaps: true }
+      : { filterByBlocksContext: true }
+  );
   const listings = useProjectBaseMapListings() ?? [];
   const mainBaseMap = useMainBaseMap();
   const selectMainBaseMap = useSelectMainBaseMap();
   const updateEntity = useUpdateEntity();
   const moveBaseMapToListing = useMoveBaseMapToListing();
-  const annotationsCountByBaseMapId = useAnnotationsCountByBaseMapId();
+  const annotationsCountByBaseMapId = useAnnotationsCountByBaseMapId({
+    allFamilies: includeBlocksBaseMaps,
+  });
   // Host-narrowed counts (SCOPE legend, Dessin popper section) replace the
   // whole count: a base map missing from the override has 0 there, it must
   // not fall back to the unfiltered count.
