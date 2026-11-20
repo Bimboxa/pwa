@@ -403,6 +403,7 @@ import getAnnotationOpeningQties from "Features/annotations/utils/getAnnotationO
 import useAnnotationOpenings from "Features/annotations/hooks/useAnnotationOpenings";
 import useAnnotationSubtractions from "Features/annotations/hooks/useAnnotationSubtractions";
 import useZoneSoloAnnotationIdSet from "Features/zonings/hooks/useZoneSoloAnnotationIdSet";
+import useTemplateSoloBlockIdSet from "Features/blocks/hooks/useTemplateSoloBlockIdSet";
 import { useBusinessObjectSoloAnnotations } from "Features/businessObjects/hooks/useBusinessObjectSoloAnnotationIdSet";
 import { selectLayersMode } from "Features/scopeConfig/utils/scopeConfigSelectors";
 import { selectLinkedListingSourceForSelectedScope } from "Features/listings/selectors/listingsSelectors";
@@ -961,6 +962,11 @@ export default function useAnnotationsV2(options) {
     // ignoreSolo / keepSoloDimmed semantics as the zone solo.
     const soloTemplateId = useSelector(
       (s) => s.annotations?.soloAnnotationTemplateId ?? null
+    );
+    // A block instance has no template: it stays in the focus when its block
+    // holds a member drawn with the focused template.
+    const templateSoloBlockIdSet = useTemplateSoloBlockIdSet(
+      ignoreSolo ? null : soloTemplateId
     );
     // single-annotation FOCUS (panel annotation detail "Isoler"): same
     // semantics, keyed on the annotation id.
@@ -3510,7 +3516,9 @@ export default function useAnnotationsV2(options) {
           a.isBaseMapAnnotation ||
           (soloTemplateId === ORPHAN_TEMPLATE_ID
             ? Boolean(a._isOrphan)
-            : getAnnotationTemplateKey(a) === soloTemplateId);
+            : getAnnotationTemplateKey(a) === soloTemplateId ||
+              (a.type === "BLOCK_INSTANCE" &&
+                templateSoloBlockIdSet.has(a.instanceOfBlockId)));
         if (keepSoloDimmed) {
           result = result.map((a) =>
             isInTemplateSolo(a) ? a : { ...a, _soloDimmed: true }
@@ -3756,6 +3764,7 @@ export default function useAnnotationsV2(options) {
       hideOrphans,
       templatesLoaded,
       soloTemplateId,
+      templateSoloBlockIdSet,
       soloAnnotationId,
       soloRevolutionAxisId,
       hiddenRevolutionAxisIdSet,

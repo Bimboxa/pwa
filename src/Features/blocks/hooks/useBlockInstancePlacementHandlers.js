@@ -44,6 +44,10 @@ export default function useBlockInstancePlacementHandlers() {
   const blockId = useSelector(
     (s) => s.annotations.newAnnotation?.instanceOfBlockId
   );
+  // BLOCK template that armed the placement (null from the library)
+  const annotationTemplateId = useSelector(
+    (s) => s.annotations.newAnnotation?.annotationTemplateId ?? null
+  );
   const editorMode = useSelector((s) => s.threedEditor.editorMode);
   const projectId = useSelector((s) => s.projects.selectedProjectId);
   const scopeId = useSelector((s) => s.scopes.selectedScopeId);
@@ -52,8 +56,14 @@ export default function useBlockInstancePlacementHandlers() {
   // values read inside the (stable-per-activation) controller callbacks
   const contextRef = useRef({});
   useEffect(() => {
-    contextRef.current = { blockId, projectId, scopeId, activeLayerId };
-  }, [blockId, projectId, scopeId, activeLayerId]);
+    contextRef.current = {
+      blockId,
+      annotationTemplateId,
+      projectId,
+      scopeId,
+      activeLayerId,
+    };
+  }, [blockId, annotationTemplateId, projectId, scopeId, activeLayerId]);
 
   const committingRef = useRef(false);
 
@@ -107,6 +117,7 @@ export default function useBlockInstancePlacementHandlers() {
           rotation: rotationDeg || 0,
           offsetZ: offset > MIN_OFFSET_Z_M ? offset : 0,
           layerId: context.activeLayerId ?? null,
+          annotationTemplateId: context.annotationTemplateId ?? null,
         });
         if (instance) dispatch(triggerAnnotationsUpdate());
       } catch (e) {

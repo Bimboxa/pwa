@@ -433,6 +433,17 @@ const DRAWING_SHAPE_CONFIG = {
     defaults: {},
     shapeCategory: "rectangle",
   },
+  // BLOCK (Features/blocks): not a geometry — a pointer to a block
+  // (`template.blockId`). Arming it places instances of that block
+  // (BLOCK_INSTANCE rows carrying the template id), one per click.
+  BLOCK: {
+    label: "Bloc",
+    annotationType: "BLOCK_INSTANCE",
+    tools: ["ONE_CLICK"],
+    configurableProps: [],
+    defaults: {},
+    shapeCategory: "rectangle",
+  },
   // Revolution helpers — geometry that defines a surface-of-revolution shape3D
   // (REVOLUTION). NOT template shapes (absent from DRAWING_SHAPES): an axis
   // belongs to its base map + scope and is drawn from the "Axe de révolution"
@@ -746,6 +757,7 @@ export function resolveDrawingShape(template) {
 //   - "POINT":  a single `point` ref (MARKER, POINT, DETAIL, revolution axes)
 //   - "LABEL":  inline normalized targetPoint / labelPoint (LABEL, FREE_TEXT)
 //   - "BBOX":   inline normalized bbox (IMAGE, RECTANGLE, OBJECT_3D)
+//   - "BLOCK":  zero-size anchor bbox + the block it draws (BLOCK_INSTANCE)
 const GEOMETRY_KIND_BY_TYPE = {
   MARKER: "POINT",
   POINT: "POINT",
@@ -758,6 +770,7 @@ const GEOMETRY_KIND_BY_TYPE = {
   IMAGE: "BBOX",
   RECTANGLE: "BBOX",
   OBJECT_3D: "BBOX",
+  BLOCK_INSTANCE: "BLOCK",
 };
 
 export function getGeometryKindFromType(annotationType) {

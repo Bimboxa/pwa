@@ -100,6 +100,13 @@ export default function getNewAnnotationPropsFromAnnotationTemplate(
   // Link back to template
   props.annotationTemplateId = annotationTemplate.id;
 
+  // BLOCK template (Features/blocks): the draft is an instance of its block
+  // — a scope-level templateless row that keeps the template id.
+  if (drawingShape === "BLOCK") {
+    props.instanceOfBlockId = annotationTemplate.blockId ?? null;
+    props.isTemplateless = true;
+  }
+
   // Carry forward drawingShape (a COMPONENT template draws POLYLINE rows)
   if (drawingShape) {
     props.drawingShape = getAnnotationDrawingShape(drawingShape);

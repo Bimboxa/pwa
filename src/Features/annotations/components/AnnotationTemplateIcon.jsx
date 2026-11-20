@@ -2,6 +2,7 @@ import { useMemo } from "react";
 import { useSelector } from "react-redux";
 
 import { Box, useTheme } from "@mui/material";
+import { WidgetsOutlined as BlockIcon } from "@mui/icons-material";
 
 import { resolveShapeCategory } from "Features/annotations/constants/drawingShapes.jsx";
 import { resolveDrawingShape } from "Features/annotations/constants/drawingShapeConfig";
@@ -117,6 +118,15 @@ export default function AnnotationTemplateIcon({
           }}
         />
       </Box>
+    );
+  }
+
+  // render — BLOCK template / block instance (Features/blocks)
+  if (shape === "BLOCK" || template.type === "BLOCK_INSTANCE") {
+    return (
+      <BlockIcon
+        sx={{ fontSize: size, flexShrink: 0, color: "primary.main" }}
+      />
     );
   }
 
@@ -258,7 +268,9 @@ export default function AnnotationTemplateIcon({
   // textColor instead of the generic colored-circle fallback.
   if (shape === "FREE_TEXT") {
     const boxFill =
-      template.hasBackground === false ? "none" : (template.fillColor ?? "#ffffff");
+      template.hasBackground === false
+        ? "none"
+        : (template.fillColor ?? "#ffffff");
     const textC = template.textColor ?? "#000000";
     return (
       <Box
@@ -279,7 +291,9 @@ export default function AnnotationTemplateIcon({
             height="12"
             rx="2"
             fill={boxFill}
-            stroke={template.hasBorder ? (template.borderColor ?? "#000000") : "#bbb"}
+            stroke={
+              template.hasBorder ? (template.borderColor ?? "#000000") : "#bbb"
+            }
             strokeWidth={1}
             strokeDasharray={template.hasBorder ? "none" : "2 2"}
           />

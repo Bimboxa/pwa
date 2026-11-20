@@ -1,4 +1,5 @@
 import { SvgIcon } from "@mui/material";
+import { WidgetsOutlined } from "@mui/icons-material";
 import { getShapeCategory } from "./drawingShapeConfig";
 
 const DRAWING_SHAPES = [
@@ -414,6 +415,13 @@ const DRAWING_SHAPES = [
         />
       </SvgIcon>
     ),
+  },
+  // BLOCK (Features/blocks): a pointer to a block; drawing = placing its
+  // instances.
+  {
+    key: "BLOCK",
+    label: "Bloc",
+    icon: <WidgetsOutlined fontSize="small" />,
   },
   // SYSTEM (Features/systems): a pointer to a system listing.
   {

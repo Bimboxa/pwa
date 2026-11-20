@@ -38,6 +38,7 @@ import {
   TableChart as TableChartIcon,
   BugReport as BugReportIcon,
   ArrowDropDown as ArrowDropDownIcon,
+  WidgetsOutlined as BlockIcon,
 } from "@mui/icons-material";
 import AnnotationTemplateIcon from "./AnnotationTemplateIcon";
 import AnnotationMeasurements from "./AnnotationMeasurements";
@@ -48,6 +49,11 @@ import ToolbarAnnotationActions from "./ToolbarAnnotationActions";
 import SelectorAnnotationTemplateVariantDense from "./SelectorAnnotationTemplateVariantDense";
 import ChipLayerSelector from "Features/layers/components/ChipLayerSelector";
 import ChipBlockLink from "Features/blocks/components/ChipBlockLink";
+import useBlocks from "Features/blocks/hooks/useBlocks";
+import {
+  BLOCK_LABEL,
+  isBlockInstanceAnnotation,
+} from "Features/blocks/utils/blockTypes";
 import SectionZonesBandInToolbar from "Features/zonings/components/SectionZonesBandInToolbar";
 import SectionLinkedBusinessObjectsInToolbar from "Features/businessObjects/components/SectionLinkedBusinessObjectsInToolbar";
 import DialogGeneric from "Features/layout/components/DialogGeneric";
@@ -72,6 +78,17 @@ export default function ToolbarEditAnnotations({
   const deleteAnnotations = useDeleteAnnotations();
   const baseMap = useMainBaseMap();
   const { value: baseMaps } = useBaseMaps();
+  const blocks = useBlocks();
+
+  // helpers - block labels (rows of the selected block instances)
+
+  const blockLabelById = useMemo(() => {
+    const map = {};
+    (blocks || []).forEach((b) => {
+      map[b.id] = b.label;
+    });
+    return map;
+  }, [blocks]);
 
   // helpers - selected annotations
 
@@ -175,7 +192,11 @@ export default function ToolbarEditAnnotations({
     const groups = new Map();
 
     for (const annotation of annotations) {
-      const key = annotation.annotationTemplateId || annotation.id;
+      // Block instances have no template: one row per block.
+      const isBlockInstance = isBlockInstanceAnnotation(annotation);
+      const key = isBlockInstance
+        ? `BLOCK:${annotation.instanceOfBlockId}`
+        : annotation.annotationTemplateId || annotation.id;
       const existing = groups.get(key);
 
       const meterByPx =
@@ -209,6 +230,7 @@ export default function ToolbarEditAnnotations({
         groups.set(key, {
           templateId: key,
           annotation,
+          blockId: isBlockInstance ? annotation.instanceOfBlockId : null,
           annotationIds: [annotation.id],
           count: 1,
           totalSurface: qties?.enabled ? getQtiesSurface(qties) || 0 : 0,
@@ -472,6 +494,11 @@ export default function ToolbarEditAnnotations({
             <TemplateGroupRow
               key={group.templateId}
               group={group}
+              blockLabel={
+                group.blockId
+                  ? (blockLabelById[group.blockId] ?? BLOCK_LABEL)
+                  : null
+              }
               onRemove={() =>
                 handleRemoveTemplateFromSelection(group.annotationIds)
               }
@@ -643,7 +670,7 @@ export default function ToolbarEditAnnotations({
 
 // --- Template group row within multi-selection toolbar ---
 
-function TemplateGroupRow({ group, onRemove }) {
+function TemplateGroupRow({ group, blockLabel, onRemove }) {
   // helpers
 
   const {
@@ -657,8 +684,11 @@ function TemplateGroupRow({ group, onRemove }) {
     totalAngles,
     hasSurface,
   } = group;
-  const label =
-    annotation?.annotationTemplateProps?.label || annotation?.label || "-";
+  // Block instances: the label of their block.
+  const isBlock = Boolean(group.blockId);
+  const label = isBlock
+    ? blockLabel
+    : annotation?.annotationTemplateProps?.label || annotation?.label || "-";
   const countSuffix = count > 1 ? ` (×${count})` : "";
 
   return (
@@ -673,7 +703,11 @@ function TemplateGroupRow({ group, onRemove }) {
         transition: "background 0.1s",
       }}
     >
-      <AnnotationTemplateIcon template={annotation || {}} size={16} />
+      {isBlock ? (
+        <BlockIcon sx={{ fontSize: 16, color: "primary.main" }} />
+      ) : (
+        <AnnotationTemplateIcon template={annotation || {}} size={16} />
+      )}
 
       <Box sx={{ flex: 1, minWidth: 0 }}>
         <Typography

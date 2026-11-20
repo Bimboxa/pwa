@@ -158,6 +158,7 @@ import usePaintedPartsQties from "Features/meshPaint/hooks/usePaintedPartsQties"
 
 import getItemsByKey from "Features/misc/utils/getItemsByKey";
 import computeAnnotationTemplateQties from "Features/annotations/utils/computeAnnotationTemplateQties";
+import getAnnotationRowListingId from "Features/blocks/utils/getAnnotationRowListingId";
 import mergePaintedQtiesIntoTemplateQties from "Features/annotations/utils/mergePaintedQtiesIntoTemplateQties";
 import getStrokeWidthLabel from "Features/annotations/utils/getStrokeWidthLabel";
 import groupAnnotationTemplatesByGroupLabel from "Features/annotations/utils/groupAnnotationTemplatesByGroupLabel";
@@ -2010,7 +2011,9 @@ export default function PopperMapListings() {
       (a) =>
         a.baseMapId === baseMap.id &&
         Boolean(annotationTemplateById?.[a.annotationTemplateId]) &&
-        !hiddenListingIdSet.has(a.listingId)
+        !hiddenListingIdSet.has(
+          getAnnotationRowListingId(a, annotationTemplateById)
+        )
     );
   }, [
     isCompact,
@@ -2059,11 +2062,13 @@ export default function PopperMapListings() {
   const annotationCountByListingId = useMemo(() => {
     if (!countedAnnotations) return {};
     return countedAnnotations.reduce((acc, a) => {
-      if (a.listingId && !isLegacyStyleRevolutionHelper(a))
-        acc[a.listingId] = (acc[a.listingId] || 0) + 1;
+      // block instances count in the listing of their BLOCK template
+      const rowListingId = getAnnotationRowListingId(a, annotationTemplateById);
+      if (rowListingId && !isLegacyStyleRevolutionHelper(a))
+        acc[rowListingId] = (acc[rowListingId] || 0) + 1;
       return acc;
     }, {});
-  }, [countedAnnotations]);
+  }, [countedAnnotations, annotationTemplateById]);
 
   // SCOPE module "Fonds de plan" rows: counts narrowed like the legend.
   const scopeCountByBaseMapId = useMemo(() => {
@@ -2078,13 +2083,14 @@ export default function PopperMapListings() {
   const annotationsByListingId = useMemo(() => {
     if (!countedAnnotations) return {};
     return countedAnnotations.reduce((acc, a) => {
-      if (a.listingId && !isLegacyStyleRevolutionHelper(a)) {
-        if (!acc[a.listingId]) acc[a.listingId] = [];
-        acc[a.listingId].push(a);
+      const rowListingId = getAnnotationRowListingId(a, annotationTemplateById);
+      if (rowListingId && !isLegacyStyleRevolutionHelper(a)) {
+        if (!acc[rowListingId]) acc[rowListingId] = [];
+        acc[rowListingId].push(a);
       }
       return acc;
     }, {});
-  }, [countedAnnotations]);
+  }, [countedAnnotations, annotationTemplateById]);
 
   const propertiesS = "Propriétés";
   const leaveActiveObjectS = "Quitter la sélection";

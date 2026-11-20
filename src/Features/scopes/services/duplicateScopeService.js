@@ -409,6 +409,10 @@ export default async function duplicateScopeService({
     id: blockIdMap[b.id],
     scopeId: newScopeId,
   }));
+  // BLOCK templates follow the copy of their block.
+  newTemplates.forEach((t) => {
+    if (t.blockId) t.blockId = blockIdMap[t.blockId] ?? t.blockId;
+  });
 
   const newAnnotations = keptAnnotations.map((a) => {
     const newAnn = {

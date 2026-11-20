@@ -26,6 +26,7 @@ import useMainBaseMap from "Features/mapEditor/hooks/useMainBaseMap";
 import useListings from "Features/listings/hooks/useListings";
 import useDisplayedAnnotationsBaseMapIds from "Features/popperMapListings/hooks/useDisplayedAnnotationsBaseMapIds";
 import usePaintedPartsQties from "Features/meshPaint/hooks/usePaintedPartsQties";
+import getAnnotationRowListingId from "Features/blocks/utils/getAnnotationRowListingId";
 import computeAnnotationTemplateQties from "Features/annotations/utils/computeAnnotationTemplateQties";
 import mergePaintedQtiesIntoTemplateQties from "Features/annotations/utils/mergePaintedQtiesIntoTemplateQties";
 import { getPaintedPartHostLabelById } from "Features/meshPaint/utils/resolvePaintedParts";
@@ -235,14 +236,16 @@ export default function PanelDrawing() {
   const countsByListingId = useMemo(() => {
     const counts = {};
     for (const a of scopedAnnotations) {
-      if (a.isMeshCell || !a.listingId) continue;
-      counts[a.listingId] = (counts[a.listingId] ?? 0) + 1;
+      // block instances count in the listing of their BLOCK template
+      const listingId = getAnnotationRowListingId(a, annotationTemplateById);
+      if (a.isMeshCell || !listingId) continue;
+      counts[listingId] = (counts[listingId] ?? 0) + 1;
     }
     Object.entries(painted.countsByListingId).forEach(([listingId, n]) => {
       counts[listingId] = (counts[listingId] ?? 0) + n;
     });
     return counts;
-  }, [scopedAnnotations, painted]);
+  }, [scopedAnnotations, painted, annotationTemplateById]);
 
   // helpers - detail view (#311). A stale id (deleted template, scope
   // change) simply resolves to nothing and the main list renders.

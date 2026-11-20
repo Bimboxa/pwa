@@ -16,6 +16,16 @@
 
 export const BLOCK_INSTANCE_TYPE = "BLOCK_INSTANCE";
 
+// BLOCK annotation template: `drawingShape: "BLOCK"` + `blockId`. It lists a
+// block in the template rows (PopperMapListings…): clicking the row places
+// instances, which carry `annotationTemplateId` (eye / solo / count of the
+// row) while staying scope-level templateless rows.
+export const BLOCK_DRAWING_SHAPE = "BLOCK";
+
+export function isBlockTemplate(annotationTemplate) {
+  return annotationTemplate?.drawingShape === BLOCK_DRAWING_SHAPE;
+}
+
 export const BLOCK_LABEL = "Bloc";
 export const BLOCKS_LABEL = "Blocs";
 export const DEFAULT_BLOCKS_BASE_MAP_NAME = "Blocs";

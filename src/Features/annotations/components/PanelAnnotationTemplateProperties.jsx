@@ -27,6 +27,8 @@ import SectionAnnotationTemplateKeyQties from "./SectionAnnotationTemplateKeyQti
 import usePaintedPartsQties from "Features/meshPaint/hooks/usePaintedPartsQties";
 import computeAnnotationTemplateQties from "../utils/computeAnnotationTemplateQties";
 import mergePaintedQtiesIntoTemplateQties from "../utils/mergePaintedQtiesIntoTemplateQties";
+import PanelBlockTemplateProperties from "Features/blocks/components/PanelBlockTemplateProperties";
+import { isBlockTemplate } from "Features/blocks/utils/blockTypes";
 
 export default function PanelAnnotationTemplateProperties() {
   const dispatch = useDispatch();
@@ -160,6 +162,16 @@ export default function PanelAnnotationTemplateProperties() {
   }
 
   // render
+
+  // BLOCK template (Features/blocks): a panel dedicated to its block.
+  if (isBlockTemplate(selectedAnnotationTemplate)) {
+    return (
+      <PanelBlockTemplateProperties
+        annotationTemplate={selectedAnnotationTemplate}
+        instances={matchingAnnotations}
+      />
+    );
+  }
 
   return (
     <BoxFlexVStretch sx={{}}>
