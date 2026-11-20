@@ -7,12 +7,18 @@ import getBaseMapSheet from "./getBaseMapSheet";
 import getBaseMapsGridAutoLayout, {
   BASE_MAPS_GRID_GAP,
 } from "./getBaseMapsGridAutoLayout";
+import getAlignedSheetsLayout, {
+  getSheetsRows,
+} from "./getAlignedSheetsLayout";
 
-// Space kept under a group for its label (below the sheet names), and
-// between two groups. Paper points.
-export const GROUP_LABEL_OFFSET = 78;
+// Left gutter of a group: its label (eye + folder name), then a vertical
+// bar running along its sheets. Paper points.
 export const GROUP_LABEL_HEIGHT = 40;
-export const GROUP_LABEL_WIDTH = 520;
+export const GROUP_LABEL_WIDTH = 480;
+// bar: gap to the label on its left, to the sheets on its right
+const GROUP_BAR_GAP = 40;
+// room under the sheets for their names (see BaseMapSheetSvg)
+const SHEET_NAME_HEIGHT = 40;
 const GROUP_GAP = 150;
 
 export function getAddSheetId(listingId) {
@@ -24,8 +30,8 @@ export function isAddSheetId(sheetId) {
 }
 
 // Sheets of the 2D table, GROUPED BY FOLDER (getBaseMapsGridGroups): the
-// groups are stacked top to bottom, each one laid in rows, its label under
-// it. Positions are in paper points; the hand-made ones (`positions`, see
+// groups are stacked top to bottom, each one laid in rows, its label at its
+// top left and a vertical bar along its sheets. Positions are in paper points; the hand-made ones (`positions`, see
 // useBaseMapsGridLayout) win over the auto layout, and the label follows the
 // sheets of its group. Pure.
 //
@@ -36,7 +42,9 @@ export function isAddSheetId(sheetId) {
 // Returns {
 //   items: [{ baseMap, sheet, groupId }],
 //   addSheets: [{ id, listingId, x, y, width, height }],
-//   groupLabels: [{ id, name, x, y, hidden, count }]  (y: top of the label)
+//   groupLabels: [{ id, name, x, y, hidden, count, bar }]  (x, y: top-RIGHT
+//     of the label, which is right-aligned next to the bar; bar: { x, y1,
+//     y2 } | null when the group lays no sheet)
 // }.
 export default function composeBaseMapsGridGroupedSheets({
   groups,
@@ -70,6 +78,8 @@ export default function composeBaseMapsGridGroupedSheets({
   const addSheets = [];
   const groupLabels = [];
   let y = 0;
+  // a group laying no sheet (hidden) keeps the column of the previous one
+  let lastLeft = 0;
 
   sizedGroups.forEach(({ group, hidden, sized, withAdd }) => {
     const entries = hidden
@@ -83,11 +93,9 @@ export default function composeBaseMapsGridGroupedSheets({
     const auto = getBaseMapsGridAutoLayout({ sheets: entries, columns });
 
     const rects = [];
-    let autoBottom = y;
     if (!hidden) {
       sized.forEach(({ baseMap, sheet }) => {
         const slot = auto[baseMap.id];
-        autoBottom = Math.max(autoBottom, y + slot.y + sheet.height);
         const position = storedPositions[baseMap.id] ?? {
           x: slot.x,
           y: y + slot.y,
@@ -99,37 +107,110 @@ export default function composeBaseMapsGridGroupedSheets({
       if (withAdd) {
         const id = getAddSheetId(group.listingId);
         const slot = auto[id];
+        let position = { x: slot.x, y: y + slot.y };
+        // Hand-made arrangement: the default slot could lie under a moved
+        // sheet, the frame goes at the end of the last row instead.
+        if (sized.some(({ baseMap }) => storedPositions[baseMap.id])) {
+          const lastRow = getSheetsRows(rects).at(-1);
+          position = {
+            x:
+              Math.max(...lastRow.map((r) => r.x + r.width)) +
+              BASE_MAPS_GRID_GAP,
+            y: Math.min(...lastRow.map((r) => r.y)),
+          };
+        }
         const placed = {
           id,
           listingId: group.listingId,
           ...ADD_SHEET_SIZE,
-          x: slot.x,
-          y: y + slot.y,
+          ...position,
         };
-        autoBottom = Math.max(autoBottom, placed.y + placed.height);
         rects.push(placed);
         addSheets.push(placed);
       }
     }
 
-    // the label follows the sheets where they actually lie
+    // the label and the bar follow the sheets where they actually lie
     const hasRects = rects.length > 0;
+    const left = hasRects ? Math.min(...rects.map((r) => r.x)) : lastLeft;
+    lastLeft = left;
+    const top = hasRects ? Math.min(...rects.map((r) => r.y)) : y;
+    const bottom = hasRects
+      ? Math.max(...rects.map((r) => r.y + r.height)) + SHEET_NAME_HEIGHT
+      : y;
     groupLabels.push({
       id: group.id,
       name: group.name,
       hidden,
       count: sized.length,
-      x: hasRects ? Math.min(...rects.map((r) => r.x)) : 0,
-      y: hasRects
-        ? Math.max(...rects.map((r) => r.y + r.height)) + GROUP_LABEL_OFFSET
-        : y,
+      x: left - 2 * GROUP_BAR_GAP,
+      y: top,
+      bar: hasRects ? { x: left - GROUP_BAR_GAP, y1: top, y2: bottom } : null,
     });
 
+    // The next group goes under where this one ACTUALLY lies: sheets moved by
+    // hand (a group tidied on one row, pushed down…) never leave a hole, and
+    // are never covered by the next group.
     y =
-      (hasRects ? autoBottom + GROUP_LABEL_OFFSET : y) +
-      GROUP_LABEL_HEIGHT +
+      (hasRects ? bottom : y + GROUP_LABEL_HEIGHT) +
       (hasRects ? GROUP_GAP : BASE_MAPS_GRID_GAP);
   });
 
   return { items, addSheets, groupLabels };
+}
+
+// « Aligner »: tidies the hand-made arrangement group by group (same rows,
+// same order in each row — getAlignedSheetsLayout) AND restacks the groups
+// under one another, left-aligned, with the spacing of the auto layout — so
+// a group tidied on fewer rows pulls the next ones up. Pure.
+//
+// groupLabels: the labels of the table, in order (hidden groups keep the
+//   room of their label).
+// items: [{ sheet, groupId }] as returned by the compose above.
+// Returns { [baseMapId]: { x, y } }.
+export function getAlignedGroupsLayout({ groupLabels, items, addSheets }) {
+  // groups closed by a "+" frame (laid by the compose, never stored)
+  const addGroupIdSet = new Set((addSheets ?? []).map((s) => s.listingId));
+  const sheetsByGroupId = {};
+  (items ?? []).forEach((item) => {
+    if (!sheetsByGroupId[item.groupId]) sheetsByGroupId[item.groupId] = [];
+    sheetsByGroupId[item.groupId].push(item.sheet);
+  });
+  const allSheets = (items ?? []).map((item) => item.sheet);
+  if (allSheets.length === 0) return {};
+
+  const originX = Math.min(...allSheets.map((s) => s.x));
+  let y = Math.min(...allSheets.map((s) => s.y));
+  const positions = {};
+
+  (groupLabels ?? []).forEach((label) => {
+    const sheets = sheetsByGroupId[label.id];
+    const withAdd = addGroupIdSet.has(label.id);
+    if (!sheets?.length) {
+      // empty folder: its "+" frame; hidden group: the room of its label
+      y += withAdd
+        ? ADD_SHEET_SIZE.height + SHEET_NAME_HEIGHT + GROUP_GAP
+        : GROUP_LABEL_HEIGHT + BASE_MAPS_GRID_GAP;
+      return;
+    }
+    const aligned = getAlignedSheetsLayout({ sheets });
+    const left = Math.min(...sheets.map((s) => aligned[s.id].x));
+    const top = Math.min(...sheets.map((s) => aligned[s.id].y));
+    let bottom = y;
+    let lastRowTop = y;
+    sheets.forEach((sheet) => {
+      const position = {
+        x: aligned[sheet.id].x - left + originX,
+        y: aligned[sheet.id].y - top + y,
+      };
+      positions[sheet.id] = position;
+      bottom = Math.max(bottom, position.y + sheet.height);
+      lastRowTop = Math.max(lastRowTop, position.y);
+    });
+    // the "+" frame closes the last row
+    if (withAdd) bottom = Math.max(bottom, lastRowTop + ADD_SHEET_SIZE.height);
+    y = bottom + SHEET_NAME_HEIGHT + GROUP_GAP;
+  });
+
+  return positions;
 }

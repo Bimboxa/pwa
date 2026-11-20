@@ -60,11 +60,11 @@ import selectBaseMapsGridDessin from "../utils/selectBaseMapsGridDessin";
 import composeBaseMapsGridGroupedSheets, {
   GROUP_LABEL_HEIGHT,
   GROUP_LABEL_WIDTH,
+  getAlignedGroupsLayout,
   isAddSheetId,
 } from "../utils/composeBaseMapsGridGroupedSheets";
 import getBaseMapsGridGroups from "../utils/getBaseMapsGridGroups";
 import resolveBaseMapImageDisplay from "Features/baseMaps/utils/resolveBaseMapImageDisplay";
-import getAlignedSheetsLayout from "../utils/getAlignedSheetsLayout";
 import flyCameraMatrix from "../utils/flyCameraMatrix";
 import {
   editorToGridCamera,
@@ -294,7 +294,7 @@ export default function LayerBaseMapsGrid({ forViewerKey }) {
     groupLabels.forEach(
       (label) =>
         (map[`__GROUP__:${label.id}`] = {
-          x: label.x,
+          x: label.x - GROUP_LABEL_WIDTH,
           y: label.y,
           width: GROUP_LABEL_WIDTH,
           height: GROUP_LABEL_HEIGHT,
@@ -599,17 +599,9 @@ export default function LayerBaseMapsGrid({ forViewerKey }) {
   // Tidies the hand-made arrangement (same rows, same order, aligned tops,
   // constant gaps).
   function handleAlign() {
-    // group by group: the folders keep their place on the table
-    const sheetsByGroupId = {};
-    items.forEach((item) => {
-      if (!sheetsByGroupId[item.groupId]) sheetsByGroupId[item.groupId] = [];
-      sheetsByGroupId[item.groupId].push(item.sheet);
-    });
+    // group by group, the groups restacked under one another
     setSheetPositions(
-      Object.values(sheetsByGroupId).reduce(
-        (acc, sheets) => ({ ...acc, ...getAlignedSheetsLayout({ sheets }) }),
-        {}
-      )
+      getAlignedGroupsLayout({ groupLabels, items, addSheets })
     );
     // frame the table once the sheets are on their aligned slots
     later(() => flyGridCamera(getFitAllCamera(), FIT_DURATION_MS), 0);
