@@ -12,6 +12,9 @@ const commentsInitialState = {
   // (2D or 3D) picks the location of the new comment.
   isLocating: false,
   openDialogCreateListing: false,
+  // Pins of the located infos hidden in the editors (count chip of the
+  // strip). Session state.
+  pinsHidden: false,
 };
 
 export const commentsSlice = createSlice({
@@ -42,6 +45,9 @@ export const commentsSlice = createSlice({
     setOpenDialogCreateCommentListing: (state, action) => {
       state.openDialogCreateListing = Boolean(action.payload);
     },
+    toggleCommentPinsHidden: (state) => {
+      state.pinsHidden = !state.pinsHidden;
+    },
   },
 });
 
@@ -52,6 +58,7 @@ export const {
   setIsEditingComment,
   setIsLocatingComment,
   setOpenDialogCreateCommentListing,
+  toggleCommentPinsHidden,
 } = commentsSlice.actions;
 
 export default commentsSlice.reducer;

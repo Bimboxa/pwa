@@ -44,7 +44,8 @@ function snapshotClippingPlane(state) {
 // active versions, annotation templates visibility — snapshotPovViewService)
 // WITHOUT its capture frame settings (legend, background, title… belong to
 // the capture tool) and WITHOUT `viewCreatedAt` (a comment never freezes the
-// content), plus `extras`: the view state a POV does not record.
+// content), plus the module the author was in (`moduleKey`) and `extras`:
+// the view state a POV does not record.
 export default async function snapshotCommentViewContextService() {
   const state = store.getState();
   const viewerMode = isThreedFamilyViewerKey(selectEffectiveViewerKey(state))
@@ -80,6 +81,9 @@ export default async function snapshotCommentViewContextService() {
   };
 
   return {
+    // module the info was written from (left band key): where its drawing
+    // actions send the reader back (runCommentDrawActionService)
+    moduleKey: state.viewers.selectedViewerKey ?? null,
     viewerMode: _viewerMode,
     // numeric ratio of the viewport, only used to re-fit the camera frame
     aspectRatio: typeof aspectRatio === "number" ? aspectRatio : null,

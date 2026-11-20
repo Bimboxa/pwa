@@ -5,7 +5,8 @@ import startAddCommentService from "Features/comments/services/startAddCommentSe
 import { ALL_EDITORS } from "../../constants/commandEditors";
 import { getCommentCommandGate } from "../../utils/commentCommandState";
 
-// « + Info » (2D + 3D, Infos module — Features/comments):
+// « + Info » (2D + 3D, Infos module and, while it is enabled,
+// the other toolbar modules — Features/comments):
 // creates a comment that is NOT located, with the view context of the
 // displayed editor, and opens it in its editor. Without any comment listing
 // in the scope, the "new listing" dialog opens first.

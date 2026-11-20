@@ -474,6 +474,22 @@ export default function remapDexieExportIds(jsonData, opts) {
             baseMapId: remapId("baseMaps", row.location.baseMapId),
           };
         }
+        // drawing action blocks point to an annotation template + its listing
+        if (Array.isArray(row.blocks)) {
+          row.blocks = row.blocks.map((block) =>
+            block?.type === "DRAW_ACTION"
+              ? {
+                  ...block,
+                  annotationTemplateId: block.annotationTemplateId
+                    ? remapId("annotationTemplates", block.annotationTemplateId)
+                    : block.annotationTemplateId,
+                  listingId: block.listingId
+                    ? remapId("listings", block.listingId)
+                    : block.listingId,
+                }
+              : block
+          );
+        }
         const extras = row.viewContext?.extras;
         if (extras) {
           const remapList = (key, table) => {

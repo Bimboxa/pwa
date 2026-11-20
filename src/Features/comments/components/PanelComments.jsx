@@ -71,7 +71,7 @@ export default function PanelComments() {
 
   const { commentListings, selectedListing, loading } = useCommentListings();
   const comments = useComments({ listingId: selectedListing?.id });
-  const canEdit = useCanEditComments();
+  const { canEdit } = useCanEditComments();
   const openedCommentId = useSelector((s) => s.comments.openedCommentId);
   const isLocating = useSelector((s) => s.comments.isLocating);
 

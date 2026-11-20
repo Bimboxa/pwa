@@ -8,6 +8,10 @@ export const COMMENT_BLOCK_TYPES = {
   IMAGE: "IMAGE", // { fileName, imageSize, caption }
   LINK: "LINK", // { url, label }
   YOUTUBE: "YOUTUBE", // { url, videoId }
+  // Button starting the drawing of an annotation template with a given tool,
+  // like a click on the template row of PopperMapListings
+  // (runCommentDrawActionService). `toolKey` null = the template's own tool.
+  DRAW_ACTION: "DRAW_ACTION", // { annotationTemplateId, listingId, toolKey, label }
 };
 
 export function createCommentBlock(type, props = {}) {
@@ -20,6 +24,15 @@ export function createCommentBlock(type, props = {}) {
     return { ...base, url: "", label: "", ...props };
   if (type === COMMENT_BLOCK_TYPES.YOUTUBE)
     return { ...base, url: "", videoId: null, ...props };
+  if (type === COMMENT_BLOCK_TYPES.DRAW_ACTION)
+    return {
+      ...base,
+      annotationTemplateId: null,
+      listingId: null,
+      toolKey: null,
+      label: "",
+      ...props,
+    };
   return { ...base, ...props };
 }
 

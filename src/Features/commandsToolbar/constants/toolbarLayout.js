@@ -292,14 +292,19 @@ const MESHES_SECTIONS = [
   MESHES_MEASURES_SECTION,
 ];
 
-// « Infos » module (Features/comments): the two creation commands.
-const COMMENTS_SECTIONS = [
-  {
-    key: "COMMENTS",
-    label: "Infos",
-    entries: ["ADD_LOCATED_COMMENT", "ADD_COMMENT"],
-  },
-];
+// « Infos » (Features/comments): the two creation commands. The only
+// section of the Infos module, and the last one of every other module — the
+// commands are offered there while the Infos module is enabled in the scope
+// (getCommentCommandGate).
+const COMMENTS_SECTION = {
+  key: "COMMENTS",
+  label: "Infos",
+  entries: ["ADD_LOCATED_COMMENT", "ADD_COMMENT"],
+};
+const COMMENTS_SECTIONS = [COMMENTS_SECTION];
+DEFAULT_SECTIONS.push(COMMENTS_SECTION);
+BASE_MAPS_SECTIONS.push(COMMENTS_SECTION);
+MESHES_SECTIONS.push(COMMENTS_SECTION);
 
 // Small screen mode of the toolbar (compact layout of a narrow window, see
 // Features/layout/hooks/useAutoCompactLayout): whatever the module, only the

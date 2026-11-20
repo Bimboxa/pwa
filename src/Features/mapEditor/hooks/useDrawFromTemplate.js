@@ -27,7 +27,7 @@ import useSystemDrawTarget from "Features/systems/hooks/useSystemDrawTarget";
 // its 3D editor: OBJECT_3D (3D placement mode), POLYGON / POLYLINE
 // (template-driven 3D face drawing), COTE (2-click cote) and RULER — other
 // shapes would set a dead-end 2D drawing state.
-const THREED_TOGGLED_DRAWABLE_SHAPES = [
+export const THREED_TOGGLED_DRAWABLE_SHAPES = [
   "OBJECT_3D",
   "POLYGON",
   "POLYLINE",
