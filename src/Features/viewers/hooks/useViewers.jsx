@@ -76,8 +76,9 @@ export default function useViewers({ ignoreScopeConfig = false } = {}) {
       // pinned first (PINNED_TOP_MODULE_KEYS) — the entry point of a scope.
       // No hotkey: Ctrl+S is the browser save dialog, not reliably cancelable.
       // Multi-editor: the shared 2D / 3D editors, always displayed in their
-      // base maps grid ("table à plans") mode, PINNED — the grid cannot be
-      // closed while the module is selected (selectBaseMapsGridPinned).
+      // base maps grid ("table à plans") mode, PINNED — the grid opens by
+      // default when the module is selected (selectBaseMapsGridPinned); the
+      // user can leave it (scopeGridWanted).
       editors: ["MAP", "THREED"],
     },
     {

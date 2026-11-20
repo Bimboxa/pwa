@@ -35,7 +35,6 @@ import {
   AlignHorizontalLeft,
   RestartAlt,
   OpenWith,
-  GridView,
   ZoomOutMap,
 } from "@mui/icons-material";
 
@@ -49,7 +48,6 @@ import BaseMapsGridTabs from "./BaseMapsGridTabs";
 import ButtonBaseMapsGrid from "./ButtonBaseMapsGrid";
 import ButtonToggleThreedViewer from "Features/viewers/components/ButtonToggleThreedViewer";
 
-import { BASE_MAPS_GRID_HOTKEY } from "../hooks/useOpenBaseMapsGridHotkey";
 import { ZOOM_OUT_HOTKEY } from "Features/mapEditor/hooks/useZoomOutHotkey";
 import isEditableTarget from "../utils/isEditableTarget";
 import { getActiveMapEditor } from "Features/mapEditor/services/mapEditorRegistry";
@@ -118,7 +116,6 @@ export default function LayerBaseMapsGrid({ forViewerKey }) {
 
   // strings
 
-  const closeS = "Fermer la grille";
   const blocksS = "Blocs";
   const fitAllS = "Tout afficher";
   const reorganizeS = "Réorganiser";
@@ -160,7 +157,9 @@ export default function LayerBaseMapsGrid({ forViewerKey }) {
   const scopeFilter = useScopeGridAnnotationsFilter();
   const scopeSheets = useSelector((s) => s.baseMapsGrid.scopeSheets);
   // per-sheet eye / badge of the "Fonds de plan" rows (pinned grid)
-  const hiddenImageIds = useSelector((s) => s.baseMapsGrid.hiddenImageBaseMapIds);
+  const hiddenImageIds = useSelector(
+    (s) => s.baseMapsGrid.hiddenImageBaseMapIds
+  );
   const hiddenAnnotationsIds = useSelector(
     (s) => s.baseMapsGrid.hiddenAnnotationsBaseMapIds
   );
@@ -423,12 +422,17 @@ export default function LayerBaseMapsGrid({ forViewerKey }) {
     openEditorRect,
   ]);
 
-  // effect - the editor camera equivalent to the grid camera, for the 2D ->
-  // 3D toggle of the pinned grid (useToggleModuleEditor): the editor camera
-  // was parked at the opening, the grid camera is the one the user moved.
+  // effect - handle of the grid for the code outside the editor: the editor
+  // camera equivalent to the grid camera, for the 2D -> 3D toggle of the
+  // pinned grid (useToggleModuleEditor) — the editor camera was parked at
+  // the opening, the grid camera is the one the user moved — and the closing
+  // of the grid, for the bottom bar toggle (ButtonOpenBaseMapsGrid).
 
+  const handleCloseRef = useRef(handleClose);
+  handleCloseRef.current = handleClose;
   useEffect(() => {
     const handle = {
+      close: () => handleCloseRef.current(),
       getEditorCameraFromGrid: () => {
         const viewport = viewportRef.current;
         const sheet = sheetByIdRef.current[mainBaseMapId];
@@ -646,10 +650,9 @@ export default function LayerBaseMapsGrid({ forViewerKey }) {
     handleOpen(sheetId);
   }
 
-  // effect - Escape / "G" close the grid, "Z" fits all the sheets
+  // effect - Escape closes the grid, "Z" fits all the sheets ("G" toggles
+  // the grid from the bottom bar button, see ButtonOpenBaseMapsGrid)
 
-  const handleCloseRef = useRef(handleClose);
-  handleCloseRef.current = handleClose;
   const handleFitAllRef = useRef(handleFitAll);
   handleFitAllRef.current = handleFitAll;
   useEffect(() => {
@@ -657,10 +660,6 @@ export default function LayerBaseMapsGrid({ forViewerKey }) {
     const handleKeyDown = (e) => {
       if (e.ctrlKey || e.metaKey || e.altKey) return;
       if (isEditableTarget(e.target)) return;
-      if (e.key.toLowerCase() === BASE_MAPS_GRID_HOTKEY.toLowerCase()) {
-        handleCloseRef.current();
-        return;
-      }
       if (e.key.toLowerCase() === ZOOM_OUT_HOTKEY.toLowerCase()) {
         if (e.repeat) return;
         handleFitAllRef.current();
@@ -852,13 +851,6 @@ export default function LayerBaseMapsGrid({ forViewerKey }) {
             icon={<ZoomOutMap />}
             shortcut={ZOOM_OUT_HOTKEY}
             onClick={handleFitAll}
-          />
-          <ButtonBaseMapsGrid
-            title={closeS}
-            icon={<GridView />}
-            active
-            shortcut={BASE_MAPS_GRID_HOTKEY}
-            onClick={handleClose}
           />
         </Box>
 
