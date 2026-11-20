@@ -1,4 +1,8 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
+
+import { useSelector } from "react-redux";
+
+import { selectMeshExportSuffixes } from "Features/scopeConfig/utils/scopeConfigSelectors";
 
 import {
   Box,
@@ -8,10 +12,12 @@ import {
   TableCell,
   TableHead,
   TableRow,
+  ToggleButton,
+  ToggleButtonGroup,
   Tooltip,
   Typography,
 } from "@mui/material";
-import { ContentCopy, TableChart } from "@mui/icons-material";
+import { ContentCopy, Download, TableChart } from "@mui/icons-material";
 
 import * as Excel from "exceljs";
 
@@ -21,21 +27,43 @@ import createSheetMeshes3d from "Features/excel/utils/createSheetMeshes3d";
 import downloadBlob from "Features/files/utils/downloadBlob";
 
 import DataExportItem from "./DataExportItem";
+import expandMeshes3dRowsBySuffixes from "../utils/expandMeshes3dRowsBySuffixes";
 
 // Mailles export card of the Export tool (PanelPrint, Maillage module),
 // rendered inside a WhiteSectionGeneric: hover-reveal row opening the recap
 // datagrid dialog or downloading the Excel export. `rows` are the mailles
-// already decorated with `displayLabel` / `surfaceLabel`.
+// already decorated with `displayLabel` / `surfaceLabel`. The dialog offers
+// the export suffixes of the scope configuration (P, I, S, F...) as a
+// multi-toggle: one row per mesh and per active suffix (M-1-P, M-1-S, ...).
 export default function SectionMeshes3dExport({ rows, surfaceDecimals }) {
+  // data
+
+  const suffixes = useSelector(selectMeshExportSuffixes);
+
   // state
 
   const [openDatagrid, setOpenDatagrid] = useState(false);
+  const [selectedSuffixes, setSelectedSuffixes] = useState([]);
+
+  // helpers
+
+  // Configuration order, and suffixes removed from the configuration dropped.
+  const activeSuffixes = useMemo(
+    () => suffixes.filter((suffix) => selectedSuffixes.includes(suffix)),
+    [suffixes, selectedSuffixes]
+  );
+
+  // What is displayed is what is copied / downloaded.
+  const exportRows = useMemo(
+    () => expandMeshes3dRowsBySuffixes(rows, activeSuffixes),
+    [rows, activeSuffixes]
+  );
 
   // handlers
 
   async function handleDownloadExcel() {
     const workbook = new Excel.Workbook();
-    createSheetMeshes3d(workbook, rows, surfaceDecimals);
+    createSheetMeshes3d(workbook, exportRows, surfaceDecimals);
     const buffer = await workbook.xlsx.writeBuffer();
     const blob = new Blob([buffer], {
       type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
@@ -47,7 +75,7 @@ export default function SectionMeshes3dExport({ rows, surfaceDecimals }) {
   function handleCopyToClipboard() {
     const factor = 10 ** surfaceDecimals;
     const header = "Maille\tSurface (m²)";
-    const lines = rows.map((row) => {
+    const lines = exportRows.map((row) => {
       const surface = Math.round((row.surface ?? 0) * factor) / factor;
       return `${row.displayLabel}\t${String(surface).replace(".", ",")}`;
     });
@@ -79,12 +107,48 @@ export default function SectionMeshes3dExport({ rows, surfaceDecimals }) {
         vw="50"
         vh="70"
       >
-        <Box sx={{ display: "flex", justifyContent: "flex-end", p: 0.5 }}>
-          <Tooltip title="Copier pour Excel">
-            <IconButton size="small" onClick={handleCopyToClipboard}>
-              <ContentCopy fontSize="small" />
-            </IconButton>
-          </Tooltip>
+        <Box
+          sx={{
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            gap: 1,
+            px: 2,
+            py: 0.5,
+          }}
+        >
+          {suffixes.length > 0 ? (
+            <ToggleButtonGroup
+              size="small"
+              value={activeSuffixes}
+              onChange={(e, next) => setSelectedSuffixes(next)}
+            >
+              {suffixes.map((suffix) => (
+                <ToggleButton
+                  key={suffix}
+                  value={suffix}
+                  sx={{ py: 0.25, px: 1.25, minWidth: 32 }}
+                >
+                  {suffix}
+                </ToggleButton>
+              ))}
+            </ToggleButtonGroup>
+          ) : (
+            <Box />
+          )}
+
+          <Box sx={{ display: "flex", alignItems: "center" }}>
+            <Tooltip title="Copier pour Excel">
+              <IconButton size="small" onClick={handleCopyToClipboard}>
+                <ContentCopy fontSize="small" />
+              </IconButton>
+            </Tooltip>
+            <Tooltip title="Télécharger Excel">
+              <IconButton size="small" onClick={handleDownloadExcel}>
+                <Download fontSize="small" />
+              </IconButton>
+            </Tooltip>
+          </Box>
         </Box>
 
         <BoxFlexVStretch sx={{ overflow: "auto" }}>
@@ -98,7 +162,7 @@ export default function SectionMeshes3dExport({ rows, surfaceDecimals }) {
               </TableRow>
             </TableHead>
             <TableBody>
-              {rows.map((row) => (
+              {exportRows.map((row) => (
                 <TableRow key={row.id}>
                   <TableCell>{row.displayLabel}</TableCell>
                   <TableCell align="right">{row.surfaceLabel}</TableCell>

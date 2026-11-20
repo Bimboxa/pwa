@@ -18,6 +18,7 @@ import {
   selectDisabledBaseMapSourceKeys,
   selectLayersMode,
   selectIsLoupeEnabled,
+  selectMeshExportSuffixes,
 } from "../utils/scopeConfigSelectors";
 
 import BASE_MAP_SOURCE_CATALOG from "Features/baseMaps/data/baseMapSourceCatalog";
@@ -53,6 +54,8 @@ export default function PageModuleConfig({ module, tools }) {
   const layersMode = useSelector(selectLayersMode);
   // Dessin-only: loupe card of the 2D drawing helper (per scope).
   const loupeEnabled = useSelector(selectIsLoupeEnabled);
+  // Maillage-only: suffixes of the meshes export table (per scope).
+  const meshExportSuffixes = useSelector(selectMeshExportSuffixes);
 
   const {
     toggleModule,
@@ -60,6 +63,7 @@ export default function PageModuleConfig({ module, tools }) {
     toggleBaseMapSource,
     setLayersMode,
     setLoupeEnabled,
+    setMeshExportSuffixes,
     setModuleLabel,
     setModuleIconKey,
   } = useScopeConfigActions();
@@ -72,6 +76,25 @@ export default function PageModuleConfig({ module, tools }) {
   useEffect(() => {
     setLabelDraft(labelOverride);
   }, [module.key, labelOverride]);
+
+  // state — mesh export suffixes edited as a comma-separated text, committed
+  // on blur / Enter
+
+  const meshExportSuffixesText = meshExportSuffixes.join(", ");
+  const [meshExportSuffixesDraft, setMeshExportSuffixesDraft] = useState(
+    meshExportSuffixesText
+  );
+
+  useEffect(() => {
+    setMeshExportSuffixesDraft(meshExportSuffixesText);
+  }, [meshExportSuffixesText]);
+
+  // handlers
+
+  function commitMeshExportSuffixes() {
+    if (meshExportSuffixesDraft === meshExportSuffixesText) return;
+    setMeshExportSuffixes(meshExportSuffixesDraft.split(","));
+  }
 
   // helpers
 
@@ -260,6 +283,29 @@ export default function PageModuleConfig({ module, tools }) {
             caption="Affiche la loupe (aperçu agrandi sous le curseur) dans l'aide au dessin 2D."
             checked={loupeEnabled}
             onChange={() => setLoupeEnabled(!loupeEnabled)}
+          />
+        </>
+      )}
+
+      {module.key === "MESHES" && (
+        <>
+          <Divider sx={{ my: 2 }} />
+
+          <Typography variant="subtitle2" sx={{ mb: 1 }}>
+            Export
+          </Typography>
+
+          <TextField
+            size="small"
+            fullWidth
+            label="Lettres du tableau des mailles"
+            helperText="Séparées par des virgules (ex. P, I, S, F). Une ligne par maille et par lettre active."
+            value={meshExportSuffixesDraft}
+            onChange={(e) => setMeshExportSuffixesDraft(e.target.value)}
+            onBlur={commitMeshExportSuffixes}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") e.target.blur();
+            }}
           />
         </>
       )}

@@ -102,6 +102,21 @@ export default function useScopeConfigActions() {
     [upsert]
   );
 
+  // Suffixes of the meshes export table (Maillage module,
+  // scopeConfigSelectors.selectMeshExportSuffixes): trimmed, no blanks, no
+  // duplicates. An empty list is stored as such (it hides the toggle).
+  const setMeshExportSuffixes = useCallback(
+    (suffixes) =>
+      upsert(() => ({
+        meshExportSuffixes: [
+          ...new Set(
+            (suffixes ?? []).map((s) => String(s).trim()).filter(Boolean)
+          ),
+        ],
+      })),
+    [upsert]
+  );
+
   // Per-scope module label override (left band + panel headers). An empty /
   // whitespace label removes the override — the appConfig / hardcoded default
   // applies again.
@@ -154,6 +169,7 @@ export default function useScopeConfigActions() {
     toggleBaseMapSource,
     setLayersMode,
     setLoupeEnabled,
+    setMeshExportSuffixes,
     setModuleLabel,
     setModuleIconKey,
     setModuleOrder,
