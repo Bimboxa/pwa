@@ -9,7 +9,14 @@ import { Close } from "@mui/icons-material";
 // `onClose` (optional) adds a close cross on the right: the floated variants
 // of a floated panel have no
 // dock toggle to fold them, so the cross is their way back.
-export default function LeftDrawerPanelHeader({ title, children, onClose }) {
+//
+// `actions` (optional) is a node rendered on the right, before the cross.
+export default function LeftDrawerPanelHeader({
+  title,
+  children,
+  actions,
+  onClose,
+}) {
   // strings
 
   const closeS = "Fermer";
@@ -38,9 +45,10 @@ export default function LeftDrawerPanelHeader({ title, children, onClose }) {
           {title}
         </Typography>
       )}
+      {(actions || onClose) && <Box sx={{ flex: 1 }} />}
+      {actions}
       {onClose && (
         <>
-          <Box sx={{ flex: 1 }} />
           <IconButton size="small" onClick={onClose} title={closeS}>
             <Close sx={{ fontSize: 18 }} />
           </IconButton>

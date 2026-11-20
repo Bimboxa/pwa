@@ -22,6 +22,7 @@ import AddIcon from "@mui/icons-material/Add";
 import AddLocationAltOutlinedIcon from "@mui/icons-material/AddLocationAltOutlined";
 import ArrowUpwardIcon from "@mui/icons-material/ArrowUpward";
 import ArrowDownwardIcon from "@mui/icons-material/ArrowDownward";
+import BugReportIcon from "@mui/icons-material/BugReport";
 import DeleteOutlineIcon from "@mui/icons-material/DeleteOutline";
 import PlaceOutlinedIcon from "@mui/icons-material/PlaceOutlined";
 import PlaylistAddIcon from "@mui/icons-material/PlaylistAdd";
@@ -66,6 +67,7 @@ export default function PanelComments() {
   const moveDownS = "Descendre";
   const deleteS = "Supprimer";
   const deleteConfirmS = "Supprimer cette info ?";
+  const copyDebugS = "Copier les données des infos (debug)";
 
   // data
 
@@ -84,6 +86,15 @@ export default function PanelComments() {
       return;
     }
     startAddCommentService({ located, dispatch, store });
+  }
+
+  function handleCopyDebug() {
+    const data = JSON.stringify(
+      { listing: selectedListing, comments },
+      null,
+      2
+    );
+    navigator.clipboard.writeText(data);
   }
 
   async function handleMove(index, delta) {
@@ -106,7 +117,28 @@ export default function PanelComments() {
 
   return (
     <BoxFlexVStretch sx={{ height: 1 }}>
-      <LeftDrawerPanelHeader title={titleS} />
+      <LeftDrawerPanelHeader
+        title={titleS}
+        actions={
+          selectedListing && (
+            <Tooltip title={copyDebugS}>
+              <IconButton
+                size="small"
+                onClick={handleCopyDebug}
+                sx={{
+                  flexShrink: 0,
+                  my: -0.5,
+                  color: "text.disabled",
+                  opacity: 0.4,
+                  "&:hover": { opacity: 1, bgcolor: "action.hover" },
+                }}
+              >
+                <BugReportIcon sx={{ fontSize: 16 }} />
+              </IconButton>
+            </Tooltip>
+          )
+        }
+      />
 
       {!loading && !selectedListing && (
         <Box sx={{ px: 2, py: 1.5 }}>
