@@ -3,7 +3,11 @@ import useAnnotationsV2 from "./useAnnotationsV2";
 export default function useAnnotationTemplateCountById({ filterByBaseMapId } = {}) {
   // data
 
-  const annotations = useAnnotationsV2({ caller: "useAnnotationTemplateCountById" });
+  const annotations = useAnnotationsV2({
+    caller: "useAnnotationTemplateCountById",
+    // blocks context: on a blocks base map, the blocks' own annotations
+    filterByBlocksContext: true,
+  });
 
   // main
 

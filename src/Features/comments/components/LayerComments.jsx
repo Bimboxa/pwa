@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
 
 import { setIsLocatingComment } from "../commentsSlice";
@@ -20,6 +20,8 @@ import useComments from "../hooks/useComments";
 import useCanEditComments from "../hooks/useCanEditComments";
 import useCommentLocateCapture from "../hooks/useCommentLocateCapture";
 import useEditorCommentPins from "../hooks/useEditorCommentPins";
+import useMainBaseMap from "Features/mapEditor/hooks/useMainBaseMap";
+import isCommentInBlocksContext from "../utils/isCommentInBlocksContext";
 import isCommandsToolbarModuleKey from "Features/commandsToolbar/utils/isCommandsToolbarModuleKey";
 import { selectDisabledModuleKeys } from "Features/scopeConfig/utils/scopeConfigSelectors";
 
@@ -38,7 +40,28 @@ function LayerCommentsContent({ withPins }) {
   // data
 
   const { commentListings, selectedListing } = useCommentListings();
-  const comments = useComments({ listingId: selectedListing?.id });
+  const allComments = useComments({ listingId: selectedListing?.id });
+  // Blocks context: on a blocks base map, the infos written there alone;
+  // on a regular one, none of them. The numbers stay the listing's ones.
+  const mainBaseMap = useMainBaseMap();
+  const isBlocksContext = Boolean(mainBaseMap?.isBlocksBaseMap);
+  const openedCommentId = useSelector((s) => s.comments.openedCommentId);
+  const comments = useMemo(
+    () =>
+      allComments.filter((c) => isCommentInBlocksContext(c, isBlocksContext)),
+    [allComments, isBlocksContext]
+  );
+  // The opened info stays readable whatever the context (opened from the
+  // Infos panel without a main base map switch).
+  const popperComments = useMemo(
+    () =>
+      allComments.filter(
+        (c) =>
+          c.id === openedCommentId ||
+          isCommentInBlocksContext(c, isBlocksContext)
+      ),
+    [allComments, isBlocksContext, openedCommentId]
+  );
   const { canEdit, canLocate } = useCanEditComments();
   const isLocating = useSelector((s) => s.comments.isLocating);
   const pinsHidden = useSelector((s) => s.comments.pinsHidden);
@@ -147,7 +170,7 @@ function LayerCommentsContent({ withPins }) {
             (over the top bar when dragged), laid over the editors area. */}
         <PortalEditorFloatingPanels>
           <PopperComment
-            comments={comments}
+            comments={popperComments}
             canEdit={canEdit}
             hidden={isDrawing}
           />

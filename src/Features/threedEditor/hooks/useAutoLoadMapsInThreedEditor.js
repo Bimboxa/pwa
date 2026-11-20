@@ -12,7 +12,10 @@ export default function useAutoLoadMapsInThreedEditor({
   rendererIsReady,
 }) {
   const mainBaseMap = useMainBaseMap();
-  const { value: baseMaps = [] } = useBaseMaps();
+  // blocks context: the extra base maps are of the main one's family
+  const { value: baseMaps = [] } = useBaseMaps({
+    filterByBlocksContext: true,
+  });
   const store = useStore();
   const dispatch = useDispatch();
   // Folder eye-off of the scope: read through a ref (like visibleIds from

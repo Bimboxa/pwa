@@ -1,6 +1,7 @@
 import { Vector3 } from "three";
 
 import store from "App/store";
+import db from "App/db/db";
 
 import snapshotPovViewService from "Features/pov/services/snapshotPovViewService";
 import { getActiveMapEditor } from "Features/mapEditor/services/mapEditorRegistry";
@@ -67,6 +68,14 @@ export default async function snapshotCommentViewContextService() {
     camera3d,
   } = snapshot;
 
+  // Blocks context (Features/blocks): written with a blocks base map as the
+  // main one, the info belongs to the block definitions' views.
+  const mainBaseMapId = state.mapEditor.selectedBaseMapId;
+  const mainBaseMapRecord = mainBaseMapId
+    ? await db.baseMaps.get(mainBaseMapId)
+    : null;
+  const isBlocksContext = Boolean(mainBaseMapRecord?.isBlocksBaseMap);
+
   const viewers = state.viewers;
   const extras = {
     cameraOrtho: Boolean(state.threedEditor.cameraOrtho),
@@ -84,6 +93,8 @@ export default async function snapshotCommentViewContextService() {
     // module the info was written from (left band key): where its drawing
     // actions send the reader back (runCommentDrawActionService)
     moduleKey: state.viewers.selectedViewerKey ?? null,
+    // shown in its own blocks context only (isCommentInBlocksContext)
+    isBlocksContext,
     viewerMode: _viewerMode,
     // numeric ratio of the viewport, only used to re-fit the camera frame
     aspectRatio: typeof aspectRatio === "number" ? aspectRatio : null,

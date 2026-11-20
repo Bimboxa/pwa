@@ -443,6 +443,13 @@ export default function MainMapEditorV3({ forViewerKey = "MAP" }) {
   // the folders hidden in the scope must not make it show up.
   const { value: baseMaps } = useBaseMaps({ includeDisabledListings: true });
   track("baseMaps.length", baseMaps?.length);
+  // Overlay candidates: the base maps of the blocks context (the family of
+  // the main base map — never a blocks base map over a plan, nor a plan over
+  // a blocks base map).
+  const { value: overlayBaseMaps } = useBaseMaps({
+    includeDisabledListings: true,
+    filterByBlocksContext: true,
+  });
 
   // baseMap
   const baseMap = useMainBaseMap();
@@ -839,7 +846,7 @@ export default function MainMapEditorV3({ forViewerKey = "MAP" }) {
     forViewerKey === "MAP" || forViewerKey === "BASE_MAPS";
   const baseMapOverlays = useBaseMapOverlays({
     baseMap,
-    baseMaps,
+    baseMaps: overlayBaseMaps,
     enabled:
       isActiveViewer &&
       overlaysEnabled &&

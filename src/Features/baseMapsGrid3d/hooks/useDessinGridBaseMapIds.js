@@ -10,9 +10,10 @@ const EMPTY = [];
 // Ids of the sheets of the Dessin module's 3D base maps grid: every base
 // map of the scope with a flat plane in 3D (photos out), in the order of
 // the folders — the same table as the 2D grid (getDessinGridBaseMapIds).
+// Blocks context: on a blocks base map, the blocks base maps instead.
 // The array identity only changes with its content (effects / memo deps).
 export default function useDessinGridBaseMapIds() {
-  const { value: baseMaps } = useBaseMaps();
+  const { value: baseMaps } = useBaseMaps({ filterByBlocksContext: true });
   const listings = useProjectBaseMapListings();
 
   const key = useMemo(

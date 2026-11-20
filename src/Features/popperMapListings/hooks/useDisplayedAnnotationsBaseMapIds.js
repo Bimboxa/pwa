@@ -24,7 +24,8 @@ export default function useDisplayedAnnotationsBaseMapIds({
 }) {
   // data
 
-  const { value: scopeBaseMaps } = useBaseMaps({});
+  // blocks context: the overlays are of the main base map's family
+  const { value: scopeBaseMaps } = useBaseMaps({ filterByBlocksContext: true });
   const overlayAnnotationsBaseMapIds = useOverlayAnnotationsBaseMapIds({
     baseMap,
     baseMaps: scopeBaseMaps,
