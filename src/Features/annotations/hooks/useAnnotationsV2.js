@@ -351,12 +351,18 @@ import { selectDisabledAnnotationListingIdsKey } from "Features/listings/selecto
 import collectReferencedPointIds from "Features/annotations/utils/collectReferencedPointIds";
 import resolvePoints from "Features/annotations/utils/resolvePoints";
 import resolveRowsAgainstOwnBaseMap from "Features/annotations/utils/resolveRowsAgainstOwnBaseMap";
+import getBlockCuttersByInstanceId, {
+  getBlockInstancePoseKey,
+  resolveBlockInstanceBboxPx,
+} from "Features/annotations/utils/getBlockCuttersByInstanceId";
 import resolveHeightCuts from "Features/heightCuts/utils/resolveHeightCuts";
 import computeHeightFaces from "Features/heightCuts/utils/computeHeightFaces";
 import getEffectiveAnnotationType from "Features/annotations/utils/getEffectiveAnnotationType";
 import getBaseMapTransform from "Features/baseMaps/js/getBaseMapTransform";
 import getBaseMapForRender from "Features/threedEditor/js/utilsAnnotationsManager/getBaseMapForRender";
-import getAnnotationFootprintOnBaseMap from "Features/threedEditor/js/utilsAnnotationsManager/getAnnotationFootprintOnBaseMap";
+import getAnnotationFootprintOnBaseMap, {
+  getAnnotationFootprintMultiPolygonOnBaseMap,
+} from "Features/threedEditor/js/utilsAnnotationsManager/getAnnotationFootprintOnBaseMap";
 import {
   FOREIGN_FOOTPRINT_ID_PREFIX,
   REVOLUTION_FOOTPRINT_ID_PREFIX,
@@ -507,6 +513,45 @@ function getRevolutionPhiForAxis(axis, { onPlan = false } = {}) {
 //     The half-view cuts along the axis's own vertical plane (diameter
 //     direction), whose camera side is tracked per axis
 //     (revolutionSectionSideByAxisId) — see getRevolutionPartialPhi.
+// Footprint of a block instance (its carving members) on its own base map's
+// plan, in reference pixels — what the planar quantity of a slab host loses.
+// Memoized: it builds the 3D solids, and the liveQuery re-runs on every
+// commit. `key` covers the instance pose and the block's carving solid.
+const _blockInstanceFootprintCache = new Map();
+const BLOCK_INSTANCE_FOOTPRINT_CACHE_MAX = 300;
+
+async function getBlockInstanceFootprint({
+  key,
+  instance,
+  forRender,
+  transform,
+}) {
+  const cacheKey = [
+    key,
+    forRender.meterByPx,
+    forRender.imageWidth,
+    forRender.imageHeight,
+  ].join("|");
+  if (_blockInstanceFootprintCache.has(cacheKey))
+    return _blockInstanceFootprintCache.get(cacheKey);
+  let footprint = null;
+  try {
+    footprint = await getAnnotationFootprintMultiPolygonOnBaseMap({
+      annotation: instance,
+      forRender,
+      transform,
+      hostForRender: forRender,
+      hostTransform: transform,
+    });
+  } catch (e) {
+    console.warn("[useAnnotationsV2] block instance footprint failed", e);
+  }
+  if (_blockInstanceFootprintCache.size >= BLOCK_INSTANCE_FOOTPRINT_CACHE_MAX)
+    _blockInstanceFootprintCache.clear();
+  _blockInstanceFootprintCache.set(cacheKey, footprint ?? null);
+  return footprint ?? null;
+}
+
 async function resolveRevolutionAxes(annotations, baseMapById) {
   const revolutionArcs = annotations.filter(
     (a) =>
@@ -2338,12 +2383,90 @@ export default function useAnnotationsV2(options) {
             rows,
             baseMapById
           );
+          // A block instance is posed by its anchor bbox (pixels).
+          for (const [id, row] of _foreignTargetsById) {
+            if (row.type !== "BLOCK_INSTANCE") continue;
+            _foreignTargetsById.set(
+              id,
+              resolveBlockInstanceBboxPx(row, baseMapById[row.baseMapId])
+            );
+          }
           // A foreign REVOLUTION target needs its lathe axis to be built as
           // a revolution (solid or shell) when it carves this plan's hosts.
           await resolveRevolutionAxes(
             [..._foreignTargetsById.values()],
             baseMapById
           );
+        }
+      }
+
+      // -- BLOCK INSTANCE TARGETS --
+      // « Soustraire au contact » through blocks: the target of the relation
+      // is a block INSTANCE, which carves with the members of its block that
+      // carry the option. Resolve those members here (observed reads: an
+      // edit of a member re-runs the query) and stash, on each host:
+      //  - `_blockCuttersByTargetId`: what the 3D operand needs, plus the
+      //    footprint of the instance on the host's plan (planar quantity);
+      //    consumed then cleared by the SUBTRACTIONS pass of stage B;
+      //  - `_blockCuttersKey`: a scalar that changes with the carving solid
+      //    — the targets of a host are compared by id only
+      //    (stabilizeAnnotationsIdentity), and neither an edit of a member
+      //    nor a move of a foreign instance changes those ids.
+      if (subtractionTargetIdsBySource?.size > 0 && _annotations?.length) {
+        const byId = new Map(_annotations.map((a) => [a?.id, a]));
+        const instanceById = new Map();
+        const hostsWithInstances = [];
+        for (const a of _annotations) {
+          const ids = subtractionTargetIdsBySource.get(a?.id);
+          if (!ids?.length) continue;
+          let hasInstance = false;
+          for (const id of ids) {
+            const target = byId.get(id) ?? _foreignTargetsById?.get(id);
+            if (target?.type !== "BLOCK_INSTANCE") continue;
+            instanceById.set(target.id, target);
+            hasInstance = true;
+          }
+          if (hasInstance) hostsWithInstances.push(a);
+        }
+        if (instanceById.size > 0) {
+          const cuttersByInstanceId = await getBlockCuttersByInstanceId(
+            [...instanceById.values()],
+            baseMapById
+          );
+          for (const a of hostsWithInstances) {
+            const hostBaseMap = baseMapById[a.baseMapId];
+            const hostForRender = getBaseMapForRender(hostBaseMap);
+            const hostTransform = getBaseMapTransform(hostBaseMap);
+            const byTargetId = {};
+            const keyParts = [];
+            for (const id of subtractionTargetIdsBySource.get(a.id)) {
+              const instance = instanceById.get(id);
+              const entry = cuttersByInstanceId.get(id);
+              if (!instance || !entry) continue;
+              const instanceKey = `${getBlockInstancePoseKey(instance)}|${entry.key}`;
+              // Planar quantity (slab hosts): only meaningful on the host's
+              // own base map, like any target.
+              let footprint = null;
+              if (
+                withQties &&
+                instance.baseMapId === a.baseMapId &&
+                hostForRender?.meterByPx
+              ) {
+                footprint = await getBlockInstanceFootprint({
+                  key: instanceKey,
+                  instance: { ...instance, _blockCutters: entry.cutters },
+                  forRender: hostForRender,
+                  transform: hostTransform,
+                });
+              }
+              byTargetId[id] = { cutters: entry.cutters, footprint };
+              keyParts.push(instanceKey);
+            }
+            if (keyParts.length > 0) {
+              a._blockCuttersByTargetId = byTargetId;
+              a._blockCuttersKey = keyParts.join("||");
+            }
+          }
         }
       }
 
@@ -2673,7 +2796,18 @@ export default function useAnnotationsV2(options) {
           const targets = targetIds
             .map(resolveSubtractionTarget)
             .filter(Boolean)
-            .map(withTemplateOverrides);
+            .map(withTemplateOverrides)
+            // A block instance carves with the members of its block.
+            .map((t) => {
+              const entry = a._blockCuttersByTargetId?.[t.id];
+              return entry
+                ? {
+                    ...t,
+                    _blockCutters: entry.cutters,
+                    _blockCuttersKey: a._blockCuttersKey,
+                  }
+                : t;
+            });
           if (targets.length === 0) continue;
           // A target on another base map makes the planar (pixel) path
           // meaningless — the two pixel frames are unrelated — so the mesh
@@ -3194,7 +3328,18 @@ export default function useAnnotationsV2(options) {
             // silently fall back to the source's frame and land nowhere.
             // Copies, never mutations: these objects are also in `result`, and
             // the identity-stabilization cache must not see them change.
-            .map((t) => {
+            .map((target) => {
+              // A block instance carves with the members of its block
+              // (resolved in the liveQuery, see BLOCK INSTANCE TARGETS).
+              const blockEntry = a?._blockCuttersByTargetId?.[target.id];
+              const t = blockEntry
+                ? {
+                    ...target,
+                    _blockCutters: blockEntry.cutters,
+                    _blockCuttersKey: a._blockCuttersKey,
+                    _footprintMultiPolygon: blockEntry.footprint ?? undefined,
+                  }
+                : target;
               if (!t?.baseMapId || t.baseMapId === a?.baseMapId) return t;
               const tbm = baseMapById[t.baseMapId];
               if (!tbm) return t;
@@ -3208,6 +3353,11 @@ export default function useAnnotationsV2(options) {
             ...a,
             subtractionTargetIds: targetIds,
             subtractionTargets,
+            // consumed above (the scalar `_blockCuttersKey` stays: it is
+            // what refreshes this host when a block's carving solid changes)
+            ...(a?._blockCuttersByTargetId
+              ? { _blockCuttersByTargetId: undefined }
+              : {}),
           };
           // Planar-footprint subtraction is only meaningful for
           // slab-type sources (footprint = surface). For POLYLINE

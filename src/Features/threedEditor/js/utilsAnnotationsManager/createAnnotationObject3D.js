@@ -1583,8 +1583,14 @@ export default function createAnnotationObject3D(annotation, baseMap, options) {
       placeholder.rotation.z =
         -((Number(annotation.rotation) || 0) * Math.PI) / 180;
       placeholder.userData.instanceOfBlockId = annotation.instanceOfBlockId;
-      // An instance has no vertex of its own to edit: out of the snap index.
+      // An instance has no vertex of its own to edit: out of the snap index
+      // (buildIndex lets its content through for the move / rotate grab only).
       placeholder.userData.noVertexSnap = true;
+      // Its insertion point stays a snap-only anchor (2D parity), whatever
+      // the block holds. Not block content: survives the re-fills.
+      const insertionAnchor = new Object3D();
+      insertionAnchor.userData.snapAnchors = [[0, 0, 0]];
+      placeholder.add(insertionAnchor);
       object = placeholder;
       break;
     }

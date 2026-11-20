@@ -8,6 +8,8 @@ const SUBTRACTION_READ_KEYS = [
   "subtractionTargets",
   "_foreignSubtractionTargets",
   "_foreignSubtractionFootprints",
+  "_blockCuttersByTargetId",
+  "_blockCuttersKey",
 ];
 
 /**

@@ -70,6 +70,14 @@ export default function getAnnotationSubtractionQties({
 
     const clippers = [];
     for (const target of targets) {
+      // A block instance has no contour of its own: its footprint (the
+      // projection of its carving members, host pixels) is precomputed.
+      if (target?._footprintMultiPolygon) {
+        for (const polygon of target._footprintMultiPolygon) {
+          if (polygon?.[0]?.length >= 4) clippers.push(polygon);
+        }
+        continue;
+      }
       for (const geom of annotationToGeom(target, meterByPx)) {
         clippers.push(geom);
       }

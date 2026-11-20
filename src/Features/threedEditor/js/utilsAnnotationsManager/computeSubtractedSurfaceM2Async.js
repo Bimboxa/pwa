@@ -175,6 +175,9 @@ function cacheKey(source, baseMapForRender, targets, crossBaseMaps) {
       t.revolutionPhi ?? null,
       t.offsetZ ?? null,
       pointsKeyPart(t.points),
+      // A block instance carves with the members of its block, posed by its
+      // anchor (see getBlockCuttersByInstanceId).
+      t._blockCuttersKey ?? null,
     ]),
     // null in the same-basemap case, so existing keys keep their shape.
     x: crossBaseMaps,
