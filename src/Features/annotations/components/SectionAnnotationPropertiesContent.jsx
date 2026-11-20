@@ -25,6 +25,7 @@ import FieldAnnotationIsEraser from "./FieldAnnotationIsEraser";
 import FieldAnnotationIsExt from "./FieldAnnotationIsExt";
 import FieldAnnotationIsLayer from "./FieldAnnotationIsLayer";
 import FieldAnnotationIsProfile from "./FieldAnnotationIsProfile";
+import SectionAnnotationProfileLines from "./SectionAnnotationProfileLines";
 import FieldAnnotationSubtractOnContact from "./FieldAnnotationSubtractOnContact";
 import FieldAnnotationHiddenIn3d from "./FieldAnnotationHiddenIn3d";
 import FieldAnnotationLabel from "./FieldAnnotationLabel";
@@ -275,6 +276,12 @@ export default function SectionAnnotationPropertiesContent({
             chord by chord. Self-hiding on the generated elements. */}
         {type === "POLYLINE" && (
           <SectionAnnotationPathArray annotation={annotation} />
+        )}
+        {/* Profil — inline profiles of a POLYLINE (« Ajouter un profil »):
+            invert the side / remove / hide the 2D footprint. Self-hiding
+            otherwise. */}
+        {type === "POLYLINE" && (
+          <SectionAnnotationProfileLines annotation={annotation} />
         )}
         {!isFreeText && <FieldAnnotationIsProfile annotation={annotation} />}
         {!isFreeText && <FieldAnnotationIsEraser annotation={annotation} />}
