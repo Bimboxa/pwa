@@ -474,8 +474,19 @@ export default function remapDexieExportIds(jsonData, opts) {
             baseMapId: remapId("baseMaps", row.location.baseMapId),
           };
         }
-        // drawing action blocks point to an annotation template + its listing
+        // drawing action blocks point to an annotation template + its
+        // listing, procedure action blocks to a listing
         if (Array.isArray(row.blocks)) {
+          row.blocks = row.blocks.map((block) =>
+            block?.type === "PROCEDURE_ACTION"
+              ? {
+                  ...block,
+                  listingId: block.listingId
+                    ? remapId("listings", block.listingId)
+                    : block.listingId,
+                }
+              : block
+          );
           row.blocks = row.blocks.map((block) =>
             block?.type === "DRAW_ACTION"
               ? {
