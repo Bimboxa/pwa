@@ -409,3 +409,60 @@ test("a flat polygon far from the instance is left alone", async () => {
     []
   );
 });
+
+// -- a flat polygon subtracted from a flat polygon (3D twin of « Évider ») --
+
+test("a flat polygon lying on a flat polygon cuts its footprint", async () => {
+  const patch = rect({ id: "patch", cx: 1, cz: 1, size: 0.5, offsetZ: 0 });
+  const hits = await detect(patch, [flatFloor]);
+  assert.deepEqual(
+    hits.map((hit) => hit.annotation.id),
+    ["floor"]
+  );
+  assert.ok(Math.abs(hits[0].removed - 0.25) < 1e-3, `${hits[0].removed}`);
+});
+
+test("a flat polygon at another altitude cuts nothing", async () => {
+  const patch = rect({ id: "patch", cx: 1, cz: 1, size: 0.5, offsetZ: 0.5 });
+  assert.deepEqual(await detect(patch, [flatFloor]), []);
+});
+
+test("a flat polygon lying on a face of a solid cuts that face", async () => {
+  // On the top face of the slab (altitude 0): 0.5 × 0.5 m² of the face.
+  const patch = rect({ id: "patch", cx: 1, cz: 1, size: 0.5, offsetZ: 0 });
+  const hits = await detect(patch, [slab]);
+  assert.deepEqual(
+    hits.map((hit) => hit.annotation.id),
+    ["slab"]
+  );
+  assert.ok(Math.abs(hits[0].removed - 0.25) < 1e-3, `${hits[0].removed}`);
+});
+
+test("a flat polygon inside or across a solid cuts nothing", async () => {
+  // Inside the volume, then sticking out through a side face.
+  const inside = rect({ id: "patch", cx: 1, cz: 1, size: 0.5, offsetZ: -0.15 });
+  assert.deepEqual(await detect(inside, [slab]), []);
+  const across = rect({ id: "patch", cx: 3, cz: 1, size: 0.5, offsetZ: -0.15 });
+  assert.deepEqual(await detect(across, [slab]), []);
+});
+
+test("a sheet merely crossing a flat polygon is not a contact", async () => {
+  // A vertical PX wall (a sheet) standing across the patch.
+  const wall = {
+    id: "sheetWall",
+    type: "POLYLINE",
+    baseMapId: "plan",
+    strokeColor: "#e85426",
+    strokeWidth: 2,
+    strokeWidthUnit: "PX",
+    offsetZ: -1,
+    height: 2,
+    points: [toPlanPx(0, 1), toPlanPx(2, 1)].map((p) => ({
+      id: `p${pointSeq++}`,
+      ...p,
+      type: "square",
+    })),
+  };
+  const patch = rect({ id: "patch", cx: 1, cz: 1, size: 0.5, offsetZ: 0 });
+  assert.deepEqual(await detect(patch, [wall]), []);
+});

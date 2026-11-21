@@ -1,5 +1,8 @@
 import { Box3 } from "three";
 
+import isFlatPolygonSheet, {
+  FLAT_SHEET_MIN_REMOVED_M2,
+} from "Features/annotations/utils/isFlatPolygonSheet";
 import isHollowSubtractionHost from "Features/annotations/utils/isHollowSubtractionHost";
 import getBaseMapTransform from "Features/baseMaps/js/getBaseMapTransform";
 
@@ -39,7 +42,9 @@ function disposeTree(object) {
  * host without any render-only tweak in ITS OWN base map frame
  * (cross-baseMap), and a host is kept when subtracting the cutter removes
  * something from it (volume, or surface for an open host — so a cutter lying
- * ON a sheet cuts it, while a closed solid it merely touches is left alone).
+ * ON a sheet cuts it, while a closed solid a VOLUME merely touches is left
+ * alone). A flat polygon cutter is the exception on a solid: it cuts the
+ * face it lies on (surface test), never the volume.
  * A bounding box test discards the far hosts before the boolean.
  *
  * @param {Object} args
@@ -76,6 +81,10 @@ export default async function getHostsCutByAnnotationAsync({
     revolutionSectionFill: false,
   };
 
+  // A flat polygon cutter must remove more than the slit a surface merely
+  // crossing its wafer would lose.
+  const isFlatCutter = isFlatPolygonSheet(cutter);
+
   let cutterFrame = null;
   const results = [];
   try {
@@ -87,6 +96,12 @@ export default async function getHostsCutByAnnotationAsync({
       )
     ).filter(Boolean);
     if (cutterObjects.length === 0) return [];
+    const flatCutterObjects = cutterObjects.filter(
+      (object) => object.userData?.isFlatSheetCutter
+    );
+    const volumeCutterObjects = cutterObjects.filter(
+      (object) => !object.userData?.isFlatSheetCutter
+    );
     cutterFrame = createBaseMapFrameGroup(getBaseMapTransform(cutterBaseMap));
     cutterObjects.forEach((object) => cutterFrame.add(object));
     cutterFrame.updateMatrixWorld(true);
@@ -99,6 +114,29 @@ export default async function getHostsCutByAnnotationAsync({
       const baseMap = getBaseMap(host.baseMapId);
       const hostMetrics = getBaseMapForRender(baseMap);
       if (!hostMetrics) continue;
+      const isHollowHost = isHollowSubtractionHost(host);
+      // A sheet host is clipped by every operand at once. A SOLID host is
+      // carved by the volumes; the wafer of a flat polygon (the cutter
+      // itself, or a member of a block instance) takes no volume out of it
+      // but cuts the FACE it lies on: tested as a surface, like the display.
+      const passes = (
+        isHollowHost
+          ? [
+              {
+                objects: cutterObjects,
+                hollow: true,
+                floor: isFlatCutter ? FLAT_SHEET_MIN_REMOVED_M2 : 0,
+              },
+            ]
+          : [
+              { objects: volumeCutterObjects, hollow: false, floor: 0 },
+              {
+                objects: flatCutterObjects,
+                hollow: true,
+                floor: FLAT_SHEET_MIN_REMOVED_M2,
+              },
+            ]
+      ).filter((pass) => pass.objects.length > 0);
 
       let hostFrame = null;
       let hostSolid = null;
@@ -118,18 +156,20 @@ export default async function getHostsCutByAnnotationAsync({
 
         hostSolid = buildMergedWorldSolid(hostObject);
         if (!hostSolid) continue;
-        const hostMeasure = getHostMeasure(hostSolid, {
-          hollow: isHollowSubtractionHost(host),
-        });
-        if (!(hostMeasure.measure > 0)) continue;
-
-        const removed = getSubtractionRemovedMeasure({
-          hostSolid,
-          cutterObjects,
-          hostMeasure,
-        });
-        if (removed >= hostMeasure.minRemoved) {
-          results.push({ annotation: host, removed });
+        for (const pass of passes) {
+          const hostMeasure = getHostMeasure(hostSolid, {
+            hollow: pass.hollow,
+          });
+          if (!(hostMeasure.measure > 0)) continue;
+          const removed = getSubtractionRemovedMeasure({
+            hostSolid,
+            cutterObjects: pass.objects,
+            hostMeasure,
+          });
+          if (removed >= Math.max(hostMeasure.minRemoved, pass.floor)) {
+            results.push({ annotation: host, removed });
+            break;
+          }
         }
         tested += 1;
         if (tested % YIELD_EVERY === 0) await yieldToBrowser();

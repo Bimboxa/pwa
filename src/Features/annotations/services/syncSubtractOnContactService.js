@@ -10,7 +10,7 @@ import getBlockCuttersByInstanceId, {
   isLightResolvable,
   resolveBlockInstanceBboxPx,
 } from "../utils/getBlockCuttersByInstanceId";
-import isVolumeCutter, { CUTTER_TYPES } from "../utils/isVolumeCutter";
+import { CUTTER_TYPES, isContactCutter } from "../utils/isVolumeCutter";
 import resolveRowsAgainstOwnBaseMap from "../utils/resolveRowsAgainstOwnBaseMap";
 import addAnnotationSubtractions from "./addAnnotationSubtractions";
 
@@ -285,7 +285,7 @@ export default async function syncSubtractOnContactService({
       cutter = isLightResolvable(cutterRow)
         ? resolveLight(cutterRow)
         : getSceneSource(cutterRow);
-      if (!cutter || !isVolumeCutter(cutter)) continue;
+      if (!cutter || !isContactCutter(cutter)) continue;
     }
 
     const cutterOnBlocksBaseMap = isOnBlocksBaseMap(cutterRow);

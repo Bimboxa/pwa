@@ -509,3 +509,34 @@ test("the removed measure tells a cutting solid from a near miss", () => {
   assert.equal(hostSolid.geometry.getAttribute("position").count, before);
   assert.ok(!hostSolid.userData.hasSubtraction);
 });
+
+test("a flat cutter opens the face of a solid it lies on, after the volumes", () => {
+  // A 2 × 2 × 1 box, a volume cutter through one corner and a wafer (flat
+  // polygon operand, tagged) lying on its top face.
+  const box = (w, d, h, x, y, z) => {
+    const mesh = new THREE.Mesh(
+      new THREE.BoxGeometry(w, d, h),
+      new THREE.MeshBasicMaterial()
+    );
+    mesh.position.set(x, y, z);
+    mesh.userData = { role: "SOLID" };
+    return mesh;
+  };
+  const scene = new THREE.Group();
+  const host = box(2, 2, 1, 0, 0, 0.5);
+  const volume = box(0.5, 0.5, 3, -0.75, -0.75, 0.5);
+  const wafer = box(0.4, 0.4, 1e-4, 0.5, 0.5, 1 + 5e-5);
+  wafer.userData.isFlatSheetCutter = true;
+  scene.add(host, volume, wafer);
+  scene.updateMatrixWorld(true);
+
+  const areaBefore = toNonIndexedArea(host.geometry);
+  subtractAnnotationGeometries(host, [volume, wafer], {});
+  const [carved] = getSolidMeshesFromObject3D(host);
+  // Volume pass: two 0.5 × 0.5 squares leave the top / bottom faces, the cut
+  // adds two 0.5 × 1 inner faces (the other two were outer faces already).
+  // Face pass: the 0.4 × 0.4 footprint leaves the top face, nothing is added.
+  const expected = areaBefore - 2 * 0.25 - 0.16;
+  const area = toNonIndexedArea(carved.geometry);
+  assert.ok(Math.abs(area - expected) < 1e-3, `${area} vs ${expected}`);
+});
