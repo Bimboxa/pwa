@@ -9,10 +9,7 @@ import createMeshCellLabelSprite from "./utilsAnnotationsManager/createMeshCellL
 import subtractAnnotationGeometries from "./utilsAnnotationsManager/subtractAnnotationGeometries";
 import buildAnnotationSolidObjectsAsync from "./utilsAnnotationsManager/buildAnnotationSolidObjectsAsync";
 import getSolidMeshFromObject3D from "./utilsAnnotationsManager/getSolidMeshFromObject3D";
-import isMesh3dClosed from "Features/annotationMesh3d/utils/isMesh3dClosed";
-import isInlineExtrusionPolyline from "Features/annotations/utils/isInlineExtrusionPolyline";
-import isOpenSidePrism from "Features/annotations/utils/isOpenSidePrism";
-import isPolylineSheetWall from "Features/annotations/utils/isPolylineSheetWall";
+import isHollowSubtractionHost from "Features/annotations/utils/isHollowSubtractionHost";
 import getBaseMapForRender from "./utilsAnnotationsManager/getBaseMapForRender";
 import createBaseMapFrameGroup from "./utilsAnnotationsManager/createBaseMapFrameGroup";
 import refreshRevolutionSectionMarkers from "./utilsAnnotationsManager/refreshRevolutionSectionMarkers";
@@ -20,12 +17,6 @@ import applyWireframeSettings from "./utilsAnnotationsManager/applyWireframeSett
 import applyHatchFill from "./utilsAnnotationsManager/applyHatchFill";
 import applySurfaceCuts from "./utilsAnnotationsManager/applySurfaceCuts";
 
-import {
-  getShape3DKey,
-  isOpenTopPrism,
-  isInvertedUWall,
-  isRevolutionSolid,
-} from "Features/annotations/constants/shape3DConfig";
 import applyWorldBoxUVs from "Features/photorealRender/utils/applyWorldBoxUVs";
 import ensureMaterial3dMaps from "Features/photorealRender/utils/ensureMaterial3dMaps";
 import { applySketchEdges } from "./postfx/aquarelleMaterials";
@@ -477,19 +468,10 @@ export default class AnnotationsManager {
             // closed volume: regular subtraction, cut faces included. A mesh
             // host has no shape3D any more (cleared at its conversion), so
             // its closure is read from the stored faces.
-            const sourceShapeKey = getShape3DKey(annotation.shape3D);
-            const hollow = annotation.isMesh3d
-              ? !isMesh3dClosed(annotation.mesh3d)
-              : isInlineExtrusionPolyline(annotation) ||
-                isPolylineSheetWall(annotation) ||
-                // « Fosse »: a prism without its top face, an open surface.
-                isOpenTopPrism(annotation) ||
-                // « U inversé »: no bottom face, no end faces.
-                isInvertedUWall(annotation) ||
-                // A prism without one of its side faces (hidden segment).
-                isOpenSidePrism(annotation) ||
-                (sourceShapeKey === "REVOLUTION" &&
-                  !isRevolutionSolid(annotation));
+            // A flat POLYGON (no height) is a one-face sheet too: a cutter
+            // resting on it cuts its footprint out. One shared rule
+            // (isHollowSubtractionHost) with the contact detection.
+            const hollow = isHollowSubtractionHost(annotation);
             subtractAnnotationGeometries(carveTarget, carveOperands, {
               hollow,
               rebuildEdges: true,

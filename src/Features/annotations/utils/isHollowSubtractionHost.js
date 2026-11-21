@@ -6,6 +6,7 @@ import {
   isOpenTopPrism,
   isRevolutionSolid,
 } from "../constants/shape3DConfig";
+import isFlatPolygonSheet from "./isFlatPolygonSheet";
 import isInlineExtrusionPolyline from "./isInlineExtrusionPolyline";
 import isOpenSidePrism from "./isOpenSidePrism";
 import isPolylineSheetWall from "./isPolylineSheetWall";
@@ -13,8 +14,9 @@ import isPolylineSheetWall from "./isPolylineSheetWall";
 // Whether the 3D object of a subtraction host is an OPEN surface (a sheet):
 // an inline-extrusion sheet, a PX polyline wall, a « Fosse » (prism without
 // its top face), a « U inversé » (thick line without its bottom and end
-// faces), a prism without one of its side faces (hidden segment), an
-// open lathe shell, or an open mesh3d. Such a host is
+// faces), a prism without one of its side faces (hidden segment), a flat
+// POLYGON / RECTANGLE (no height: one face), an open lathe shell, or an open
+// mesh3d. Such a host is
 // clipped (HOLLOW_SUBTRACTION, no cap faces) and what a cutter removes from it
 // is a surface, not a volume. Same rule as the live carve (AnnotationsManager).
 export default function isHollowSubtractionHost(annotation) {
@@ -26,6 +28,7 @@ export default function isHollowSubtractionHost(annotation) {
     isOpenTopPrism(annotation) ||
     isInvertedUWall(annotation) ||
     isOpenSidePrism(annotation) ||
+    isFlatPolygonSheet(annotation) ||
     (getShape3DKey(annotation.shape3D) === "REVOLUTION" &&
       !isRevolutionSolid(annotation))
   );
