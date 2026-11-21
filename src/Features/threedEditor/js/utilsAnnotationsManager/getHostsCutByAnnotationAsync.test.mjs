@@ -357,10 +357,9 @@ test("the member follows the instance's anchor and rotation", async () => {
   // along +X, misses it...
   assert.deepEqual(await detect(blockInstance({ x: 3.5, z: 0 }), [slab]), []);
   // ...and falls back inside once the instance is turned half a turn.
-  const hits = await detect(
-    blockInstance({ x: 3.5, z: 0, rotation: 180 }),
-    [slab]
-  );
+  const hits = await detect(blockInstance({ x: 3.5, z: 0, rotation: 180 }), [
+    slab,
+  ]);
   assert.deepEqual(
     hits.map((hit) => hit.annotation.id),
     ["slab"]
@@ -384,4 +383,29 @@ test("an instance whose block holds no carving member cuts nothing", async () =>
   const instance = blockInstance({ x: 0, z: 0 });
   delete instance._blockCutters;
   assert.deepEqual(await detect(instance, [slab]), []);
+});
+
+// A flat POLYGON (no height) is a one-face sheet: what a cutter removes from
+// it is a surface, and a cutter RESTING on it cuts its footprint out.
+const flatFloor = rect({ id: "floor", cx: 0, cz: 0, size: 6, offsetZ: 0 });
+
+test("a block instance resting on a flat polygon cuts its footprint", async () => {
+  // The member's base (offsetZ -0.2, height 0.2) is lifted so that it rests
+  // on the floor: coplanar contact only.
+  const hits = await detect(blockInstance({ x: 0, z: 0, offsetZ: 0.2 }), [
+    flatFloor,
+  ]);
+  assert.deepEqual(
+    hits.map((hit) => hit.annotation.id),
+    ["floor"]
+  );
+  // 0.4 × 0.4 m² of the sheet.
+  assert.ok(Math.abs(hits[0].removed - 0.16) < 1e-3, `${hits[0].removed}`);
+});
+
+test("a flat polygon far from the instance is left alone", async () => {
+  assert.deepEqual(
+    await detect(blockInstance({ x: 8, z: 0, offsetZ: 0.2 }), [flatFloor]),
+    []
+  );
 });
