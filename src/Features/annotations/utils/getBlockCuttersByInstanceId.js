@@ -9,7 +9,7 @@ import getBaseMapForRender from "Features/threedEditor/js/utilsAnnotationsManage
 import { getShape3DKey } from "../constants/shape3DConfig";
 import getAnnotationPropsFromAnnotationTemplateProps from "./getAnnotationPropsFromAnnotationTemplateProps";
 import getAnnotationTemplateProps from "./getAnnotationTemplateProps";
-import isVolumeCutter, { CUTTER_TYPES } from "./isVolumeCutter";
+import { CUTTER_TYPES, isContactCutter } from "./isVolumeCutter";
 import resolveRowsAgainstOwnBaseMap from "./resolveRowsAgainstOwnBaseMap";
 
 // Line refs a light headless resolution leaves unresolved: an annotation
@@ -193,7 +193,7 @@ export default async function getBlockCuttersByInstanceId(
             asBaseMapForMerge(baseMap)
           )
         : resolved;
-      if (!isVolumeCutter(annotation)) continue;
+      if (!isContactCutter(annotation)) continue;
       members.push({
         annotation,
         baseMapForRender: getBaseMapForRender(baseMap),

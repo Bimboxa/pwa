@@ -188,6 +188,9 @@ function collapseMesh3dHost(group) {
  * @param {import("three").Object3D} sourceObject
  * @param {Array<import("three").Object3D>} targetObjects
  * @param {Object} [options]
+ * A target tagged `userData.isFlatSheetCutter` (the wafer of a flat polygon)
+ * never carves the volume of a solid source: it cuts the face it lies on.
+ *
  * @param {boolean} [options.hollow] clip-only subtraction for open surfaces;
  *   the sheet triangles lying ON a cutter face (coplanar contact) are
  *   cut away too, see clipCoplanarSheetTriangles.
@@ -208,6 +211,26 @@ export default function subtractAnnotationGeometries(
 
   if (getSolidMeshesFromObject3D(sourceObject).length === 0) {
     return sourceObject;
+  }
+
+  // A SOLID source and the wafer of a flat polygon cutter (tagged
+  // `isFlatSheetCutter` by buildAnnotationSolidObjectsAsync): a surface takes
+  // no volume out of a solid, it opens the FACE it lies on. Two passes — the
+  // volumes first (regular subtraction, cut faces included), then the wafers
+  // as a clip-only pass, whose coplanar rule cuts their footprint out of the
+  // face. A sheet source is clipped by every operand at once.
+  if (!options.hollow) {
+    const faceCutters = targets.filter((t) => t.userData?.isFlatSheetCutter);
+    if (faceCutters.length > 0) {
+      const volumeCutters = targets.filter(
+        (t) => !t.userData?.isFlatSheetCutter
+      );
+      subtractAnnotationGeometries(sourceObject, volumeCutters, options);
+      return subtractAnnotationGeometries(sourceObject, faceCutters, {
+        ...options,
+        hollow: true,
+      });
+    }
   }
 
   // For an OPEN surface source (e.g. an inline-extrusion sheet or a

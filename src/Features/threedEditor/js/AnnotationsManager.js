@@ -1,4 +1,4 @@
-import { Vector2 } from "three";
+import { DoubleSide, Vector2 } from "three";
 
 import createAnnotationObject3D from "./utilsAnnotationsManager/createAnnotationObject3D";
 import createPhotoPlanObject3D from "./utilsAnnotationsManager/createPhotoPlanObject3D";
@@ -8,7 +8,9 @@ import diffAnnotationsForBuild, {
 import createMeshCellLabelSprite from "./utilsAnnotationsManager/createMeshCellLabelSprite";
 import subtractAnnotationGeometries from "./utilsAnnotationsManager/subtractAnnotationGeometries";
 import buildAnnotationSolidObjectsAsync from "./utilsAnnotationsManager/buildAnnotationSolidObjectsAsync";
-import getSolidMeshFromObject3D from "./utilsAnnotationsManager/getSolidMeshFromObject3D";
+import getSolidMeshFromObject3D, {
+  getSolidMeshesFromObject3D,
+} from "./utilsAnnotationsManager/getSolidMeshFromObject3D";
 import isHollowSubtractionHost from "Features/annotations/utils/isHollowSubtractionHost";
 import getBaseMapForRender from "./utilsAnnotationsManager/getBaseMapForRender";
 import createBaseMapFrameGroup from "./utilsAnnotationsManager/createBaseMapFrameGroup";
@@ -456,7 +458,7 @@ export default class AnnotationsManager {
                 return null;
               }
             );
-            const carveOperands = targetObjects3D.filter(Boolean);
+            const builtOperands = targetObjects3D.filter(Boolean);
             this.scene.updateMatrixWorld(true);
 
             // Open-surface sources (inline-extrusion sheets, PX polyline
@@ -472,13 +474,33 @@ export default class AnnotationsManager {
             // resting on it cuts its footprint out. One shared rule
             // (isHollowSubtractionHost) with the contact detection.
             const hollow = isHollowSubtractionHost(annotation);
-            subtractAnnotationGeometries(carveTarget, carveOperands, {
+            // The wafer of a flat polygon cutter never carves the volume of
+            // a solid host: it opens the face it lies on
+            // (subtractAnnotationGeometries runs it as a second, clip-only
+            // pass).
+            subtractAnnotationGeometries(carveTarget, builtOperands, {
               hollow,
               rebuildEdges: true,
               gridEdgeThresholdDeg: this.wireframeSettings.thresholdDeg,
             });
+            if (
+              !hollow &&
+              builtOperands.some((o) => o.userData?.isFlatSheetCutter)
+            ) {
+              // The solid is now open: its inner faces show through the hole.
+              getSolidMeshesFromObject3D(carveTarget).forEach((mesh) => {
+                const materials = Array.isArray(mesh.material)
+                  ? mesh.material
+                  : [mesh.material];
+                materials.forEach((material) => {
+                  if (!material || material.side === DoubleSide) return;
+                  material.side = DoubleSide;
+                  material.needsUpdate = true;
+                });
+              });
+            }
 
-            carveOperands.forEach((o) => {
+            builtOperands.forEach((o) => {
               o.parent?.remove(o);
               o.traverse?.((child) => {
                 if (child.geometry) child.geometry.dispose();

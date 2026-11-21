@@ -3,6 +3,10 @@ import {
   getShape3DKey,
 } from "Features/annotations/constants/shape3DConfig";
 
+import isFlatPolygonSheet, {
+  asFlatSheetOperand,
+} from "Features/annotations/utils/isFlatPolygonSheet";
+
 import { getBlockInverseMatrix } from "../utilsBlocksManager/blockFrame";
 import createAnnotationObject3D from "./createAnnotationObject3D";
 import createBaseMapFrameGroup from "./createBaseMapFrameGroup";
@@ -90,6 +94,9 @@ async function buildBlockInstanceSolidObjectsAsync(
  * SUBTRACTION operand). Returned objects are unparented; the caller attaches
  * them to the basemap group so their matrixWorld matches the source's frame.
  *
+ * An operand tagged `userData.isFlatSheetCutter` is the wafer of a flat
+ * polygon: it only cuts sheet (hollow) hosts — drop it for a solid host.
+ *
  * Every annotation builds its solid synchronously via the normal display
  * builder (kept async for its callers' sake).
  *
@@ -124,11 +131,15 @@ export default async function buildAnnotationSolidObjectsAsync(
   }
 
   // A « Fosse » operand is its CLOSED prism: the removed top face cuts the
-  // coplanar face of a host glued to it.
+  // coplanar face of a host glued to it. A flat polygon is a wafer standing
+  // on its plane: it cuts its footprint out of a coplanar sheet.
   const object = createAnnotationObject3D(
-    asClosedSolidOperand(annotation),
+    asClosedSolidOperand(asFlatSheetOperand(annotation)),
     baseMapForRender,
     operandOptions
   );
-  return object ? [object] : [];
+  if (!object) return [];
+  // Tagged for the callers: a wafer must never groove a SOLID host.
+  if (isFlatPolygonSheet(annotation)) object.userData.isFlatSheetCutter = true;
+  return [object];
 }
