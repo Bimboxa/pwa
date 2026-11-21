@@ -25,7 +25,7 @@
     "@mui/x-data-grid-pro": "^8.5.1",
     "@mui/x-date-pickers": "^8.29.3",
     "@mui/x-license": "^7.28.0",
-    "@mui/x-tree-view": "^8.2.0",
+    "@mui/x-tree-view": "^9.16.0",
     "@mui/x-tree-view-pro": "^8.2.0",
     "@reduxjs/toolkit": "^2.5.1",
     "@sparkjsdev/spark": "2.4.0",
