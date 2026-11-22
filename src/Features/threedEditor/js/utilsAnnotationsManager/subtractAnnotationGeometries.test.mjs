@@ -489,7 +489,8 @@ test("the removed measure tells a cutting solid from a near miss", () => {
   });
   assert.ok(Math.abs(through - 1) < 1e-3, `removed ${through}`);
 
-  // A column standing ON the slab (touching, not cutting) removes nothing.
+  // A column standing ON the slab (touching, not cutting) removes no
+  // volume: the face it opens is a surface matter.
   const onTop = getSubtractionRemovedMeasure({
     hostSolid,
     cutterObjects: [box(1, 1, 1, 0, 1.5, 0)],
@@ -539,4 +540,62 @@ test("a flat cutter opens the face of a solid it lies on, after the volumes", ()
   const expected = areaBefore - 2 * 0.25 - 0.16;
   const area = toNonIndexedArea(carved.geometry);
   assert.ok(Math.abs(area - expected) < 1e-3, `${area} vs ${expected}`);
+});
+
+test("a volume resting on a face of a solid opens that face", () => {
+  const box = (w, d, h, x, y, z) => {
+    const mesh = new THREE.Mesh(
+      new THREE.BoxGeometry(w, d, h),
+      new THREE.MeshBasicMaterial()
+    );
+    mesh.position.set(x, y, z);
+    mesh.userData = { role: "SOLID" };
+    return mesh;
+  };
+  const carve = (cutters, options = {}) => {
+    const scene = new THREE.Group();
+    // A 2 × 2 × 1 box away from the origin, top face at z = 4.
+    const host = box(2, 2, 1, 10, 10, 3.5);
+    scene.add(host, ...cutters);
+    scene.updateMatrixWorld(true);
+    const before = toNonIndexedArea(host.geometry);
+    subtractAnnotationGeometries(host, cutters, options);
+    const [carved] = getSolidMeshesFromObject3D(host);
+    return { removed: before - toNonIndexedArea(carved.geometry), carved };
+  };
+
+  // Standing on the top face: its 0.5 × 0.4 footprint leaves the face.
+  const onTop = carve([box(0.5, 0.4, 1, 10.2, 10.1, 4.5)]);
+  assert.ok(Math.abs(onTop.removed - 0.2) < 1e-3, `${onTop.removed}`);
+  assert.equal(onTop.carved.userData.hasOpenedFace, true);
+
+  // Against a side face, overhanging the top: only the part on the face.
+  const onSide = carve([box(1, 0.4, 1, 11.5, 10, 4)]);
+  assert.ok(Math.abs(onSide.removed - 0.2) < 1e-3, `${onSide.removed}`);
+
+  // Kept closed on demand (volume measures).
+  const kept = carve([box(0.5, 0.4, 1, 10.2, 10.1, 4.5)], {
+    keepContactFaces: true,
+  });
+  assert.ok(Math.abs(kept.removed) < 1e-3, `${kept.removed}`);
+  assert.ok(!kept.carved.userData.hasOpenedFace);
+
+  // A pocket sunk 0.5 m from the top, flush with it: the top loses the
+  // 0.5 × 0.5 footprint, the pocket keeps its floor and its four walls.
+  const pocket = carve([box(0.5, 0.5, 0.5, 10, 10, 3.75)]);
+  const expected = 0.25 - 0.25 - 4 * 0.25;
+  assert.ok(
+    Math.abs(pocket.removed - expected) < 1e-3,
+    `${pocket.removed} vs ${expected}`
+  );
+
+  // A pocket AND a volume resting beside it.
+  const both = carve([
+    box(0.5, 0.5, 0.5, 10, 10, 3.75),
+    box(0.4, 0.4, 1, 10.6, 10.6, 4.5),
+  ]);
+  assert.ok(
+    Math.abs(both.removed - (expected + 0.16)) < 1e-3,
+    `${both.removed} vs ${expected + 0.16}`
+  );
 });

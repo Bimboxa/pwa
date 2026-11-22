@@ -212,7 +212,7 @@ test("the same pit pasted beside the slab cuts nothing", async () => {
   assert.deepEqual(await detect(pit, [slab]), []);
 });
 
-test("a solid merely resting on the slab does not carve it", async () => {
+test("a solid resting on the slab opens the face it rests on", async () => {
   const block = rect({
     id: "block",
     cx: 1,
@@ -221,7 +221,27 @@ test("a solid merely resting on the slab does not carve it", async () => {
     offsetZ: 0,
     height: 0.5,
   });
-  assert.deepEqual(await detect(block, [slab]), []);
+  const hits = await detect(block, [slab]);
+  assert.deepEqual(
+    hits.map((hit) => hit.annotation.id),
+    ["slab"]
+  );
+  // No volume: 0.4 × 0.4 m² of the top face.
+  assert.ok(Math.abs(hits[0].removed - 0.16) < 1e-3, `${hits[0].removed}`);
+  // 1 mm above the face: no contact.
+  assert.deepEqual(await detect({ ...block, offsetZ: 0.001 }, [slab]), []);
+});
+
+test("a block instance resting on a solid opens the face under it", async () => {
+  // The member's base (offsetZ -0.2, height 0.2) lifted onto the top face.
+  const hits = await detect(blockInstance({ x: 0, z: 0, offsetZ: 0.2 }), [
+    slab,
+  ]);
+  assert.deepEqual(
+    hits.map((hit) => hit.annotation.id),
+    ["slab"]
+  );
+  assert.ok(Math.abs(hits[0].removed - 0.16) < 1e-3, `${hits[0].removed}`);
 });
 
 test("only the hosts really reached are returned", async () => {

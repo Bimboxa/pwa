@@ -42,9 +42,9 @@ function disposeTree(object) {
  * host without any render-only tweak in ITS OWN base map frame
  * (cross-baseMap), and a host is kept when subtracting the cutter removes
  * something from it (volume, or surface for an open host — so a cutter lying
- * ON a sheet cuts it, while a closed solid a VOLUME merely touches is left
- * alone). A flat polygon cutter is the exception on a solid: it cuts the
- * face it lies on (surface test), never the volume.
+ * ON a sheet cuts it). A closed solid is tested twice, like the display
+ * carves it: by its volume, then by its skin — a volume or a flat polygon
+ * resting ON one of its faces opens that face on its footprint.
  * A bounding box test discards the far hosts before the boolean.
  *
  * @param {Object} args
@@ -96,9 +96,6 @@ export default async function getHostsCutByAnnotationAsync({
       )
     ).filter(Boolean);
     if (cutterObjects.length === 0) return [];
-    const flatCutterObjects = cutterObjects.filter(
-      (object) => object.userData?.isFlatSheetCutter
-    );
     const volumeCutterObjects = cutterObjects.filter(
       (object) => !object.userData?.isFlatSheetCutter
     );
@@ -116,9 +113,9 @@ export default async function getHostsCutByAnnotationAsync({
       if (!hostMetrics) continue;
       const isHollowHost = isHollowSubtractionHost(host);
       // A sheet host is clipped by every operand at once. A SOLID host is
-      // carved by the volumes; the wafer of a flat polygon (the cutter
-      // itself, or a member of a block instance) takes no volume out of it
-      // but cuts the FACE it lies on: tested as a surface, like the display.
+      // carved by the volumes; an operand resting on one of its faces (a
+      // volume, or the wafer of a flat polygon) takes no volume out of it
+      // but opens that FACE: tested as a surface, like the display.
       const passes = (
         isHollowHost
           ? [
@@ -131,7 +128,7 @@ export default async function getHostsCutByAnnotationAsync({
           : [
               { objects: volumeCutterObjects, hollow: false, floor: 0 },
               {
-                objects: flatCutterObjects,
+                objects: cutterObjects,
                 hollow: true,
                 floor: FLAT_SHEET_MIN_REMOVED_M2,
               },

@@ -136,13 +136,20 @@ const openRing = (ring) => {
  *   frame (indexed or not); not mutated.
  * @param {Array<import("three").BufferGeometry>} cutterGeometries cutter
  *   solids, WORLD frame.
+ * @param {Object} [options]
+ * @param {Function} [options.isClippable] `(a, b, c) => boolean` on the
+ *   WORLD corners of a host triangle: when given, only the triangles it
+ *   accepts are clipped (the contact faces of a carved solid, see
+ *   subtractAnnotationGeometries).
  * @returns {import("three").BufferGeometry|null} the clipped host
  *   (non-indexed, position + normal), or null when nothing was coplanar.
  */
 export default function clipCoplanarSheetTriangles(
   sourceGeometry,
-  cutterGeometries
+  cutterGeometries,
+  options = {}
 ) {
+  const { isClippable } = options;
   const hostTriangles = readTriangles(sourceGeometry);
   if (hostTriangles.length === 0) return null;
   const tolerance = coplanarTolerance(
@@ -217,6 +224,9 @@ export default function clipCoplanarSheetTriangles(
       }
       const area = ringArea(ring);
       if (!(area > 0)) continue;
+      if (isClippable && !isClippable(triangle.a, triangle.b, triangle.c)) {
+        continue;
+      }
       let remainder;
       try {
         remainder = polygonClipping.difference([ring], ...cutterPolygons);
