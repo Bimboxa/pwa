@@ -33,7 +33,7 @@ const multiPolygonAreaPx = (multiPolygon) => {
   return area;
 };
 
-const annotationToGeom = (annotation, meterByPx) => {
+export const annotationToGeom = (annotation, meterByPx) => {
   const shapes = getAnnotationAsPolygons(annotation, { meterByPx });
   return shapes
     .filter((s) => s?.points && s.points.length >= 3)
@@ -44,6 +44,25 @@ const annotationToGeom = (annotation, meterByPx) => {
         .filter((r) => r.length >= 4),
     ]);
 };
+
+// Footprints (polygon-clipping polygons, host pixels) of subtraction targets.
+export function getSubtractionClippers(targets, meterByPx) {
+  const clippers = [];
+  for (const target of targets ?? []) {
+    // A block instance has no contour of its own: its footprint (the
+    // projection of its carving members, host pixels) is precomputed.
+    if (target?._footprintMultiPolygon) {
+      for (const polygon of target._footprintMultiPolygon) {
+        if (polygon?.[0]?.length >= 4) clippers.push(polygon);
+      }
+      continue;
+    }
+    for (const geom of annotationToGeom(target, meterByPx)) {
+      clippers.push(geom);
+    }
+  }
+  return clippers;
+}
 
 /**
  * Carved-surface quantities for a source annotation after subtracting the
@@ -68,20 +87,7 @@ export default function getAnnotationSubtractionQties({
     const subject = annotationToGeom(annotation, meterByPx);
     if (subject.length === 0) return null;
 
-    const clippers = [];
-    for (const target of targets) {
-      // A block instance has no contour of its own: its footprint (the
-      // projection of its carving members, host pixels) is precomputed.
-      if (target?._footprintMultiPolygon) {
-        for (const polygon of target._footprintMultiPolygon) {
-          if (polygon?.[0]?.length >= 4) clippers.push(polygon);
-        }
-        continue;
-      }
-      for (const geom of annotationToGeom(target, meterByPx)) {
-        clippers.push(geom);
-      }
-    }
+    const clippers = getSubtractionClippers(targets, meterByPx);
     if (clippers.length === 0) return null;
 
     const result = polygonClipping.difference(subject, ...clippers);

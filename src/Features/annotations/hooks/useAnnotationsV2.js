@@ -406,7 +406,9 @@ import isPolylineSheetHost from "Features/annotations/utils/isPolylineSheetHost"
 import getEntityWithImagesAsync from "Features/entities/services/getEntityWithImagesAsync";
 import testObjectHasProp from "Features/misc/utils/testObjectHasProp";
 import getAnnotationQties from "Features/annotations/utils/getAnnotationQties";
+import isFlatPolygonSheet from "Features/annotations/utils/isFlatPolygonSheet";
 import getAnnotationSubtractionQties from "Features/annotations/utils/getAnnotationSubtractionQties";
+import getFlatHostSubtractionHoles from "Features/annotations/utils/getFlatHostSubtractionHoles";
 import getAnnotationOpeningQties from "Features/annotations/utils/getAnnotationOpeningQties";
 import useAnnotationOpenings from "Features/annotations/hooks/useAnnotationOpenings";
 import useAnnotationSubtractions from "Features/annotations/hooks/useAnnotationSubtractions";
@@ -3391,6 +3393,21 @@ export default function useAnnotationsV2(options) {
               meterByPx,
             });
             if (subQ) withSub.qties = { ...(withSub.qties || {}), ...subQ };
+          }
+
+          // A FLAT polygon host is a sheet: what is subtracted from it is
+          // cut through, in 2D too (NodePolylineStatic appends these rings
+          // to its even-odd fill). Same-base-map targets only: a foreign
+          // one is drawn by its footprint annotation.
+          if (a?.type === "POLYGON" && isFlatPolygonSheet(a)) {
+            const holes = getFlatHostSubtractionHoles({
+              annotation: a,
+              targets: subtractionTargets.filter(
+                (t) => !t?.baseMapId || t.baseMapId === a.baseMapId
+              ),
+              meterByPx: baseMapById[a.baseMapId]?.getMeterByPx?.(),
+            });
+            if (holes.length > 0) withSub._subtractionHoles = holes;
           }
 
           // Open-surface hosts (POLYLINE sheet — PX wall or inline
