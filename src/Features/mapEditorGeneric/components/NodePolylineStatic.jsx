@@ -702,11 +702,17 @@ function NodePolylineStatic({
     return m ? m[1] : d;
   };
 
+  // Holes opened by the subtraction targets of a FLAT polygon (read-only,
+  // resolved by useAnnotationsV2): part of the fill only, never editable.
+  const subtractionHoles = mergedAnnotation._subtractionHoles;
   const fullFillD = useMemo(() => {
     let d = pathD;
     if (holesData.length > 0) d += " " + holesData.map((h) => h.d).join(" ");
+    for (const ring of subtractionHoles ?? []) {
+      d += ` M ${ring.map((p) => `${p.x} ${p.y}`).join(" L ")} Z`;
+    }
     return d;
-  }, [pathD, holesData]);
+  }, [pathD, holesData, subtractionHoles]);
 
   // --- RENDU SEGMENTS (Strokes) ---
 

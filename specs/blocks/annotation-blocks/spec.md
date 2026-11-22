@@ -349,6 +349,11 @@ modèle) creuse **partout où son bloc est instancié**.
   dans `requestSubtractOnContactSync`) et à chaque modification d'un membre
   (toutes les instances du bloc sont retestées). Test booléen 3D exact, comme
   pour une annotation ordinaire.
+- **Contact sans volume commun** : un membre coupeur simplement **posé sur
+  une face** d'un hôte solide (faces coplanaires) ouvre cette face sur son
+  empreinte, comme sur un hôte « feuille » — règle générale du carve
+  (`subtractAnnotationGeometries`, `openContactFaces`), valable aussi pour
+  une annotation ordinaire.
 - **Cloisonnement** : une instance ne creuse que des annotations de fonds de
   plan ordinaires ; un membre, à sa position de définition, ne creuse que des
   annotations de fonds de plan de blocs.

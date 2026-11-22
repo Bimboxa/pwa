@@ -474,10 +474,10 @@ export default class AnnotationsManager {
             // resting on it cuts its footprint out. One shared rule
             // (isHollowSubtractionHost) with the contact detection.
             const hollow = isHollowSubtractionHost(annotation);
-            // The wafer of a flat polygon cutter never carves the volume of
-            // a solid host: it opens the face it lies on
-            // (subtractAnnotationGeometries runs it as a second, clip-only
-            // pass).
+            // An operand resting ON a face of a solid host (a volume, or
+            // the wafer of a flat polygon, which never carves a volume)
+            // opens that face: subtractAnnotationGeometries tags the carved
+            // mesh `hasOpenedFace`.
             subtractAnnotationGeometries(carveTarget, builtOperands, {
               hollow,
               rebuildEdges: true,
@@ -485,7 +485,9 @@ export default class AnnotationsManager {
             });
             if (
               !hollow &&
-              builtOperands.some((o) => o.userData?.isFlatSheetCutter)
+              getSolidMeshesFromObject3D(carveTarget).some(
+                (mesh) => mesh.userData?.hasOpenedFace
+              )
             ) {
               // The solid is now open: its inner faces show through the hole.
               getSolidMeshesFromObject3D(carveTarget).forEach((mesh) => {

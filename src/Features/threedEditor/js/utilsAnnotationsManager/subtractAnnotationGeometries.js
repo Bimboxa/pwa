@@ -96,9 +96,9 @@ function surfaceTolerance(brush) {
 // evaluator's indexed output, in the brushes' WORLD frame) in place.
 const _centroid = new Vector3();
 const _hit = {};
-function dropTrianglesOnCutters(geometry, targetBrushes) {
+function dropTrianglesOnCutters(geometry, targetBrushes, isCandidate) {
   const position = geometry?.getAttribute?.("position");
-  if (!position) return;
+  if (!position) return 0;
   const cutters = targetBrushes.map((brush) => {
     brush.prepareGeometry();
     return { bvh: brush.geometry.boundsTree, eps: surfaceTolerance(brush) };
@@ -118,20 +118,66 @@ function dropTrianglesOnCutters(geometry, targetBrushes) {
     );
     // closestPointToPoint prunes BOXES farther than `eps` but accepts any
     // triangle of a near box: check the distance it reports.
-    const onCutter = cutters.some(
-      ({ bvh, eps }) =>
-        bvh &&
-        bvh.closestPointToPoint(_centroid, _hit, 0, eps) !== null &&
-        _hit.distance <= eps
-    );
+    const onCutter =
+      (!isCandidate || isCandidate(_centroid)) &&
+      cutters.some(
+        ({ bvh, eps }) =>
+          bvh &&
+          bvh.closestPointToPoint(_centroid, _hit, 0, eps) !== null &&
+          _hit.distance <= eps
+      );
     if (onCutter) {
       dropped++;
       continue;
     }
     kept.push(ia, ib, ic);
   }
-  if (dropped === 0) return;
+  if (dropped === 0) return 0;
   geometry.setIndex(kept);
+  return dropped;
+}
+
+// Contact faces of a SOLID host: after the regular subtraction, what is left
+// of the host's ORIGINAL skin lying ON a face of a volume cutter is cut away
+// — a volume resting on a face of the solid opens that face on its
+// footprint, as a flat polygon does. The faces the subtraction inserted (the
+// walls and floor of a pocket) lie on the cutter too but INSIDE the original
+// solid: they are told apart by the distance to the original skin, and kept.
+// `geometry` is the evaluator's output (WORLD frame); returns the geometry
+// to use (a new one when the exact clip changed it) and whether a face was
+// opened.
+const _triangleCentroid = new Vector3();
+function openContactFaces(geometry, originalBrush, targetBrushes) {
+  originalBrush.prepareGeometry();
+  const skin = originalBrush.geometry.boundsTree;
+  if (!skin) return { geometry, opened: false };
+  const eps = surfaceTolerance(originalBrush);
+  const skinHit = {};
+  const isOnOriginalSkin = (point) =>
+    skin.closestPointToPoint(point, skinHit, 0, eps) !== null &&
+    skinHit.distance <= eps;
+
+  let opened = false;
+  let result = geometry;
+  const clipped = clipCoplanarSheetTriangles(
+    geometry,
+    targetBrushes.map((brush) => brush.geometry),
+    {
+      isClippable: (a, b, c) =>
+        isOnOriginalSkin(
+          _triangleCentroid.copy(a).add(b).add(c).divideScalar(3)
+        ),
+    }
+  );
+  if (clipped) {
+    geometry.dispose();
+    result = clipped;
+    opened = true;
+  }
+  if (dropTrianglesOnCutters(result, targetBrushes, isOnOriginalSkin) > 0) {
+    opened = true;
+  }
+  return { geometry: result, opened };
 }
 
 // A mesh3d HOST (group `isAnnotationMesh3d`, one face Mesh each) is collapsed
@@ -190,10 +236,16 @@ function collapseMesh3dHost(group) {
  * @param {Object} [options]
  * A target tagged `userData.isFlatSheetCutter` (the wafer of a flat polygon)
  * never carves the volume of a solid source: it cuts the face it lies on.
+ * A VOLUME target resting on a face of a solid source opens that face too
+ * (openContactFaces); the carved mesh is then tagged
+ * `userData.hasOpenedFace` (the solid is no longer closed).
  *
  * @param {boolean} [options.hollow] clip-only subtraction for open surfaces;
  *   the sheet triangles lying ON a cutter face (coplanar contact) are
  *   cut away too, see clipCoplanarSheetTriangles.
+ * @param {boolean} [options.keepContactFaces] solid source only: leave the
+ *   faces a volume target merely rests on (the source stays closed — volume
+ *   measures).
  * @param {boolean} [options.rebuildEdges] rebuild the black grid/outline
  *   lines from the carved geometry (scene callers); headless quantity
  *   callers leave it off and pay nothing.
@@ -284,21 +336,31 @@ export default function subtractAnnotationGeometries(
           sourceGeometry = clipped;
         }
       }
-      let resultBrush = new Brush(sourceGeometry);
-      resultBrush.updateMatrixWorld();
+      const originalBrush = new Brush(sourceGeometry);
+      originalBrush.updateMatrixWorld();
+      let resultBrush = originalBrush;
 
       for (const targetBrush of targetBrushes) {
         resultBrush = evaluator.evaluate(resultBrush, targetBrush, operation);
       }
       if (!resultBrush.geometry) continue;
+      let resultGeom = resultBrush.geometry;
+      let hasOpenedFace = false;
       if (options.hollow) {
-        dropTrianglesOnCutters(resultBrush.geometry, targetBrushes);
+        dropTrianglesOnCutters(resultGeom, targetBrushes);
+      } else if (!options.keepContactFaces) {
+        const contact = openContactFaces(
+          resultGeom,
+          originalBrush,
+          targetBrushes
+        );
+        resultGeom = contact.geometry;
+        hasOpenedFace = contact.opened;
       }
 
       // World-space result → source mesh LOCAL frame, so the (untouched)
       // source mesh transform places it back exactly where the original
       // geometry was.
-      const resultGeom = resultBrush.geometry;
       resultGeom.applyMatrix4(worldToLocal);
 
       const oldGeom = sourceMesh.geometry;
@@ -309,6 +371,7 @@ export default function subtractAnnotationGeometries(
         ...(sourceMesh.userData ?? {}),
         role: "SOLID",
         hasSubtraction: true,
+        ...(hasOpenedFace || options.hollow ? { hasOpenedFace: true } : {}),
       };
       didSubtract = true;
     }

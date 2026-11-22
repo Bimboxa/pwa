@@ -196,12 +196,13 @@ test("open prism host: a cutter glued to a face clips it", async () => {
   carved.dispose();
 });
 
-test("closed prism host: a cutter that only touches it removes nothing", async () => {
+test("closed prism host: a cutter resting on a face opens it", async () => {
+  // no volume is removed, the face loses the cutter's footprint (1 m²)
   const carved = await carve(slab);
   assert.ok(carved?.index);
   const top = topFace(carved.index);
-  assert.ok(near(faceArea(top), 8), `top area ${faceArea(top)}`);
-  assert.equal(top.polygons[0].holes.length, 0);
+  assert.ok(near(faceArea(top), 7), `top area ${faceArea(top)}`);
+  assert.equal(top.polygons[0].holes.length, 1);
   carved.dispose();
 });
 

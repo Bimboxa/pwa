@@ -70,7 +70,12 @@ export default function getSubtractionRemovedMeasure({
   probe.userData = { role: "SOLID" };
   probe.updateMatrixWorld(true);
   try {
-    subtractAnnotationGeometries(probe, cutterObjects, { hollow });
+    // A closed host is measured by its volume: it must stay closed (the
+    // faces a cutter merely rests on are a surface matter, tested apart).
+    subtractAnnotationGeometries(probe, cutterObjects, {
+      hollow,
+      keepContactFaces: true,
+    });
     if (!probe.userData?.hasSubtraction) return 0;
     const after = hollow
       ? toNonIndexedArea(probe.geometry)
