@@ -6953,7 +6953,10 @@ const InteractionLayer = forwardRef(({
 
         if (isParentSelected) {
           const isMultiSelectable =
-            partType === "SEG" || partType === "CUT_SEG" || partType === "CUT";
+            partType === "SEG" ||
+            partType === "CUT_SEG" ||
+            partType === "CUT" ||
+            partType === "HOLE_SEG";
           if (event.shiftKey && isMultiSelectable) {
             // Keep any existing point selection: shift+click on a segment adds
             // it to the mixed (points + segments) selection rather than

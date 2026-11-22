@@ -56,7 +56,11 @@ export default function getAnnotationPartQties({ annotation, part, meterByPx }) 
     // their wraparound segment (chain.closesRing → closeLine on the temp
     // polyline used for qty computation). Single-chain selections also flow
     // through this path so the closing segment is counted when applicable.
-    if (kind === "SEGMENTS" && Array.isArray(part.chains) && part.chains.length > 0) {
+    if (
+      kind === "SEGMENTS" &&
+      Array.isArray(part.chains) &&
+      (part.chains.length > 0 || part.holeSegments?.length > 0)
+    ) {
       let total = 0;
       for (const chain of part.chains) {
         const pts = chain?.pointRefs || [];
@@ -72,13 +76,10 @@ export default function getAnnotationPartQties({ annotation, part, meterByPx }) 
         });
         total += q?.length || 0;
       }
-      // Edges of the subtraction holes carried by a whole-contour selection
-      // (resolveSelectedAnnotationPart): plain closed rings, in pixels.
-      for (const ring of part.subtractionHoles ?? []) {
-        ring.forEach((p, i) => {
-          const q = ring[(i + 1) % ring.length];
-          total += Math.hypot(q.x - p.x, q.y - p.y) * meterByPx;
-        });
+      // Selected edges of the subtraction holes (HOLE_SEG parts, see
+      // subtractionHoleSegments): straight, in pixels.
+      for (const { p0, p1 } of part.holeSegments ?? []) {
+        total += Math.hypot(p1.x - p0.x, p1.y - p0.y) * meterByPx;
       }
       return { enabled: true, length: total, surface: 0 };
     }

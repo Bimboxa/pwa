@@ -20,6 +20,12 @@ import {
   formatHeightCutDelta,
 } from "Features/heightCuts/constants/heightCutConstants";
 
+import {
+  HOLE_SEG_PART_TYPE,
+  getSelectedHoleSegments,
+  isHoleSegPartId,
+} from "../utils/subtractionHoleSegments";
+
 // A segment is hidden when its index is in its ring's effective
 // hiddenSegmentsIdx (recomputed by useAnnotationsV2 on the resolved ring —
 // same index space as the partIds).
@@ -296,16 +302,43 @@ export function resolveSelectedAnnotationPart({
   }
 
   // --- SEGMENT / SEGMENTS (single or chain on main or cut ring) -------------
-  if (effectivePartType === "SEG" || effectivePartType === "CUT_SEG") {
+  if (
+    effectivePartType === "SEG" ||
+    effectivePartType === "CUT_SEG" ||
+    effectivePartType === HOLE_SEG_PART_TYPE
+  ) {
     // Multi-selection takes priority when 2+ parts are queued.
-    const effectivePartIds =
+    const allPartIds =
       selectedPartIds.length >= 2 ? selectedPartIds : partId ? [partId] : [];
 
-    if (effectivePartIds.length === 0) return { kind: "NONE" };
+    // Edges of subtraction holes (HOLE_SEG) are selectable but belong to no
+    // ring of the annotation: counted and measured apart, never chained,
+    // cloned or edited.
+    const holeSegments = getSelectedHoleSegments(annotation, allPartIds);
+    const effectivePartIds = allPartIds.filter((id) => !isHoleSegPartId(id));
+
+    if (effectivePartIds.length === 0) {
+      if (holeSegments.length === 0) return { kind: "NONE" };
+      return {
+        kind: "SEGMENTS",
+        captionFr: "Segments",
+        label:
+          holeSegments.length === 1
+            ? "1 segment"
+            : `${holeSegments.length} segments`,
+        holeSegments,
+        pointRefs: [],
+        geometryPx: [],
+        targetAnnotationType: null,
+        contiguous: false,
+        chains: [],
+        ringKey: null,
+      };
+    }
 
     const chain = getContiguousSegmentChain(annotation, effectivePartIds);
 
-    if (effectivePartIds.length === 1) {
+    if (effectivePartIds.length === 1 && holeSegments.length === 0) {
       // Single segment — resolve directly so we still get geometry when the
       // single-item path of the chain util returns "contiguous: true" with 2 pts.
       const refs = chain.contiguous ? chain.pointRefs : null;
@@ -347,18 +380,7 @@ export function resolveSelectedAnnotationPart({
     const chains = getContiguousSegmentChains(annotation, visiblePartIds);
     const contiguous = chains.length === 1;
 
-    // The whole main contour (double click) carries the edges of the holes
-    // opened by the subtraction targets of a flat polygon
-    // (`_subtractionHoles`): they are edges of this annotation, counted in
-    // the selection (number of segments + length, getAnnotationPartQties).
-    const subtractionHoles = chains.some(
-      (c) => c?.ringKey === "MAIN" && c.closesRing
-    )
-      ? (annotation._subtractionHoles ?? [])
-      : [];
-    const segmentsCount =
-      effectivePartIds.length +
-      subtractionHoles.reduce((sum, ring) => sum + ring.length, 0);
+    const segmentsCount = effectivePartIds.length + holeSegments.length;
 
     return {
       kind: "SEGMENTS",
@@ -366,7 +388,7 @@ export function resolveSelectedAnnotationPart({
       label: contiguous
         ? `${segmentsCount} segments`
         : `${segmentsCount} segments (${chains.length} chaînes)`,
-      subtractionHoles,
+      holeSegments,
       pointRefs: contiguous ? (chains[0]?.pointRefs ?? []) : [],
       geometryPx: contiguous ? (chains[0]?.pointRefs ?? []) : [],
       targetAnnotationType: "POLYLINE",
