@@ -72,6 +72,14 @@ export default function getAnnotationPartQties({ annotation, part, meterByPx }) 
         });
         total += q?.length || 0;
       }
+      // Edges of the subtraction holes carried by a whole-contour selection
+      // (resolveSelectedAnnotationPart): plain closed rings, in pixels.
+      for (const ring of part.subtractionHoles ?? []) {
+        ring.forEach((p, i) => {
+          const q = ring[(i + 1) % ring.length];
+          total += Math.hypot(q.x - p.x, q.y - p.y) * meterByPx;
+        });
+      }
       return { enabled: true, length: total, surface: 0 };
     }
     const points = part.geometryPx || [];

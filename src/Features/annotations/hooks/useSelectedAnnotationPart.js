@@ -347,12 +347,26 @@ export function resolveSelectedAnnotationPart({
     const chains = getContiguousSegmentChains(annotation, visiblePartIds);
     const contiguous = chains.length === 1;
 
+    // The whole main contour (double click) carries the edges of the holes
+    // opened by the subtraction targets of a flat polygon
+    // (`_subtractionHoles`): they are edges of this annotation, counted in
+    // the selection (number of segments + length, getAnnotationPartQties).
+    const subtractionHoles = chains.some(
+      (c) => c?.ringKey === "MAIN" && c.closesRing
+    )
+      ? (annotation._subtractionHoles ?? [])
+      : [];
+    const segmentsCount =
+      effectivePartIds.length +
+      subtractionHoles.reduce((sum, ring) => sum + ring.length, 0);
+
     return {
       kind: "SEGMENTS",
       captionFr: "Segments",
       label: contiguous
-        ? `${effectivePartIds.length} segments`
-        : `${effectivePartIds.length} segments (${chains.length} chaînes)`,
+        ? `${segmentsCount} segments`
+        : `${segmentsCount} segments (${chains.length} chaînes)`,
+      subtractionHoles,
       pointRefs: contiguous ? (chains[0]?.pointRefs ?? []) : [],
       geometryPx: contiguous ? (chains[0]?.pointRefs ?? []) : [],
       targetAnnotationType: "POLYLINE",

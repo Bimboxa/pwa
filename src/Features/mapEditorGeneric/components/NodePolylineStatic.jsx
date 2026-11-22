@@ -705,14 +705,19 @@ function NodePolylineStatic({
   // Holes opened by the subtraction targets of a FLAT polygon (read-only,
   // resolved by useAnnotationsV2): part of the fill only, never editable.
   const subtractionHoles = mergedAnnotation._subtractionHoles;
+  const subtractionHolesD = useMemo(
+    () =>
+      (subtractionHoles ?? [])
+        .map((ring) => `M ${ring.map((p) => `${p.x} ${p.y}`).join(" L ")} Z`)
+        .join(" "),
+    [subtractionHoles]
+  );
   const fullFillD = useMemo(() => {
     let d = pathD;
     if (holesData.length > 0) d += " " + holesData.map((h) => h.d).join(" ");
-    for (const ring of subtractionHoles ?? []) {
-      d += ` M ${ring.map((p) => `${p.x} ${p.y}`).join(" L ")} Z`;
-    }
+    if (subtractionHolesD) d += " " + subtractionHolesD;
     return d;
-  }, [pathD, holesData, subtractionHoles]);
+  }, [pathD, holesData, subtractionHolesD]);
 
   // --- RENDU SEGMENTS (Strokes) ---
 
@@ -1971,6 +1976,21 @@ function NodePolylineStatic({
           onMouseLeave={() => setHoveredPartId(null)}
           data-part-type="MAIN"
           {...dataProps}
+        />
+      )}
+
+      {/* SUBTRACTION HOLES — their edges belong to this annotation (they
+          count in its length) but are drawn by the subtracted annotation:
+          dashed outline on selection, no vertex (edit the other one). */}
+      {selected && !isTransient && subtractionHolesD && (
+        <path
+          d={subtractionHolesD}
+          fill="none"
+          stroke={strokeColor || fillColor}
+          strokeWidth={2}
+          strokeDasharray="6 4"
+          vectorEffect="non-scaling-stroke"
+          pointerEvents="none"
         />
       )}
 
