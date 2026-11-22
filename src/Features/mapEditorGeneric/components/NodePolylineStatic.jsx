@@ -4,6 +4,10 @@ import { darken, lighten } from "@mui/material/styles";
 import theme from "Styles/theme";
 
 import offsetPointsAlongNormals from "../utils/offsetPointsAlongNormals";
+import {
+  HOLE_SEG_PART_TYPE,
+  getSubtractionHoleSegments,
+} from "Features/annotations/utils/subtractionHoleSegments";
 
 // Tracks whether Shift is currently held — used to swap segment/cut hit-area
 // cursors to "+"/"−" so the user sees ahead of clicking whether shift+click
@@ -711,6 +715,14 @@ function NodePolylineStatic({
         .map((ring) => `M ${ring.map((p) => `${p.x} ${p.y}`).join(" L ")} Z`)
         .join(" "),
     [subtractionHoles]
+  );
+  const subtractionHoleSegments = useMemo(
+    () =>
+      getSubtractionHoleSegments({
+        id: annotationId,
+        _subtractionHoles: subtractionHoles,
+      }),
+    [annotationId, subtractionHoles]
   );
   const fullFillD = useMemo(() => {
     let d = pathD;
@@ -1980,19 +1992,53 @@ function NodePolylineStatic({
       )}
 
       {/* SUBTRACTION HOLES — their edges belong to this annotation (they
-          count in its length) but are drawn by the subtracted annotation:
-          dashed outline on selection, no vertex (edit the other one). */}
-      {selected && !isTransient && subtractionHolesD && (
-        <path
-          d={subtractionHolesD}
-          fill="none"
-          stroke={strokeColor || fillColor}
-          strokeWidth={2}
-          strokeDasharray="6 4"
-          vectorEffect="non-scaling-stroke"
-          pointerEvents="none"
-        />
-      )}
+          count in its length) but their geometry is the subtracted
+          annotation's: thin solid lines on selection, selectable like the
+          segments (HOLE_SEG parts: click / Shift+click / double click),
+          no vertex. */}
+      {selected &&
+        !isTransient &&
+        subtractionHoleSegments.map((seg) => {
+          const style = getPartStyle(seg.partId);
+          const isActive =
+            isPartSelected(seg.partId) || effectiveHoveredPartId === seg.partId;
+          const d = `M ${seg.p0.x} ${seg.p0.y} L ${seg.p1.x} ${seg.p1.y}`;
+          return (
+            <g
+              key={seg.partId}
+              onMouseEnter={(e) => {
+                e.stopPropagation();
+                setHoveredPartId(seg.partId);
+              }}
+              onMouseLeave={() => setHoveredPartId(null)}
+              data-part-id={seg.partId}
+              data-part-type={HOLE_SEG_PART_TYPE}
+              data-node-id={annotationId}
+              style={{ cursor: getPartCursor(seg.partId) }}
+            >
+              <path
+                d={d}
+                fill="none"
+                stroke="transparent"
+                strokeWidth={POLYGON_HIT_STROKE_WIDTH_PX}
+                vectorEffect="non-scaling-stroke"
+              />
+              <path
+                d={d}
+                fill="none"
+                stroke={
+                  isActive
+                    ? style.stroke || hoverStrokeColor
+                    : strokeColor || fillColor
+                }
+                strokeWidth={isActive ? 3 : 1}
+                vectorEffect="non-scaling-stroke"
+                strokeLinecap="round"
+                style={{ pointerEvents: "none" }}
+              />
+            </g>
+          );
+        })}
 
       {/* CUTS FILL (Hit Area + Selection Feedback) */}
       {selected &&

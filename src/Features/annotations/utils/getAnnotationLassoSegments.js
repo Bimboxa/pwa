@@ -1,3 +1,5 @@
+import { getSubtractionHoleSegments } from "./subtractionHoleSegments";
+
 // Build a flat list of pickable segments for the lasso hit-test.
 // Each segment exposes both endpoints (in the same coord space as the
 // annotation's resolved points) plus the partId that the selection slice
@@ -32,6 +34,17 @@ export default function getAnnotationLassoSegments(annotation) {
       isClosed: true,
     });
   });
+
+  // Edges of the holes opened by subtraction targets (flat polygon host).
+  for (const seg of getSubtractionHoleSegments(annotation)) {
+    out.push({
+      partId: seg.partId,
+      p0: seg.p0,
+      p1: seg.p1,
+      ringKey: `HOLE::${seg.holeIdx}`,
+      segIdx: seg.segIdx,
+    });
+  }
 
   return out;
 }
