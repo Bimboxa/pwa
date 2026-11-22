@@ -3407,7 +3407,17 @@ export default function useAnnotationsV2(options) {
               ),
               meterByPx: baseMapById[a.baseMapId]?.getMeterByPx?.(),
             });
-            if (holes.length > 0) withSub._subtractionHoles = holes;
+            if (holes.length > 0) {
+              withSub._subtractionHoles = holes;
+              // The holes count as cuts: surface AND length (their edges).
+              const meterByPx = baseMapById[a.baseMapId]?.getMeterByPx?.();
+              if (withQties && withSub.qties && meterByPx) {
+                withSub.qties = getAnnotationQties({
+                  annotation: withSub,
+                  meterByPx,
+                });
+              }
+            }
           }
 
           // Open-surface hosts (POLYLINE sheet — PX wall or inline

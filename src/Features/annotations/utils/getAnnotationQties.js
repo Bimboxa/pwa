@@ -530,7 +530,28 @@ function computeMesh3dAnnotationQties({ annotation, meterByPx, imageSize }) {
 // Pieces of a cut surface host deleted by the user (surfaceCuts REMOVE
 // entries, see removeSurfacePiecesService) leave the quantities: their area,
 // as recorded when removed, comes off the surface.
-export default function getAnnotationQties(args) {
+//
+// The holes its subtraction targets open in a FLAT polygon
+// (`_subtractionHoles`, read-time field of useAnnotationsV2) count as cuts:
+// their area comes off the surface, their edges add to the length.
+export default function getAnnotationQties(rawArgs) {
+  const holes = rawArgs?.annotation?._subtractionHoles;
+  const args =
+    holes?.length > 0 && !rawArgs.annotation.isMesh3d
+      ? {
+          ...rawArgs,
+          annotation: {
+            ...rawArgs.annotation,
+            cuts: [
+              ...(rawArgs.annotation.cuts ?? []),
+              ...holes.map((points, index) => ({
+                id: `subtractionHole::${index}`,
+                points,
+              })),
+            ],
+          },
+        }
+      : rawArgs;
   const qties = computeAnnotationQties(args);
   // A mesh no longer holds the faces removed from it: nothing to deduct.
   if (args?.annotation?.isMesh3d) return qties;
