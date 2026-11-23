@@ -13,6 +13,7 @@ import AddIcon from "@mui/icons-material/Add";
 import ArrowUpwardIcon from "@mui/icons-material/ArrowUpward";
 import ChecklistIcon from "@mui/icons-material/Checklist";
 import DrawOutlinedIcon from "@mui/icons-material/DrawOutlined";
+import KeyboardCommandKeyIcon from "@mui/icons-material/KeyboardCommandKey";
 import CloseIcon from "@mui/icons-material/Close";
 import KeyboardArrowDownIcon from "@mui/icons-material/KeyboardArrowDown";
 import KeyboardArrowUpIcon from "@mui/icons-material/KeyboardArrowUp";
@@ -23,6 +24,7 @@ import YouTubeIcon from "@mui/icons-material/YouTube";
 import CommentBlocksRenderer from "./CommentBlocksRenderer";
 import CommentBlockDrawActionEditor from "./CommentBlockDrawActionEditor";
 import MenuPickAnnotationTemplate from "Features/commandsToolbar/components/MenuPickAnnotationTemplate";
+import MenuPickCommand from "Features/commandsToolbar/components/MenuPickCommand";
 import MenuPickListingProcedure from "./MenuPickListingProcedure";
 
 import {
@@ -85,7 +87,8 @@ function buildBlockFromInput(mode, raw) {
 //   action: a button starting the drawing of a picked annotation template,
 //   procedure action: the "Dessin auto" band of a picked listing procedure,
 //   templates list: annotation templates ticked in a menu, whose rows toggle
-//   the solo of their template).
+//   the solo of their template, command: a button firing a picked command of
+//   the commands toolbar).
 // Images are stored as soon as they are added (db.files, comment listing) —
 // the draft only holds their file name.
 export default function CommentBlocksEditor({
@@ -114,6 +117,7 @@ export default function CommentBlocksEditor({
     "Aucune procédure de dessin auto dans ce plan de repérage";
   const addTemplatesListS = "Ajouter une liste de modèles";
   const editTemplatesListS = "Modifier la liste";
+  const addCommandS = "Ajouter une commande";
   const addS = "Ajouter";
   const updateS = "Mettre à jour";
   const sendS = "Ajouter à l'info (Entrée)";
@@ -136,6 +140,7 @@ export default function CommentBlocksEditor({
   const [dragging, setDragging] = useState(false);
   const [drawActionAnchorEl, setDrawActionAnchorEl] = useState(null);
   const [procedureAnchorEl, setProcedureAnchorEl] = useState(null);
+  const [commandAnchorEl, setCommandAnchorEl] = useState(null);
   // templates list menu: { anchorEl, blockId (null = new block), ids }
   const [templatesListMenu, setTemplatesListMenu] = useState(null);
 
@@ -260,6 +265,14 @@ export default function CommentBlocksEditor({
         listingId,
         procedureKey,
       }),
+    ]);
+  }
+
+  // Command: a button firing the picked toolbar command.
+  function handlePickCommand(commandKey) {
+    setCommandAnchorEl(null);
+    appendBlocks([
+      createCommentBlock(COMMENT_BLOCK_TYPES.COMMAND, { commandKey }),
     ]);
   }
 
@@ -456,6 +469,10 @@ export default function CommentBlocksEditor({
               <CommentBlocksRenderer blocks={[block]} interactive={false} />
             )}
 
+            {block.type === COMMENT_BLOCK_TYPES.COMMAND && (
+              <CommentBlocksRenderer blocks={[block]} interactive={false} />
+            )}
+
             {block.type === COMMENT_BLOCK_TYPES.TEMPLATES_LIST && (
               <>
                 <CommentBlocksRenderer blocks={[block]} interactive={false} />
@@ -623,6 +640,15 @@ export default function CommentBlocksEditor({
                 <ChecklistIcon sx={{ fontSize: 18 }} />
               </IconButton>
             </Tooltip>
+            <Tooltip title={addCommandS} arrow>
+              <IconButton
+                size="small"
+                onClick={(e) => setCommandAnchorEl(e.currentTarget)}
+                sx={optionButtonSx(Boolean(commandAnchorEl))}
+              >
+                <KeyboardCommandKeyIcon sx={{ fontSize: 18 }} />
+              </IconButton>
+            </Tooltip>
             <Typography
               variant="caption"
               noWrap
@@ -706,6 +732,13 @@ export default function CommentBlocksEditor({
         onClose={() => setProcedureAnchorEl(null)}
         onChange={handlePickProcedure}
         emptyText={noProcedureS}
+      />
+
+      <MenuPickCommand
+        open={Boolean(commandAnchorEl)}
+        anchorEl={commandAnchorEl}
+        onClose={() => setCommandAnchorEl(null)}
+        onChange={handlePickCommand}
       />
 
       <Box

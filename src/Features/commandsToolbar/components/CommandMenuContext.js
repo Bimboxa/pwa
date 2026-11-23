@@ -5,7 +5,9 @@ import { createContext, useContext } from "react";
 // its menu ({ variant: "menu", anchorEl, closeMenu, onItemClick }): the same
 // command renders as a MenuItem (icon + label), its popups are anchored on the
 // group button (anchorEl — the MenuItem unmounts with the menu) and the click
-// is reported so the group remembers its last-used command.
+// is reported so the group remembers its last-used command. An optional
+// `renderItem(props)` draws the item instead of the MenuItem (« Commande »
+// block of an info).
 const CommandMenuContext = createContext(null);
 
 export function useCommandMenu() {
