@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useRef } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useDispatch, useSelector, useStore } from "react-redux";
 
 import { Box, Divider, Paper } from "@mui/material";
@@ -26,6 +26,10 @@ import useToolbarDockDrag from "../hooks/useToolbarDockDrag";
 import isCommandShown from "../utils/isCommandShown";
 import toSlotItem from "../utils/toSlotItem";
 import { getActiveThreedEditor } from "Features/threedEditor/services/threedEditorRegistry";
+import {
+  clearCommandsRuntime,
+  setCommandsRuntime,
+} from "../services/commandsRuntimeRegistry";
 
 // Floating toolbar: wraps on several lines up to this width.
 const FLOATING_MAX_WIDTH = 640;
@@ -46,7 +50,8 @@ const FLOATING_MAX_WIDTH = 640;
 // Groups of constants/toolbarLayout.js and commands with variants render as
 // split buttons (CommandGroupButton). The last button opens the « Commandes »
 // dialog; the toolbar also renders the right-click shortcuts menu of the
-// editors (MenuCommandShortcuts), the only place owning ctx / deps.
+// editors (MenuCommandShortcuts), the only place owning ctx / deps — which it
+// publishes (commandsRuntimeRegistry) for the « Commande » block of an info.
 // `smallScreen` (compact layout of a narrow window): only the move / rotate /
 // hide commands, buttons AND hotkeys — no « Commandes » dialog, no right-click
 // shortcuts menu.
@@ -78,6 +83,14 @@ export default function CommandsToolbar({
     () => ({ dispatch, store, getThreedEditor: getActiveThreedEditor }),
     [dispatch, store]
   );
+
+  // ctx / deps published for the commands fired from outside the toolbar
+  // (« Commande » block of an info — services/commandsRuntimeRegistry).
+  const [runtimeOwner] = useState(() => ({}));
+  useEffect(() => {
+    setCommandsRuntime({ ctx, deps, owner: runtimeOwner });
+  }, [ctx, deps, runtimeOwner]);
+  useEffect(() => () => clearCommandsRuntime(runtimeOwner), [runtimeOwner]);
 
   useCommandsHotkeys({
     ctxRef,

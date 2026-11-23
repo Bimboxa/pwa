@@ -19,6 +19,10 @@ export const COMMENT_BLOCK_TYPES = {
   // PopperMapListings; a click on a row toggles the solo of that template.
   // The stored order is not meaningful: the rows follow the panel order.
   TEMPLATES_LIST: "TEMPLATES_LIST", // { annotationTemplateIds }
+  // Button firing one command of the commands toolbar
+  // (Features/commandsToolbar, `commandKey` = its registry key), enabled /
+  // disabled like its toolbar button (selection required…).
+  COMMAND: "COMMAND", // { commandKey }
 };
 
 export function createCommentBlock(type, props = {}) {
@@ -44,6 +48,8 @@ export function createCommentBlock(type, props = {}) {
     return { ...base, listingId: null, procedureKey: null, ...props };
   if (type === COMMENT_BLOCK_TYPES.TEMPLATES_LIST)
     return { ...base, annotationTemplateIds: [], ...props };
+  if (type === COMMENT_BLOCK_TYPES.COMMAND)
+    return { ...base, commandKey: null, ...props };
   return { ...base, ...props };
 }
 

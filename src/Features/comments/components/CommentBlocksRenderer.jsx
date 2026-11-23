@@ -11,6 +11,7 @@ import DialogImageViewer from "Features/images/components/DialogImageViewer";
 import CommentBlockDrawAction from "./CommentBlockDrawAction";
 import CommentBlockProcedureAction from "./CommentBlockProcedureAction";
 import CommentBlockTemplatesList from "./CommentBlockTemplatesList";
+import CommentBlockCommand from "./CommentBlockCommand";
 
 import { COMMENT_BLOCK_TYPES } from "../constants/commentBlocks";
 import { COMMENT_COLORS } from "../commentsDarkTheme";
@@ -238,14 +239,16 @@ const BLOCK_COMPONENTS = {
   [COMMENT_BLOCK_TYPES.DRAW_ACTION]: CommentBlockDrawAction,
   [COMMENT_BLOCK_TYPES.PROCEDURE_ACTION]: CommentBlockProcedureAction,
   [COMMENT_BLOCK_TYPES.TEMPLATES_LIST]: CommentBlockTemplatesList,
+  [COMMENT_BLOCK_TYPES.COMMAND]: CommentBlockCommand,
 };
 
 // Read-only body of a comment: its blocks in order. Unknown block types
 // (written by a newer version) are skipped. `imageFullscreen: false` drops
 // the "view large" button of the images (the editor shows its own block
 // actions in that corner). `interactive: false` (editor previews) keeps the
-// drawing / procedure action buttons and the templates list rows inert; `sourceModuleKey` is the module the info was
-// written from (viewContext.moduleKey), where those buttons draw.
+// drawing / procedure action / command buttons and the templates list rows
+// inert; `sourceModuleKey` is the module the info was written from
+// (viewContext.moduleKey), where the drawing buttons draw.
 export default function CommentBlocksRenderer({
   blocks,
   emptyLabel,

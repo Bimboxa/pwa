@@ -450,6 +450,20 @@ draw (`enabledDrawingMode`, `activeToolType`) / 3D tool, the view toggles.
 It holds the single `useAnnotationsV2` / `useMainBaseMap` /
 `useAnnotationPermissions` of the toolbar.
 
+## Commands fired from outside the toolbar (« Commande » block of an info)
+
+The mounted `CommandsToolbar` publishes its `{ ctx, deps }` in
+`services/commandsRuntimeRegistry.js` (read in React with
+`hooks/useCommandsRuntime.js`; null while no toolbar is mounted). The
+`COMMAND` block of an info (`Features/comments/components/CommentBlockCommand.jsx`,
+block `{ commandKey }`, picked with `components/MenuPickCommand.jsx`) renders
+the command through `CommandSlot` inside a `CommandMenuContext` of variant
+`"menu"` with a `renderItem` (its own button look): same `getState` — a
+command needing a selection is disabled with its reason — same `run` /
+`Button`, popups anchored on the block. No toolbar = the button is disabled
+(« Commande indisponible dans ce module »). Never mount a second
+`useCommandsContext` for this.
+
 ## Hotkeys (`hooks/useCommandsHotkeys.js`)
 
 One window keydown listener (capture): for the pressed letter, in registry
