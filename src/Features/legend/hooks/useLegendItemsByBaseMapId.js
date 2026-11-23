@@ -2,6 +2,10 @@ import useAnnotationTemplates from "Features/annotations/hooks/useAnnotationTemp
 import useAnnotationsV2 from "Features/annotations/hooks/useAnnotationsV2";
 
 import getItemsByKey from "Features/misc/utils/getItemsByKey";
+import getLegendGroupHeaders, {
+  normalizeLegendGroupLabel,
+} from "Features/legend/utils/getLegendGroupHeaders";
+import isComponentTemplate from "Features/annotationComponents/utils/isComponentTemplate";
 import { getOffsetLineLegendProps } from "Features/annotations/utils/getAnnotationOffsetLineConfig";
 import filterAnnotationsByViewBox from "Features/annotations/utils/filterAnnotationsByViewBox";
 
@@ -44,6 +48,9 @@ export default function useLegendItemsByBaseMapId(baseMapId, { viewBox, disabled
     const templateId = annotation.annotationTemplateId;
     if (templateId) {
       const template = annotationTemplateById[templateId];
+      // A « Composant » stands in the legend through the templates it
+      // generates, never through its own row.
+      if (isComponentTemplate(template)) return;
       const isTemplateHidden = template?.hidden && !includeHidden;
       const isHiddenInLegend =
         template?.hiddenInLegend && !includeHidden && !includeHiddenInLegend;
@@ -63,7 +70,10 @@ export default function useLegendItemsByBaseMapId(baseMapId, { viewBox, disabled
           type,
           iconKey,
           strokeColor,
-          strokeType,
+          strokeType: strokeType ?? template?.strokeType,
+          // POLYLINE glyph: thickness (when in screen px) of the line.
+          strokeWidth: annotation.strokeWidth ?? template?.strokeWidth,
+          strokeWidthUnit: annotation.strokeWidthUnit ?? template?.strokeWidthUnit,
           fillColor,
           fillType,
           // "Ligne de déport" drawn: the glyph is that line.
@@ -84,6 +94,8 @@ export default function useLegendItemsByBaseMapId(baseMapId, { viewBox, disabled
               : base;
           })(),
           groupLabel: template?.groupLabel,
+          groupLabelLegend: template?.groupLabelLegend,
+          groupLabelHiddenInLegend: Boolean(template?.groupLabelHiddenInLegend),
           closeLine,
           variant,
           hiddenInLegend: Boolean(template?.hiddenInLegend),
@@ -101,7 +113,7 @@ export default function useLegendItemsByBaseMapId(baseMapId, { viewBox, disabled
   // legendItemsByListingName => legendItems
   const orderMap = {};
   annotationTemplates?.forEach((t, i) => { orderMap[t.id] = i; });
-  const normalize = (g) => (g ?? "").trim().toUpperCase().replace(/\s+/g, "");
+  const normalize = normalizeLegendGroupLabel;
   Object.entries(legendItemsByListingName).forEach(([listingName, items]) => {
     legendItems.push({ type: "listingName", name: listingName });
     // Sort by annotationTemplate orderIndex (same order as PopperMapListings)
@@ -111,11 +123,22 @@ export default function useLegendItemsByBaseMapId(baseMapId, { viewBox, disabled
       return oA - oB;
     });
     // Insert groupLabel separators and dividers
+    const groupHeaders = getLegendGroupHeaders(items);
     let currentGroup = null;
     for (const item of sortedItems) {
       const ng = normalize(item.groupLabel);
       if (ng && ng !== currentGroup) {
-        legendItems.push({ type: "groupLabel", name: item.groupLabel?.trim() });
+        // A header hidden in the legend is kept (tagged) for the capture
+        // legend editor only; elsewhere a divider keeps the group apart.
+        const header = groupHeaders[ng];
+        if (!header.hidden || includeHidden || includeHiddenInLegend)
+          legendItems.push({
+            type: "groupLabel",
+            name: header.name,
+            hiddenInLegend: header.hidden,
+          });
+        else if (currentGroup !== null)
+          legendItems.push({ type: "groupDivider" });
       } else if (!ng && currentGroup) {
         legendItems.push({ type: "groupDivider" });
       }

@@ -11,6 +11,10 @@ import computeAnnotationTemplateQties from "Features/annotations/utils/computeAn
 import mergePaintedQtiesIntoTemplateQties from "Features/annotations/utils/mergePaintedQtiesIntoTemplateQties";
 import sortAnnotationTemplatesByOrder from "Features/annotations/utils/sortAnnotationTemplatesByOrder";
 import getItemsByKey from "Features/misc/utils/getItemsByKey";
+import getLegendGroupHeaders, {
+  normalizeLegendGroupLabel,
+} from "Features/legend/utils/getLegendGroupHeaders";
+import isComponentTemplate from "Features/annotationComponents/utils/isComponentTemplate";
 import {
   getAnnotationType,
   resolveDrawingShape,
@@ -179,12 +183,17 @@ export default function useThreedLegendItems(
           color3D ?? source.strokeColor ?? template.strokeColor
         ),
         fillType: source.fillType,
-        strokeType: source.strokeType,
+        strokeType: source.strokeType ?? template.strokeType,
+        // POLYLINE glyph: thickness (when in screen px) of the line.
+        strokeWidth: source.strokeWidth ?? template.strokeWidth,
+        strokeWidthUnit: source.strokeWidthUnit ?? template.strokeWidthUnit,
         variant: source.variant,
         closeLine: source.closeLine,
         topViewDataUrl:
           template.object3D?.topViewDataUrl ?? source.object3D?.topViewDataUrl,
         groupLabel: template.groupLabel,
+        groupLabelLegend: template.groupLabelLegend,
+        groupLabelHiddenInLegend: Boolean(template.groupLabelHiddenInLegend),
         hiddenInLegend: Boolean(template.hiddenInLegend),
         label: (() => {
           const base = template.labelLegend || (template.label ?? "A définir");
@@ -206,6 +215,9 @@ export default function useThreedLegendItems(
         const template = annotationTemplateById[templateId];
         if (!template || template.hidden) return;
         if (template.hiddenInLegend && !includeHiddenInLegend) return;
+        // A « Composant » stands in the legend through the templates it
+        // generates, never through its own row.
+        if (isComponentTemplate(template)) return;
         pushRow({
           templateId,
           template,
@@ -229,7 +241,7 @@ export default function useThreedLegendItems(
     });
 
     // Flatten with listing + group headers (mirrors useLegendItems ordering).
-    const normalize = (g) => (g ?? "").trim().toUpperCase().replace(/\s+/g, "");
+    const normalize = normalizeLegendGroupLabel;
     const items = [];
 
     listingOrder.forEach((listingId) => {
@@ -249,14 +261,21 @@ export default function useThreedLegendItems(
         return a.label.localeCompare(b.label);
       });
 
+      // A header hidden in the legend is kept (tagged) for the capture
+      // legend editor only.
+      const groupHeaders = getLegendGroupHeaders(sorted);
       let currentGroup = null;
       sorted.forEach((item) => {
         const ng = normalize(item.groupLabel);
         if (ng && ng !== currentGroup) {
-          items.push({
-            type: "groupLabel",
-            name: item.groupLabel?.trim(),
-          });
+          const header = groupHeaders[ng];
+          if (!header.hidden || includeHiddenInLegend)
+            items.push({
+              type: "groupLabel",
+              name: header.name,
+              hiddenInLegend: header.hidden,
+            });
+          else if (currentGroup !== null) items.push({ type: "groupDivider" });
         }
         currentGroup = ng;
         items.push(item);
