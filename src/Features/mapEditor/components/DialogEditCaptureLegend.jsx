@@ -20,6 +20,7 @@ import useUpdateAnnotationTemplates from "Features/annotations/hooks/useUpdateAn
 
 import getItemsByKey from "Features/misc/utils/getItemsByKey";
 import getManualQtyDeviationLabel from "Features/legend/utils/getManualQtyDeviationLabel";
+import { normalizeLegendGroupLabel } from "Features/legend/utils/getLegendGroupHeaders";
 
 // Height of the small TextField: the other cells of a row center on it so the
 // deviation label can grow under the qty without shifting them.
@@ -35,6 +36,11 @@ const FIELD_HEIGHT = 40;
 // Each listing title carries its own eye: it flags / unflags every template
 // of the listing at once (one batched write). A listing whose templates are
 // all hidden is drawn collapsed — greyed title, no template rows.
+// Inside a listing, the rows of a template group (`groupLabel`) come under a
+// group line: legend name of the group (groupLabelLegend, committed on blur,
+// the group label as placeholder) | eye (groupLabelHiddenInLegend — hides the
+// group TITLE of the legend, its rows stay). Both are written on every
+// template of the group in the listing (one batched write).
 // A switch above the rows toggles the quantities column of the legend
 // (imageModeLegendOverlay.showQty, shared with the condensed toolbar and the
 // "Export rapide" panel): the manual qty cells are dropped while it is off.
@@ -51,6 +57,8 @@ export default function DialogEditCaptureLegend({ open, onClose }) {
   const showListingS = "Afficher la liste dans la légende";
   const hideListingS = "Masquer la liste de la légende";
   const labelPlaceholderS = "Libellé légende";
+  const showGroupS = "Afficher le titre du groupe dans la légende";
+  const hideGroupS = "Masquer le titre du groupe de la légende";
   const showQtyS = "Afficher les quantités";
 
   // data
@@ -98,7 +106,57 @@ export default function DialogEditCaptureLegend({ open, onClose }) {
     return templates.length > 0 && templates.every((t) => t.hiddenInLegend);
   }
 
+  // rows of a listing section split in runs of the same template group, in
+  // the legend order: [{ key, groupLabel, templates, rows }] — key "" = rows
+  // without group. `templates` = every template of the group in the listing,
+  // on the plan or not.
+  function getSubGroups(group) {
+    const subGroups = [];
+    let current = null;
+    group.rows.forEach((row) => {
+      const template = templateById[row.id];
+      if (!template) return;
+      const key = normalizeLegendGroupLabel(template.groupLabel);
+      if (!current || current.key !== key) {
+        current = {
+          key,
+          groupLabel: (template.groupLabel ?? "").trim(),
+          templates: key
+            ? (annotationTemplates ?? []).filter(
+                (t) =>
+                  t.listingId === template.listingId &&
+                  normalizeLegendGroupLabel(t.groupLabel) === key
+              )
+            : [],
+          rows: [],
+        };
+        subGroups.push(current);
+      }
+      current.rows.push({ row, template });
+    });
+    return subGroups;
+  }
+
   // handlers
+
+  // only the templates that change are written
+  function handleGroupLabelLegendChange(subGroup, value) {
+    const groupLabelLegend = (value ?? "").trim();
+    const updates = subGroup.templates
+      .filter((t) => (t.groupLabelLegend ?? "") !== groupLabelLegend)
+      .map((t) => ({ id: t.id, groupLabelLegend }));
+    updateAnnotationTemplates(updates);
+  }
+
+  function handleToggleGroupLabelHidden(subGroup, isHidden) {
+    const groupLabelHiddenInLegend = !isHidden;
+    const updates = subGroup.templates
+      .filter(
+        (t) => Boolean(t.groupLabelHiddenInLegend) !== groupLabelHiddenInLegend
+      )
+      .map((t) => ({ id: t.id, groupLabelHiddenInLegend }));
+    updateAnnotationTemplates(updates);
+  }
 
   function handleLabelLegendChange(template, labelLegend) {
     updateAnnotationTemplate({ ...template, labelLegend });
@@ -205,28 +263,56 @@ export default function DialogEditCaptureLegend({ open, onClose }) {
               )}
 
               {(!groupIsHidden || !group.listingName) &&
-                group.rows.map((row) => {
-                  const template = templateById[row.id];
-                  if (!template) return null;
+                getSubGroups(group).map((subGroup, subGroupIdx) => {
+                  const groupTitleIsHidden = subGroup.templates.some(
+                    (t) => t.groupLabelHiddenInLegend
+                  );
+                  const groupLabelLegend =
+                    subGroup.templates.find((t) =>
+                      (t.groupLabelLegend ?? "").trim()
+                    )?.groupLabelLegend ?? "";
                   return (
-                    <RowLegendTemplate
-                      key={row.id}
-                      row={row}
-                      template={template}
-                      spriteImage={spriteImage}
-                      showQty={showQty}
-                      manualQty={hardCodedQtiesById[row.id]}
-                      labelPlaceholder={template.label || labelPlaceholderS}
-                      onLabelLegendChange={(v) =>
-                        handleLabelLegendChange(template, v)
-                      }
-                      onToggleHiddenInLegend={() =>
-                        handleToggleHiddenInLegend(template)
-                      }
-                      onManualQtyChange={(v) =>
-                        handleHardCodedQtyChange(row.id, v)
-                      }
-                    />
+                    <Box key={`${subGroup.key}-${subGroupIdx}`}>
+                      {Boolean(subGroup.key) && (
+                        <RowLegendGroup
+                          value={groupLabelLegend}
+                          placeholder={subGroup.groupLabel}
+                          isHidden={groupTitleIsHidden}
+                          toggleTitle={
+                            groupTitleIsHidden ? showGroupS : hideGroupS
+                          }
+                          onChange={(v) =>
+                            handleGroupLabelLegendChange(subGroup, v)
+                          }
+                          onToggleHidden={() =>
+                            handleToggleGroupLabelHidden(
+                              subGroup,
+                              groupTitleIsHidden
+                            )
+                          }
+                        />
+                      )}
+                      {subGroup.rows.map(({ row, template }) => (
+                        <RowLegendTemplate
+                          key={row.id}
+                          row={row}
+                          template={template}
+                          spriteImage={spriteImage}
+                          showQty={showQty}
+                          manualQty={hardCodedQtiesById[row.id]}
+                          labelPlaceholder={template.label || labelPlaceholderS}
+                          onLabelLegendChange={(v) =>
+                            handleLabelLegendChange(template, v)
+                          }
+                          onToggleHiddenInLegend={() =>
+                            handleToggleHiddenInLegend(template)
+                          }
+                          onManualQtyChange={(v) =>
+                            handleHardCodedQtyChange(row.id, v)
+                          }
+                        />
+                      ))}
+                    </Box>
                   );
                 })}
             </Box>
@@ -234,6 +320,62 @@ export default function DialogEditCaptureLegend({ open, onClose }) {
         })}
       </Box>
     </DialogGeneric>
+  );
+}
+
+// Group line: legend name of the group + eye of its title.
+function RowLegendGroup({
+  value,
+  placeholder,
+  isHidden,
+  toggleTitle,
+  onChange,
+  onToggleHidden,
+}) {
+  // render
+
+  return (
+    <Box
+      sx={{
+        display: "flex",
+        alignItems: "center",
+        gap: 1,
+        pt: 0.75,
+        pb: 0.25,
+      }}
+    >
+      <Box
+        sx={{
+          flex: 1,
+          minWidth: 0,
+          opacity: isHidden ? 0.5 : 1,
+          "& input": {
+            fontSize: (theme) => theme.typography.caption.fontSize,
+            textTransform: "uppercase",
+            letterSpacing: 0.5,
+            color: "text.secondary",
+          },
+        }}
+      >
+        <FieldTextV2
+          value={value}
+          onChange={onChange}
+          options={{
+            fullWidth: true,
+            showLabel: false,
+            placeholder,
+            changeOnBlur: true,
+          }}
+        />
+      </Box>
+      <IconButton size="small" onClick={onToggleHidden} title={toggleTitle}>
+        {isHidden ? (
+          <VisibilityOff sx={{ fontSize: 16 }} />
+        ) : (
+          <Visibility sx={{ fontSize: 16 }} />
+        )}
+      </IconButton>
+    </Box>
   );
 }
 

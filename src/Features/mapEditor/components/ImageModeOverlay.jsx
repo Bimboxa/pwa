@@ -510,6 +510,8 @@ export default function ImageModeOverlay({
                   overlay.hardCodedQtiesById
                 )}
                 onSizeChange={handleLegendSizeChange}
+                // opaque: the printed legend must not take the tint of the plan
+                background="white"
               />
             ) : (
               // Empty-state placeholder: keeps the drag target alive even when

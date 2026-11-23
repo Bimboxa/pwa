@@ -1,59 +1,26 @@
-import { useDispatch } from "react-redux";
-
-import { setSelectedItems } from "Features/selection/selectionSlice";
-
-import { withUndoGroup } from "App/db/undoManager";
-import useDeleteAnnotations from "Features/annotations/hooks/useDeleteAnnotations";
-import explodeComponentService from "Features/annotationComponents/services/explodeComponentService";
+import useExplodeComponents from "Features/annotationComponents/hooks/useExplodeComponents";
 
 import CommandButton from "../../components/CommandButton";
 import { getExplodeComponentTargets } from "./explodeComponentCommand";
 
 // Toolbar button of « Éclater le composant » (commandsToolbar): detaches the
 // generated annotations of the selected components, deletes the components
-// and selects the freed annotations — one undo step.
+// and empties the selection — one undo step (useExplodeComponents).
 export default function ButtonExplodeComponent({
   command,
   ctx,
   state,
   hotkeyLabel,
 }) {
-  const dispatch = useDispatch();
-
   // data
 
-  const deleteAnnotations = useDeleteAnnotations();
+  const explodeComponents = useExplodeComponents();
 
   // handlers
 
   async function handleClick() {
-    const sourceIds = getExplodeComponentTargets(ctx).map((a) => a.id);
-    if (sourceIds.length === 0) return;
     try {
-      let detached = [];
-      await withUndoGroup(async () => {
-        detached = await explodeComponentService({ sourceIds });
-        if (detached.length === 0) return;
-        // the children are detached: the cascade only takes the sources
-        await deleteAnnotations(sourceIds);
-      });
-      if (detached.length === 0) return;
-      dispatch(
-        setSelectedItems(
-          detached.map((a) => ({
-            id: a.id,
-            nodeId: a.id,
-            type: "NODE",
-            nodeType: "ANNOTATION",
-            annotationType: a.type,
-            listingId: a.listingId,
-            annotationTemplateId: a.annotationTemplateId,
-            pointId: null,
-            partId: null,
-            partType: null,
-          }))
-        )
-      );
+      await explodeComponents(getExplodeComponentTargets(ctx).map((a) => a.id));
     } catch (e) {
       console.error("[explodeComponent]", e);
     }

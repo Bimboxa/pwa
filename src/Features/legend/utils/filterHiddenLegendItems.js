@@ -6,7 +6,16 @@
 export default function filterHiddenLegendItems(legendItems) {
   if (!legendItems?.length) return legendItems ?? [];
 
-  const kept = legendItems.filter((it) => !it.hiddenInLegend);
+  // A hidden group header leaves a divider: its rows stay, apart from the
+  // rows of the previous group (the divider rule below drops it when it no
+  // longer separates two items).
+  const kept = legendItems
+    .map((it) =>
+      it.type === "groupLabel" && it.hiddenInLegend
+        ? { type: "groupDivider" }
+        : it
+    )
+    .filter((it) => !it.hiddenInLegend);
   const isHeader = (it) =>
     it.type === "listingName" ||
     it.type === "groupLabel" ||

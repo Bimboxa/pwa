@@ -1,5 +1,5 @@
 import { memo, useLayoutEffect, useRef, useState } from "react";
-import { Remove, Polyline, Pentagon as Polygon, Rectangle, Square, Circle, Texture } from "@mui/icons-material";
+import { Polyline, Pentagon as Polygon, Rectangle, Square, Circle, Texture } from "@mui/icons-material";
 
 import theme from "Styles/theme";
 
@@ -10,6 +10,13 @@ import getStrokeDasharray from "Features/mapEditorGeneric/utils/getStrokeDasharr
 // Offset line glyph: page pt of the line → glyph px, as if the glyph were a
 // 16 pt wide sample of the plan; kept readable and inside the glyph.
 const OFFSET_LINE_GLYPH_WIDTH_PT = 16;
+// STRIP glyph: thickness of the line, as a ratio of the glyph size (thicker
+// than the POLYLINE one).
+const STRIP_GLYPH_THICKNESS_RATIO = 0.2;
+// POLYLINE glyph: thickness when the stroke is not in screen px (CM strokes
+// have no meaningful size in the legend), and largest thickness drawn.
+const POLYLINE_GLYPH_DEFAULT_WIDTH_PX = 2;
+const POLYLINE_GLYPH_MAX_THICKNESS_RATIO = 0.15;
 
 // OBJECT_3D legend glyph: the top view, painted in the template color2D
 // (« Représentation 2D ») when set.
@@ -39,6 +46,8 @@ export default memo(function NodeLegendStatic({
     onSizeChange,
     showQty = false,
     qtiesById,
+    // CSS background of the legend box (capture: opaque white).
+    background = "rgba(255,255,255,0.92)",
 }) {
     const { x = 16, y = 16, width = 260, fontSize = 18 } = legendFormat ?? {};
 
@@ -106,7 +115,7 @@ export default memo(function NodeLegendStatic({
     } = spriteImage || {};
 
     // Helper Icon Component (Statique)
-    function LegendIcon({ type, iconKey, fillColor, strokeColor, fillType, strokeType, variant, topViewDataUrl, color2D, offsetLine }) {
+    function LegendIcon({ type, iconKey, fillColor, strokeColor, fillType, strokeType, variant, topViewDataUrl, color2D, offsetLine, strokeWidth, strokeWidthUnit }) {
         const commonStyle = {
             width: `${ICON_PX}px`,
             height: `${ICON_PX}px`,
@@ -125,50 +134,74 @@ export default memo(function NodeLegendStatic({
             height: ICON_PX * 0.8
         };
 
-        // "Ligne de déport" drawn on the plan: the glyph is that line (color,
-        // thickness, dashes) instead of the glyph of the type.
-        if (offsetLine) {
-            const k = ICON_PX / OFFSET_LINE_GLYPH_WIDTH_PT;
-            const lineWidth = Math.min(
-                Math.max(offsetLine.strokeWidth * k, 1),
-                ICON_PX / 3
-            );
-            // Same pattern as on the plan, shortened to show at least two
-            // dashes in the glyph.
-            const [dash, gap] = getStrokeDasharray(offsetLine.strokeWidth)
-                .split(" ")
-                .map((v) => Number(v) * k);
-            const dashK = Math.min(1, ICON_PX / (2.5 * dash + 2 * gap));
+        // Line glyph shared by every linear item (offset line, POLYLINE,
+        // STRIP): same span, and for a dashed line the same rule — the
+        // pattern of the plan ([dash, gap] in glyph px), shortened so the
+        // glyph shows three dashes at least.
+        function renderLineGlyph({ color, lineWidth, pattern }) {
+            const x1 = ICON_PX * 0.1;
+            const x2 = ICON_PX * 0.9;
+            let strokeDasharray;
+            if (pattern) {
+                const [dash, gap] = pattern;
+                const dashK = Math.min(1, (x2 - x1) / (2.5 * dash + 2 * gap));
+                strokeDasharray = `${dash * dashK} ${gap * dashK}`;
+            }
             return (
                 <div style={{ ...commonStyle, background: "white" }}>
                     <svg width={ICON_PX} height={ICON_PX} viewBox={`0 0 ${ICON_PX} ${ICON_PX}`}>
                         <line
-                            x1={0}
+                            x1={x1}
                             y1={ICON_PX / 2}
-                            x2={ICON_PX}
+                            x2={x2}
                             y2={ICON_PX / 2}
-                            stroke={offsetLine.color}
+                            stroke={color}
                             strokeWidth={lineWidth}
-                            strokeDasharray={
-                                offsetLine.dashed
-                                    ? `${dash * dashK} ${gap * dashK}`
-                                    : undefined
-                            }
+                            strokeDasharray={strokeDasharray}
                         />
                     </svg>
                 </div>
             );
         }
 
+        // "Ligne de déport" drawn on the plan: the glyph is that line (color,
+        // thickness, dashes) instead of the glyph of the type.
+        if (offsetLine) {
+            const k = ICON_PX / OFFSET_LINE_GLYPH_WIDTH_PT;
+            return renderLineGlyph({
+                color: offsetLine.color,
+                lineWidth: Math.min(
+                    Math.max(offsetLine.strokeWidth * k, 1),
+                    ICON_PX / 3
+                ),
+                pattern: offsetLine.dashed
+                    ? getStrokeDasharray(offsetLine.strokeWidth)
+                        .split(" ")
+                        .map((v) => Number(v) * k)
+                    : null,
+            });
+        }
+
         if (type === "POLYLINE") {
-            return (
-                <div style={{
-                    ...commonStyle, background: "white",
-                    // border: `2px solid ${strokeColor}` 
-                }}>
-                    <Remove style={{ ...muiIconStyle, fill: strokeColor }} />
-                </div>
+            // The line as drawn on the plan: its screen thickness when the
+            // stroke is in px, and its dashes.
+            const isPxUnit = (strokeWidthUnit ?? "PX") !== "CM";
+            const width = Number(strokeWidth);
+            const lineWidth = Math.min(
+                Math.max(
+                    isPxUnit && width > 0 ? width : POLYLINE_GLYPH_DEFAULT_WIDTH_PX,
+                    1
+                ),
+                ICON_PX * POLYLINE_GLYPH_MAX_THICKNESS_RATIO
             );
+            return renderLineGlyph({
+                color: strokeColor,
+                lineWidth,
+                pattern:
+                    strokeType === "DASHED"
+                        ? getStrokeDasharray(lineWidth).split(" ").map(Number)
+                        : null,
+            });
         }
 
         if (type === "POLYGON") {
@@ -185,16 +218,11 @@ export default memo(function NodeLegendStatic({
         }
 
         if (type === "STRIP") {
-            return (
-                <div style={{
-                    ...commonStyle, background: "white",
-                    //border: `2px solid ${strokeColor}`
-                }}>
-                    {/*<Polygon style={{ fill: fillColor, scale: 0.8 }} />*/}
-                    {fillType === "HATCHING" && <Texture style={{ ...muiIconStyle, fill: strokeColor }} />}
-                    {(fillType === "SOLID" || !fillType) && <Rectangle style={{ ...muiIconStyle, fill: strokeColor }} />}
-                </div>
-            );
+            // a band is a linear item: a thick line, not a surface
+            return renderLineGlyph({
+                color: strokeColor,
+                lineWidth: ICON_PX * STRIP_GLYPH_THICKNESS_RATIO,
+            });
         }
 
         if (type === "LINEAR_LAYOUT") {
@@ -288,7 +316,7 @@ export default memo(function NodeLegendStatic({
                     style={{
                         width: "100%",
                         boxSizing: "border-box",
-                        background: "rgba(255,255,255,0.92)",
+                        background,
                         border: "1px solid rgba(0,0,0,0.15)",
                         borderRadius: 8,
                         boxShadow: "0 2px 8px rgba(0,0,0,0.12)",
@@ -385,6 +413,8 @@ export default memo(function NodeLegendStatic({
                                             topViewDataUrl={it.topViewDataUrl}
                                             color2D={it.color2D}
                                             offsetLine={it.offsetLine}
+                                            strokeWidth={it.strokeWidth}
+                                            strokeWidthUnit={it.strokeWidthUnit}
                                         />
                                     </div>
                                     <div
