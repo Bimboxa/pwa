@@ -675,6 +675,18 @@ async function resolveRevolutionAxes(annotations, baseMapById) {
   }
 }
 
+// Blocks context: a subtraction never crosses the two families of base maps
+// (regular ↔ blocks). A member of a block carves the regular plans through
+// its INSTANCES only — a direct relation from a regular host to an annotation
+// of a blocks base map (or the reverse) is ignored at read time: no carve,
+// no hole, no foreign footprint.
+function isSameBlocksFamily(host, target, baseMapById) {
+  return isInBlocksContext(
+    baseMapById?.[target?.baseMapId],
+    baseMapById?.[host?.baseMapId]?.isBlocksBaseMap
+  );
+}
+
 export default function useAnnotationsV2(options) {
   try {
     // options
@@ -2489,7 +2501,8 @@ export default function useAnnotationsV2(options) {
               (t) =>
                 t?.baseMapId &&
                 t.baseMapId !== a?.baseMapId &&
-                !isHostDisabled(t.baseMapId)
+                !isHostDisabled(t.baseMapId) &&
+                isSameBlocksFamily(a, t, baseMapById)
             );
           if (foreign.length > 0) a._foreignSubtractionTargets = foreign;
         }
@@ -2797,7 +2810,7 @@ export default function useAnnotationsV2(options) {
           const isSheetHost = isPolylineSheetHost(host);
           const targets = targetIds
             .map(resolveSubtractionTarget)
-            .filter(Boolean)
+            .filter((t) => t && isSameBlocksFamily(a, t, baseMapById))
             .map(withTemplateOverrides)
             // A block instance carves with the members of its block.
             .map((t) => {
@@ -3322,7 +3335,7 @@ export default function useAnnotationsV2(options) {
           );
           const subtractionTargets = targetIds
             .map((id) => resultById[id] ?? foreignById.get(id))
-            .filter(Boolean)
+            .filter((t) => t && isSameBlocksFamily(a, t, baseMapById))
             // Carry each target's OWN base map metrics + pose. The 3D manager
             // can only look those up for base maps loaded in the scene
             // (imagesManager.baseMapsMap), and a cross-base-map target very
