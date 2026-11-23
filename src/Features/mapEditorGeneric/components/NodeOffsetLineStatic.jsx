@@ -3,6 +3,7 @@ import { memo, useCallback, useMemo, useRef, useState } from "react";
 import useUpdateAnnotation from "Features/annotations/hooks/useUpdateAnnotation";
 
 import getAnnotationOffsetLineConfig, {
+  getOffsetLineColor,
   getOffsetLinePxPerUnit,
   isOffsetLineLocked,
   OFFSET_LINE_LABEL_SOURCE_ANNOTATION,
@@ -12,16 +13,20 @@ import getOffsetLineGeometry from "Features/annotations/utils/getOffsetLineGeome
 import { getAnnotationOwnLabel } from "Features/annotations/utils/getAnnotationLabelDisplay";
 import getCotePageScale from "Features/annotations/utils/getCotePageScale";
 import getCoteDisplayValue from "Features/annotations/utils/getCoteDisplayValue";
+import measureTextWidth from "Features/annotations/utils/measureTextWidth";
 import getStrokeDasharray from "Features/mapEditorGeneric/utils/getStrokeDasharray";
 
 // Offset line ink, in page pt of the base map's print zone (see
 // getCotePageScale): FIXED relative to the plan, like the cotes.
 const TEXT_GAP_PT = 3;
-const TEXT_HALO_PT = 2;
+// White box behind the label: padding around the text, corner radius.
+const TEXT_BOX_PADDING_X_PT = 2;
+const TEXT_BOX_PADDING_Y_PT = 1;
+const TEXT_BOX_RADIUS_PT = 1;
 // Between the label and the segment length when both are shown.
 const TEXT_SEPARATOR = " · ";
-// Rough advance of one glyph, as a ratio of the font size — only used to drop
-// the label of a segment too short to carry it.
+// Rough advance of one glyph, as a ratio of the font size — fallback of the
+// text measure when no canvas is available.
 const GLYPH_WIDTH_RATIO = 0.55;
 
 // Screen px: grab band around the line, move threshold before a press
@@ -113,9 +118,7 @@ function NodeOffsetLineStatic({ annotation, printMode, baseMapMeterByPx }) {
     [enabled, points, closeLine, offsetPx]
   );
 
-  const color =
-    (type === "POLYGON" ? annotation?.fillColor : annotation?.strokeColor) ??
-    "#000000";
+  const color = getOffsetLineColor(annotation);
   // The template's label, the annotation's own one (not the entity /
   // template fallback carried by `annotation.label`), or none.
   let labelText = "";
@@ -270,7 +273,8 @@ function NodeOffsetLineStatic({ annotation, printMode, baseMapMeterByPx }) {
         .join(" ")
     : undefined;
   const side = offsetPx < 0 ? -1 : 1;
-  const textShiftPx = side * (TEXT_GAP_PT + fontSize / 2) * pageScale;
+  const textBoxHeight = fontSize + 2 * TEXT_BOX_PADDING_Y_PT;
+  const textShiftPx = side * (TEXT_GAP_PT + textBoxHeight / 2) * pageScale;
   // No length without a scale on the base map (getCoteDisplayValue's "—").
   const hasScale = Number.isFinite(baseMapMeterByPx) && baseMapMeterByPx > 0;
   const labels = geometry.labels
@@ -287,13 +291,22 @@ function NodeOffsetLineStatic({ annotation, printMode, baseMapMeterByPx }) {
             })
           : "";
       const text = [labelText, lengthText].filter(Boolean).join(TEXT_SEPARATOR);
-      return { ...label, text };
+      // In page pt, like the font size.
+      const textWidth = text
+        ? (measureTextWidth(text, fontSize, {
+            fontFamily: FONT_FAMILY,
+            fontWeight: "normal",
+          }) ?? text.length * fontSize * GLYPH_WIDTH_RATIO)
+        : 0;
+      return {
+        ...label,
+        text,
+        boxWidth: textWidth + 2 * TEXT_BOX_PADDING_X_PT,
+      };
     })
+    // No label on a segment too short to carry its box.
     .filter(
-      (label) =>
-        label.text &&
-        label.length >=
-          label.text.length * fontSize * GLYPH_WIDTH_RATIO * pageScale
+      (label) => label.text && label.length >= label.boxWidth * pageScale
     );
 
   return (
@@ -309,6 +322,8 @@ function NodeOffsetLineStatic({ annotation, printMode, baseMapMeterByPx }) {
         points={pointsAttr}
         fill="none"
         stroke={color}
+        // Always fully opaque, whatever the opacity of the main shape.
+        strokeOpacity={1}
         strokeWidth={strokeWidth * pageScale}
         strokeDasharray={dashArray}
         strokeLinejoin="miter"
@@ -322,21 +337,26 @@ function NodeOffsetLineStatic({ annotation, printMode, baseMapMeterByPx }) {
             label.y + label.ny * textShiftPx
           }) rotate(${getUprightAngle(label.angle)}) scale(${pageScale})`}
         >
+          {/* the label is written inside a small white box */}
+          <rect
+            x={-label.boxWidth / 2}
+            y={-textBoxHeight / 2}
+            width={label.boxWidth}
+            height={textBoxHeight}
+            rx={TEXT_BOX_RADIUS_PT}
+            fill="white"
+            style={{
+              cursor: "pointer",
+              pointerEvents: printMode ? "none" : "auto",
+            }}
+          />
           <text
             textAnchor="middle"
             dominantBaseline="central"
             fontSize={fontSize}
             fontFamily={FONT_FAMILY}
             fill={color}
-            style={{
-              userSelect: "none",
-              cursor: "pointer",
-              pointerEvents: printMode ? "none" : "auto",
-              paintOrder: "stroke",
-              stroke: "white",
-              strokeWidth: TEXT_HALO_PT,
-              strokeLinejoin: "round",
-            }}
+            style={{ userSelect: "none", pointerEvents: "none" }}
           >
             {label.text}
           </text>

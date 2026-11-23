@@ -150,6 +150,40 @@ export function getOffsetLinePxPerUnit({ offsetUnit, pageScale, meterByPx }) {
   return pageScale;
 }
 
+// Ink of the offset line and of its label: the main color of the annotation.
+export function getOffsetLineColor(annotation) {
+  return (
+    (annotation?.type === "POLYGON"
+      ? annotation?.fillColor
+      : annotation?.strokeColor) ?? "#000000"
+  );
+}
+
+// Legend glyph of an annotation whose offset line is drawn: the line as it
+// appears on the plan (color, thickness in page pt, dashes). Null when the
+// offset line is off — the legend then keeps the glyph of the type.
+// `template` is the fallback of the annotations that do not carry their
+// resolved template props.
+export function getOffsetLineLegendProps(annotation, template) {
+  if (!OFFSET_LINE_ANNOTATION_TYPES.includes(annotation?.type)) return null;
+  const source = {
+    ...annotation,
+    annotationTemplateProps: annotation?.annotationTemplateProps ?? template,
+  };
+  const { enabled, strokeWidth, dashed } =
+    getAnnotationOffsetLineConfig(source);
+  if (!enabled) return null;
+  return {
+    color: getOffsetLineColor({
+      type: annotation.type,
+      fillColor: annotation.fillColor ?? template?.fillColor,
+      strokeColor: annotation.strokeColor ?? template?.strokeColor,
+    }),
+    strokeWidth,
+    dashed,
+  };
+}
+
 export default function getAnnotationOffsetLineConfig(annotation) {
   const templateProps =
     annotation?.annotationTemplateProps ?? annotation?.annotationTemplate;

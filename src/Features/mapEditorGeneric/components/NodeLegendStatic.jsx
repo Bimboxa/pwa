@@ -5,6 +5,12 @@ import theme from "Styles/theme";
 
 import useObject3DTopView from "Features/object3D/hooks/useObject3DTopView";
 
+import getStrokeDasharray from "Features/mapEditorGeneric/utils/getStrokeDasharray";
+
+// Offset line glyph: page pt of the line → glyph px, as if the glyph were a
+// 16 pt wide sample of the plan; kept readable and inside the glyph.
+const OFFSET_LINE_GLYPH_WIDTH_PT = 16;
+
 // OBJECT_3D legend glyph: the top view, painted in the template color2D
 // (« Représentation 2D ») when set.
 function Object3DTopViewImage({ topViewDataUrl, color2D }) {
@@ -100,7 +106,7 @@ export default memo(function NodeLegendStatic({
     } = spriteImage || {};
 
     // Helper Icon Component (Statique)
-    function LegendIcon({ type, iconKey, fillColor, strokeColor, fillType, strokeType, variant, topViewDataUrl, color2D }) {
+    function LegendIcon({ type, iconKey, fillColor, strokeColor, fillType, strokeType, variant, topViewDataUrl, color2D, offsetLine }) {
         const commonStyle = {
             width: `${ICON_PX}px`,
             height: `${ICON_PX}px`,
@@ -118,6 +124,41 @@ export default memo(function NodeLegendStatic({
             width: ICON_PX * 0.8,     // Sécurité supplémentaire pour html-to-image
             height: ICON_PX * 0.8
         };
+
+        // "Ligne de déport" drawn on the plan: the glyph is that line (color,
+        // thickness, dashes) instead of the glyph of the type.
+        if (offsetLine) {
+            const k = ICON_PX / OFFSET_LINE_GLYPH_WIDTH_PT;
+            const lineWidth = Math.min(
+                Math.max(offsetLine.strokeWidth * k, 1),
+                ICON_PX / 3
+            );
+            // Same pattern as on the plan, shortened to show at least two
+            // dashes in the glyph.
+            const [dash, gap] = getStrokeDasharray(offsetLine.strokeWidth)
+                .split(" ")
+                .map((v) => Number(v) * k);
+            const dashK = Math.min(1, ICON_PX / (2.5 * dash + 2 * gap));
+            return (
+                <div style={{ ...commonStyle, background: "white" }}>
+                    <svg width={ICON_PX} height={ICON_PX} viewBox={`0 0 ${ICON_PX} ${ICON_PX}`}>
+                        <line
+                            x1={0}
+                            y1={ICON_PX / 2}
+                            x2={ICON_PX}
+                            y2={ICON_PX / 2}
+                            stroke={offsetLine.color}
+                            strokeWidth={lineWidth}
+                            strokeDasharray={
+                                offsetLine.dashed
+                                    ? `${dash * dashK} ${gap * dashK}`
+                                    : undefined
+                            }
+                        />
+                    </svg>
+                </div>
+            );
+        }
 
         if (type === "POLYLINE") {
             return (
@@ -343,6 +384,7 @@ export default memo(function NodeLegendStatic({
                                             closeLine={it.closeLine}
                                             topViewDataUrl={it.topViewDataUrl}
                                             color2D={it.color2D}
+                                            offsetLine={it.offsetLine}
                                         />
                                     </div>
                                     <div

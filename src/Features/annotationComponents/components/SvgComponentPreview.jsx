@@ -24,6 +24,7 @@ const FIT_MARGIN = 0.15;
 const MIN_SCALED_HALF_WIDTH_PX = 8;
 // Offset line label: gap to the line, in page pt (NodeOffsetLineStatic).
 const OFFSET_LINE_TEXT_GAP_PT = 3;
+const OFFSET_LINE_TEXT_BOX_PADDING_Y_PT = 1;
 const STRIP_DEFAULT_WIDTH_PX = 20;
 // Image px = cm when the base map has no scale (nothing is to scale then).
 const FALLBACK_METER_BY_PX = 0.01;
@@ -54,7 +55,10 @@ function getLateralExtent(annotation, meterByPx) {
     const textPx =
       offsetLine.labelSource === "NONE"
         ? 0
-        : (OFFSET_LINE_TEXT_GAP_PT + offsetLine.fontSize) * pageScale;
+        : (OFFSET_LINE_TEXT_GAP_PT +
+            offsetLine.fontSize +
+            2 * OFFSET_LINE_TEXT_BOX_PADDING_Y_PT) *
+          pageScale;
     scaled = Math.max(scaled, Math.abs(offsetLine.offset) * pxPerUnit + textPx);
   }
   return { scaled, screen };
