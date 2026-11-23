@@ -18,10 +18,21 @@ export default async function updateCommentService({
     (fileName) => !kept.has(fileName)
   );
 
+  // Info seeded by a configuration (seedRefs): once its blocks are edited
+  // they belong to the user — the seed blocks go, so a later binding
+  // (bindSeededCommentsService) never writes them back.
+  const blocksEdited =
+    JSON.stringify(nextBlocks) !== JSON.stringify(comment.blocks ?? []);
+  const seedRefs =
+    comment.seedRefs && blocksEdited
+      ? { ...comment.seedRefs, blocks: null }
+      : null;
+
   await db.transaction("rw", db.comments, db.files, async () => {
     await db.comments.update(commentId, {
       title: (title ?? "").trim(),
       blocks: nextBlocks,
+      ...(seedRefs && { seedRefs }),
     });
     if (removed.length) await db.files.bulkDelete(removed);
   });

@@ -16,10 +16,13 @@ import enableScopeModuleService from "Features/scopeConfig/services/enableScopeM
 // service so the Krto creation flow (Commentaires option) can call it outside
 // a hook. The Comments module is the only one editing the listing, so
 // creating it also enables the module for the scope (idempotent).
+// `key`: stable key of a listing seeded by a configuration
+// (seedConfigurationCommentsService).
 export default async function createCommentListingService({
   projectId,
   scopeId,
   name,
+  key,
   appConfig,
 } = {}) {
   if (!projectId || !scopeId) return null;
@@ -43,6 +46,7 @@ export default async function createCommentListingService({
     id: nanoid(),
     projectId,
     scopeId,
+    ...(key && { key }),
     name:
       name?.trim() ||
       (scopeCount ? `${defaultName} ${scopeCount + 1}` : defaultName),

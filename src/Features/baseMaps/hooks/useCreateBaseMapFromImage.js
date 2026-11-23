@@ -29,6 +29,10 @@ import db from "App/db/db";
  *   position / angleDeg: optional world-space placement applied at creation
  *   localScan: {resourceId, matrix} of a base map projected from a local
  *   point cloud (localScans/README.md)
+ *   key / keyScopeId: stable key of the base map within a scope (a page
+ *   created by a configuration or a procedure), so content seeded with keys
+ *   can target it whatever its id (Features/comments —
+ *   bindSeededCommentsService)
  *   selectOnCreate: pass false to keep the current main base map (e.g. a
  *   procedure creating its output map mid-flow must not switch the view)
  */
@@ -56,6 +60,8 @@ export default function useCreateBaseMapFromImage() {
     printZone,
     source = whitePage ? "whitePage" : "image",
     createdFrom,
+    key,
+    keyScopeId,
     triggerInitialSave = true,
     selectOnCreate = true,
   }) {
@@ -72,6 +78,7 @@ export default function useCreateBaseMapFromImage() {
       ...(position && { position }),
       ...(Number.isFinite(angleDeg) && { angleDeg }),
       ...(createdFrom && { createdFrom }),
+      ...(key && { key, keyScopeId: keyScopeId ?? null }),
       ...(latLng && { latLng }),
       ...(geo && { geo }),
       ...(scene3d && { scene3d }),
