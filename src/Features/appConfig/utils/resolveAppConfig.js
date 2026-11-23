@@ -236,6 +236,11 @@ export default async function resolveAppConfig(appConfig) {
   //                                 // recap-only, left out of the compact
   //                                 // dialog (getSimpleModeConfigurations).
   //                                 // absent => config-driven creation
+  //     comments,                   // infos created with the Krto, whatever
+  //                                 // the COMMENTS option: { listings: [{
+  //                                 // key, name, comments: [seed] }] } —
+  //                                 // ids replaced by keys, see
+  //                                 // Features/comments/utils/commentSeedRefs.js
   //     code,                       // short monospace card label (e.g. "MET.TOIT")
   //     chipLabel,                  // card category chip (e.g. "Métré")
   //     optionalModules,            // creation options the user may toggle in

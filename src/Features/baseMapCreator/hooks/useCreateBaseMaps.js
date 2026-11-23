@@ -110,6 +110,12 @@ export default function useCreateBaseMaps() {
                 createdBy: userEmail,
                 listingId: listing.id,
                 ...pureData,
+                // stable key of the base map within a scope (configuration
+                // item `key`), see useCreateBaseMapFromImage
+                ...(baseMap.key && {
+                    key: baseMap.key,
+                    keyScopeId: baseMap.keyScopeId ?? null,
+                }),
             };
 
             if (pureData.image?.imageSize) {

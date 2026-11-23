@@ -50,6 +50,10 @@ export default function useCreateAnnotationTemplatesFromLibrary() {
     const bulkItems = [];
     const templatesWithFiles = [];
 
+    // `templateKey` (unique within its library) is PERSISTED on the template:
+    // the stable reference of a template across scopes (listing key +
+    // template key — e.g. the infos seeded by a configuration, Features/
+    // comments).
     // Ids are minted up front so a template can reference another one of the
     // same batch by its library key (`templateKey`) — the path array default
     // of a POLYLINE template (Features/pathArray): `pathArray: { step,
@@ -66,7 +70,6 @@ export default function useCreateAnnotationTemplatesFromLibrary() {
     );
     const resolveLibraryRefs = (template) => {
       const next = { ...template };
-      delete next.templateKey;
       // COMPONENT template (Features/annotationComponents): `componentItems:
       // [{ templateKey, enabled, type }]` → `[{ annotationTemplateId, … }]`.
       // Items whose template is left out of the batch are dropped.

@@ -17,12 +17,16 @@ import getNextBlocksBaseMapName from "../utils/getNextBlocksBaseMapName";
 // folder-driven UI lists it. Project-shared, like every base map.
 // `sideM` / `scale` size the page (defaults: 20 m at 1:50) — a page meant for
 // one small block (a 50 cm podium…) reads better as a few meters at 1:10.
+// `key` / `keyScopeId`: optional stable key of the page in a scope (a page
+// created by a procedure — see useCreateBaseMapFromImage).
 // Returns the db.baseMaps record.
 export default async function createBlocksBaseMapService({
   projectId,
   name,
   sideM,
   scale,
+  key,
+  keyScopeId,
 }) {
   if (!projectId) throw new Error("projectId is required");
 
@@ -47,6 +51,7 @@ export default async function createBlocksBaseMapService({
     refWidth: side,
     refHeight: side,
     meterByPx,
+    ...(key && { key, keyScopeId: keyScopeId ?? null }),
   };
 
   await db.transaction("rw", [db.baseMaps, db.baseMapVersions], async () => {

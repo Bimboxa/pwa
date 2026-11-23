@@ -290,6 +290,9 @@ export default function useCreateConfigurationBaseMaps() {
                 },
                 ...getItemPlacement(item),
                 seedAnnotations: item.annotations,
+                // stable key of the item (persisted as baseMap.key)
+                key: item.key,
+                keyScopeId: scope?.id,
               });
             } catch (error) {
               console.error(
@@ -322,6 +325,9 @@ export default function useCreateConfigurationBaseMaps() {
               }),
               ...getItemPlacement(item),
               seedAnnotations: item.annotations,
+              // stable key of the item (persisted as baseMap.key)
+              key: item.key,
+              keyScopeId: scope?.id,
             });
           } else if (item.type === "ASSET" && item.assetUrl) {
             try {
@@ -335,6 +341,9 @@ export default function useCreateConfigurationBaseMaps() {
                 meterByPx: item.meterByPx,
                 ...getItemPlacement(item),
                 seedAnnotations: item.annotations,
+                // stable key of the item (persisted as baseMap.key)
+                key: item.key,
+                keyScopeId: scope?.id,
               });
             } catch (error) {
               console.error(

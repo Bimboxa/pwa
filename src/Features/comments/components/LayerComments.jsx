@@ -20,6 +20,7 @@ import useComments from "../hooks/useComments";
 import useCanEditComments from "../hooks/useCanEditComments";
 import useCommentLocateCapture from "../hooks/useCommentLocateCapture";
 import useEditorCommentPins from "../hooks/useEditorCommentPins";
+import useBindSeededComments from "../hooks/useBindSeededComments";
 import useMainBaseMap from "Features/mapEditor/hooks/useMainBaseMap";
 import isCommentInBlocksContext from "../utils/isCommentInBlocksContext";
 import isCommandsToolbarModuleKey from "Features/commandsToolbar/utils/isCommandsToolbarModuleKey";
@@ -41,6 +42,8 @@ function LayerCommentsContent({ withPins }) {
 
   const { commentListings, selectedListing } = useCommentListings();
   const comments = useComments({ listingId: selectedListing?.id });
+  // infos seeded by the configuration: bound to the pages created since
+  useBindSeededComments(comments);
   // Blocks context: the PINS drawn over the editors are the ones of the
   // infos written in the displayed context (on a blocks base map, those
   // written there alone; on a regular one, none of them). The strip and the

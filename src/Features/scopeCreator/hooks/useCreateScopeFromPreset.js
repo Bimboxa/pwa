@@ -52,6 +52,7 @@ import { DEFAULT_DISABLED_TOOL_KEYS } from "Features/scopeConfig/utils/scopeConf
 import resolveConfigurationScopeConfig from "../utils/resolveConfigurationScopeConfig";
 import createBusinessObjectListingService from "Features/businessObjects/services/createBusinessObjectListingService";
 import createCommentListingService from "Features/comments/services/createCommentListingService";
+import seedConfigurationCommentsService from "Features/comments/services/seedConfigurationCommentsService";
 import { COMMENTS_MODULE_KEY } from "Features/comments/constants/commentEntityModel";
 import { getBusinessObjectsModuleKey } from "Features/businessObjects/utils/businessObjectModuleKeys";
 import { DEFAULT_BUSINESS_OBJECT_TYPE_KEY } from "Features/businessObjects/data/businessObjectTypesCatalog";
@@ -640,7 +641,23 @@ export default function useCreateScopeFromPreset({ projectId }) {
 
     // Commentaires option: seed the scope's first comment listing (a comment
     // always belongs to a listing — Features/comments).
-    if (comments) {
+    // Infos the configuration declares (`configuration.comments`): always
+    // created, whatever the option — they are part of the configuration (a
+    // step-by-step guide…). Their keys are bound to the listings / templates
+    // / base maps just created; the ones of pages created later stay pending
+    // (bindSeededCommentsService). The option then adds no empty listing.
+    let seededCommentListings = [];
+    try {
+      seededCommentListings = await seedConfigurationCommentsService({
+        configuration,
+        projectId,
+        scopeId: scope.id,
+        appConfig,
+      });
+    } catch (error) {
+      console.error("[createScopeFromPreset] infos not seeded", error);
+    }
+    if (comments && seededCommentListings.length === 0) {
       await createCommentListingService({
         projectId,
         scopeId: scope.id,

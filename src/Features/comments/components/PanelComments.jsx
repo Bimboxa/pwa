@@ -23,6 +23,7 @@ import AddLocationAltOutlinedIcon from "@mui/icons-material/AddLocationAltOutlin
 import ArrowUpwardIcon from "@mui/icons-material/ArrowUpward";
 import ArrowDownwardIcon from "@mui/icons-material/ArrowDownward";
 import BugReportIcon from "@mui/icons-material/BugReport";
+import DataObjectIcon from "@mui/icons-material/DataObject";
 import DeleteOutlineIcon from "@mui/icons-material/DeleteOutline";
 import PlaceOutlinedIcon from "@mui/icons-material/PlaceOutlined";
 import PlaylistAddIcon from "@mui/icons-material/PlaylistAdd";
@@ -37,6 +38,7 @@ import useComments from "../hooks/useComments";
 import useCanEditComments from "../hooks/useCanEditComments";
 import openCommentService from "../services/openCommentService";
 import startAddCommentService from "../services/startAddCommentService";
+import exportCommentsConfigurationSeedService from "../services/exportCommentsConfigurationSeedService";
 
 // Left drawer of the Comments module: the comment listing (selector + "new
 // listing"), the two creation commands and the comments of the listing in
@@ -68,6 +70,7 @@ export default function PanelComments() {
   const deleteS = "Supprimer";
   const deleteConfirmS = "Supprimer cette info ?";
   const copyDebugS = "Copier les données des infos (debug)";
+  const copySeedS = "Copier comme modèle de configuration";
 
   // data
 
@@ -76,6 +79,16 @@ export default function PanelComments() {
   const { canEdit } = useCanEditComments();
   const openedCommentId = useSelector((s) => s.comments.openedCommentId);
   const isLocating = useSelector((s) => s.comments.isLocating);
+
+  // helpers
+
+  const debugButtonSx = {
+    flexShrink: 0,
+    my: -0.5,
+    color: "text.disabled",
+    opacity: 0.4,
+    "&:hover": { opacity: 1, bgcolor: "action.hover" },
+  };
 
   // handlers
 
@@ -95,6 +108,23 @@ export default function PanelComments() {
       2
     );
     navigator.clipboard.writeText(data);
+  }
+
+  // the listing as the `comments` section of a Krto configuration (ids
+  // replaced by keys)
+  async function handleCopySeed() {
+    const seed = await exportCommentsConfigurationSeedService({
+      listing: selectedListing,
+      comments,
+    });
+    if (!seed) return;
+    await navigator.clipboard.writeText(JSON.stringify(seed, null, 2));
+    if (seed.warnings.length) {
+      console.warn("[comments] configuration seed warnings", seed.warnings);
+      window.alert(
+        `Modèle copié avec ${seed.warnings.length} référence(s) sans clé :\n\n${seed.warnings.join("\n")}`
+      );
+    }
   }
 
   async function handleMove(index, delta) {
@@ -121,21 +151,26 @@ export default function PanelComments() {
         title={titleS}
         actions={
           selectedListing && (
-            <Tooltip title={copyDebugS}>
-              <IconButton
-                size="small"
-                onClick={handleCopyDebug}
-                sx={{
-                  flexShrink: 0,
-                  my: -0.5,
-                  color: "text.disabled",
-                  opacity: 0.4,
-                  "&:hover": { opacity: 1, bgcolor: "action.hover" },
-                }}
-              >
-                <BugReportIcon sx={{ fontSize: 16 }} />
-              </IconButton>
-            </Tooltip>
+            <>
+              <Tooltip title={copySeedS}>
+                <IconButton
+                  size="small"
+                  onClick={handleCopySeed}
+                  sx={debugButtonSx}
+                >
+                  <DataObjectIcon sx={{ fontSize: 16 }} />
+                </IconButton>
+              </Tooltip>
+              <Tooltip title={copyDebugS}>
+                <IconButton
+                  size="small"
+                  onClick={handleCopyDebug}
+                  sx={debugButtonSx}
+                >
+                  <BugReportIcon sx={{ fontSize: 16 }} />
+                </IconButton>
+              </Tooltip>
+            </>
           )
         }
       />
