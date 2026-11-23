@@ -5,6 +5,7 @@ import useAnnotationTemplates from "Features/annotations/hooks/useAnnotationTemp
 import useAnnotationsV2 from "Features/annotations/hooks/useAnnotationsV2";
 
 import getItemsByKey from "Features/misc/utils/getItemsByKey";
+import { getOffsetLineLegendProps } from "Features/annotations/utils/getAnnotationOffsetLineConfig";
 
 export default function useLegendItems() {
   // data
@@ -56,6 +57,8 @@ export default function useLegendItems() {
             strokeType,
             fillColor,
             fillType,
+            // "Ligne de déport" drawn: the glyph is that line.
+            offsetLine: getOffsetLineLegendProps(annotation, template),
             label: (() => {
               const base = template?.labelLegend || (template?.label ?? "A définir");
               const h = Number(template?.height);

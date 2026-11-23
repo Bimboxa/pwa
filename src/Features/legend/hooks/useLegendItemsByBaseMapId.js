@@ -2,6 +2,7 @@ import useAnnotationTemplates from "Features/annotations/hooks/useAnnotationTemp
 import useAnnotationsV2 from "Features/annotations/hooks/useAnnotationsV2";
 
 import getItemsByKey from "Features/misc/utils/getItemsByKey";
+import { getOffsetLineLegendProps } from "Features/annotations/utils/getAnnotationOffsetLineConfig";
 import filterAnnotationsByViewBox from "Features/annotations/utils/filterAnnotationsByViewBox";
 
 // includeHiddenInLegend: keep the templates flagged `hiddenInLegend` (tagged
@@ -65,6 +66,8 @@ export default function useLegendItemsByBaseMapId(baseMapId, { viewBox, disabled
           strokeType,
           fillColor,
           fillType,
+          // "Ligne de déport" drawn: the glyph is that line.
+          offsetLine: getOffsetLineLegendProps(annotation, template),
           topViewDataUrl:
             template?.object3D?.topViewDataUrl ??
             annotation.object3D?.topViewDataUrl,
