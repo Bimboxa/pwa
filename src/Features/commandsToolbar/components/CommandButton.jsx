@@ -20,8 +20,8 @@ import { useCommandMenu } from "./CommandMenuContext";
 // - inside a group menu (CommandMenuContext variant "menu"): MenuItem with
 //   icon + label, `selected` when active; `menu.accentIcons` colors the icon
 //   of every enabled item like the toolbar row (right-click shortcuts menu).
-//   `menu.renderItem({ commandKey, label, icon, enabled, active, reason,
-//   onClick })` replaces the MenuItem by the host's own look (« Commande »
+//   `menu.renderItem({ commandKey, label, icon, hotkeyLabel, enabled, active,
+//   reason, onClick })` replaces the MenuItem by the host's own look (« Commande »
 //   block of an info), the click behaviour staying the menu one.
 // `onClick(event, anchor)`: `anchor` is the element a popup must anchor to —
 // the button itself in the row, the group button in a menu.
@@ -67,6 +67,7 @@ function CommandButton({
       commandKey,
       label,
       icon: renderedIcon,
+      hotkeyLabel,
       enabled,
       active,
       reason,

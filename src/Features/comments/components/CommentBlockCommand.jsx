@@ -11,14 +11,17 @@ import CommandSlot from "Features/commandsToolbar/components/CommandSlot";
 import { COMMANDS_BY_KEY } from "Features/commandsToolbar/commands";
 import { COMMENT_COLORS } from "../commentsDarkTheme";
 import useCommandsRuntime from "Features/commandsToolbar/hooks/useCommandsRuntime";
-import toSlotItem from "Features/commandsToolbar/utils/toSlotItem";
+import toSlotItem, {
+  getHotkeyLabel,
+} from "Features/commandsToolbar/utils/toSlotItem";
 
-// The button itself: icon + label of the command, lit while the command is
-// armed / toggled on, dimmed with its reason (tooltip + second line) while it
+// The button itself: icon + label of the command, its hotkey as a boxed
+// letter at the right end, lit while the command is armed / toggled on, dimmed with its reason (tooltip + second line) while it
 // cannot run. `interactive: false` (editor preview): inert, fully readable.
 function CommandRow({
   label,
   icon,
+  hotkeyLabel = null,
   enabled,
   active = false,
   reason = null,
@@ -96,6 +99,28 @@ function CommandRow({
               </Typography>
             )}
           </Box>
+          {hotkeyLabel && (
+            <Box
+              component="span"
+              sx={{
+                flexShrink: 0,
+                px: "5px",
+                minWidth: 20,
+                height: 20,
+                display: "inline-flex",
+                alignItems: "center",
+                justifyContent: "center",
+                border: `1px solid ${COMMENT_COLORS.borderStrong}`,
+                borderRadius: "5px",
+                fontSize: 11,
+                fontWeight: 700,
+                lineHeight: 1,
+                color: COMMENT_COLORS.textSecondary,
+              }}
+            >
+              {hotkeyLabel}
+            </Box>
+          )}
         </ButtonBase>
       </Box>
     </Tooltip>
@@ -131,10 +156,11 @@ export default function CommentBlockCommand({ block, interactive = true }) {
   // helpers
 
   const renderItem = useCallback(
-    ({ label, icon, enabled, active, reason, onClick }) => (
+    ({ label, icon, hotkeyLabel, enabled, active, reason, onClick }) => (
       <CommandRow
         label={label}
         icon={icon}
+        hotkeyLabel={hotkeyLabel}
         enabled={enabled}
         active={active}
         reason={reason}
@@ -163,10 +189,16 @@ export default function CommentBlockCommand({ block, interactive = true }) {
   const icon = Icon ? <Icon /> : command.icon;
 
   if (!interactive || !runtime) {
+    // the badge of the displayed editor when a toolbar is mounted, else the
+    // command's own letter
+    const hotkeyLabel = runtime
+      ? getHotkeyLabel(command, runtime.ctx)
+      : (command.hotkey?.key?.toUpperCase() ?? null);
     return (
       <CommandRow
         label={command.label}
         icon={icon}
+        hotkeyLabel={hotkeyLabel}
         enabled={false}
         reason={unavailableS}
         interactive={interactive}
