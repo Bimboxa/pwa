@@ -1,9 +1,9 @@
 import { useDispatch, useSelector } from "react-redux";
 
-import { setShowStations } from "../orthophotosSlice";
+import { setShowStations, setShowHoverOutlines } from "../orthophotosSlice";
 
 import { Box, Divider, Typography } from "@mui/material";
-import LinkedCamera from "@mui/icons-material/LinkedCamera";
+import HighlightAlt from "@mui/icons-material/HighlightAlt";
 
 import ButtonBaseMapsGrid from "Features/baseMapsGrid/components/ButtonBaseMapsGrid";
 import ButtonCountPill from "Features/popperMapListings/components/ButtonCountPill";
@@ -16,9 +16,10 @@ import {
 } from "Features/viewers/utils/effectiveViewerKey";
 
 // Bottom bar controls of the unit orthophotos: shown in the 2D editors while
-// the main base map is an orthomosaic (baseMap.isOrthophoto). The toggle (and
-// the count pill) switches the camera stations on / off over the editor —
-// see LayerOrthophotos. Nothing under a capture / POV framing.
+// the main base map is an orthomosaic (baseMap.isOrthophoto). The count pill
+// switches the camera stations on / off over the editor (LayerOrthophotos);
+// the toggle next to it, the outlines of the orthophotos under the cursor.
+// Nothing under a capture / POV framing.
 export default function SectionOrthophotosBottomBarControls() {
   const dispatch = useDispatch();
 
@@ -27,12 +28,17 @@ export default function SectionOrthophotosBottomBarControls() {
   const titleS = "Orthophotos";
   const showS = "Afficher les stations des orthophotos unitaires";
   const hideS = "Masquer les stations des orthophotos unitaires";
+  const showOutlinesS =
+    "Afficher le contour des orthophotos survolées par la souris";
+  const hideOutlinesS =
+    "Masquer le contour des orthophotos survolées par la souris";
 
   // data
 
   const effectiveViewerKey = useSelector(selectEffectiveViewerKey);
   const captureFramingActive = useSelector(selectCaptureFramingActive);
   const showStations = useSelector((s) => s.orthophotos.showStations);
+  const showHoverOutlines = useSelector((s) => s.orthophotos.showHoverOutlines);
   const isOrthophoto = useIsMainBaseMapOrthophoto();
   const mainBaseMapId = useSelector((s) => s.mapEditor.selectedBaseMapId);
   const orthophotos = useOrthophotos({
@@ -82,10 +88,10 @@ export default function SectionOrthophotosBottomBarControls() {
         onClick={handleToggle}
       />
       <ButtonBaseMapsGrid
-        title={showStations ? hideS : showS}
-        icon={<LinkedCamera />}
-        active={showStations}
-        onClick={handleToggle}
+        title={showHoverOutlines ? hideOutlinesS : showOutlinesS}
+        icon={<HighlightAlt />}
+        active={showHoverOutlines}
+        onClick={() => dispatch(setShowHoverOutlines(!showHoverOutlines))}
       />
       <Divider orientation="vertical" flexItem sx={{ my: 0.75 }} />
     </Box>

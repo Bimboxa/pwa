@@ -98,6 +98,7 @@ export default function LayerOrthophotoStations({
   const selectedOrthophotoId = useSelector(
     (s) => s.orthophotos.selectedOrthophotoId
   );
+  const showHoverOutlines = useSelector((s) => s.orthophotos.showHoverOutlines);
   const editedOrthophotoId = useSelector(
     (s) => s.orthophotos.editedOrthophotoId
   );
@@ -558,10 +559,13 @@ export default function LayerOrthophotoStations({
         pointerEvents: "none",
       }}
     >
-      {/* outlines of the orthophotos under the cursor */}
+      {/* outlines of the orthophotos under the cursor (bottom bar toggle;
+          hidden, the labels and the grid of the popper still follow the
+          cursor) */}
       <Box
         component="svg"
         sx={{
+          display: showHoverOutlines ? "block" : "none",
           position: "absolute",
           inset: 0,
           width: 1,

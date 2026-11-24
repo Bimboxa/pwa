@@ -4,6 +4,9 @@ import { createSlice } from "@reduxjs/toolkit";
 // base map, db.orthophotos):
 // - showStations: bottom bar toggle — the camera stations are drawn over the
 //   2D editor (per-device preference, localStorage);
+// - showHoverOutlines: bottom bar toggle — while the base map is hovered,
+//   the outlines of the rectified images under the cursor are drawn
+//   (per-device preference too);
 // - selectedOrthophotoId: the station clicked — its rectified image is laid
 //   over the base map and its original photo opens in PopperOrthophoto;
 // - overlayOpacity: opacity of that rectified image (session only);
@@ -15,27 +18,37 @@ import { createSlice } from "@reduxjs/toolkit";
 
 const STORAGE_KEY = "orthophotosSettings";
 
-function readShowStations() {
+function readSettings() {
   try {
     const parsed = JSON.parse(localStorage.getItem(STORAGE_KEY) ?? "{}");
-    return Boolean(parsed?.showStations);
+    return {
+      showStations: Boolean(parsed?.showStations),
+      // on unless switched off
+      showHoverOutlines: parsed?.showHoverOutlines !== false,
+    };
   } catch {
-    return false;
+    return { showStations: false, showHoverOutlines: true };
   }
 }
 
-function writeShowStations(showStations) {
+function writeSettings({ showStations, showHoverOutlines }) {
   try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify({ showStations }));
+    localStorage.setItem(
+      STORAGE_KEY,
+      JSON.stringify({ showStations, showHoverOutlines })
+    );
   } catch {
-    // storage unavailable: the preference stays in memory
+    // storage unavailable: the preferences stay in memory
   }
 }
+
+const storedSettings = readSettings();
 
 const orthophotosSlice = createSlice({
   name: "orthophotos",
   initialState: {
-    showStations: readShowStations(),
+    showStations: storedSettings.showStations,
+    showHoverOutlines: storedSettings.showHoverOutlines,
     selectedOrthophotoId: null,
     overlayOpacity: 1,
     editedOrthophotoId: null,
@@ -44,11 +57,15 @@ const orthophotosSlice = createSlice({
   reducers: {
     setShowStations: (state, action) => {
       state.showStations = Boolean(action.payload);
-      writeShowStations(state.showStations);
+      writeSettings(state);
       if (!state.showStations) {
         state.selectedOrthophotoId = null;
         state.editedOrthophotoId = null;
       }
+    },
+    setShowHoverOutlines: (state, action) => {
+      state.showHoverOutlines = Boolean(action.payload);
+      writeSettings(state);
     },
     setSelectedOrthophotoId: (state, action) => {
       state.selectedOrthophotoId = action.payload ?? null;
@@ -74,6 +91,7 @@ const orthophotosSlice = createSlice({
 
 export const {
   setShowStations,
+  setShowHoverOutlines,
   setSelectedOrthophotoId,
   setOrthophotoOverlayOpacity,
   setEditedOrthophotoId,
