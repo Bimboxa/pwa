@@ -22,7 +22,8 @@ let lastSnap = null;
 //                                // (revolutionFollowers) — else null
 //   rootStartPoses: Map<id, {position: Vector3, rotZ}>, // at grab time
 //   targetVerts,                 // target-only snap index (carried roots
-//   targetAdjacency,             // excluded), built fresh at grab time
+//   targetAdjacency,             // excluded), built at grab time, rebuilt
+//                                // at each snap index epoch
 //   copyBuffer,                  // typed `<distance>[*<copies>]` ("1.3*3")
 //   ghosts,                      // copy previews (moveCopyGhostsThreed)
 //   lastDelta,                   // last local delta applied (pose replay)

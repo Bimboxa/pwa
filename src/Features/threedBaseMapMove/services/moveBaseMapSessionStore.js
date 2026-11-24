@@ -17,7 +17,8 @@ let lastSnap = null;
 //                                // axis root / sibling elevations —
 //                                // revolutionFollowers)
 //   targetVerts,                 // target-only snap index (carried subtree
-//   targetAdjacency,             // + followers excluded), built at grab time
+//   targetAdjacency,             // + followers excluded), built at grab time,
+//                                // rebuilt at each snap index epoch
 // } | null
 let grab = null;
 

@@ -46,6 +46,26 @@ function restoreCarriedGroup() {
   clearMoveGrab();
 }
 
+// (Re)builds the target-only snap index of the in-progress move, excluding
+// the whole carried subtree (and its revolution followers): the carried
+// geometry must never screen the drop targets, and its live pose never enters
+// the index, so the rebuild is safe mid-move. Called on discrete events only
+// (grab click, snap index epoch) — never on pointer move. An index frozen at
+// the grab click missed every object hidden at that time and shown again
+// before the drop.
+function refreshMoveTargetIndex(grab) {
+  const editor = getActiveThreedEditor();
+  const scene = editor?.sceneManager?.scene;
+  const group = editor?.sceneManager?.imagesManager?.getGroup(grab.baseMapId);
+  if (!scene || !group) return;
+  const { verts, adjacency } = buildIndex(scene, {
+    excludeSubtree: group,
+    excludeSubtrees: getRevolutionFollowerSubtrees(grab.followers),
+  });
+  grab.targetVerts = verts;
+  grab.targetAdjacency = adjacency;
+}
+
 // Wires click + key handlers for the "Déplacer" (move base map) mode:
 // 1st snapped click grabs — resolves the base map owning the snapped mesh,
 // records the grabbed point and the group's start position (the overlay then
@@ -78,6 +98,16 @@ export default function useMoveBaseMapPointerHandlers({ annotations } = {}) {
     selectedBaseMapIdRef.current = selectedBaseMapId;
   }, [selectedBaseMapId]);
 
+  // The scene's objects changed mid-move (an object shown / hidden, a
+  // reload): resync the target-only index of the in-progress move.
+  const snapIndexEpoch = useSelector(
+    (s) => s.threedEditor.drawingMode.snapIndexEpoch
+  );
+  useEffect(() => {
+    const grab = getMoveGrab();
+    if (active && grab) refreshMoveTargetIndex(grab);
+  }, [active, snapIndexEpoch]);
+
   useEffect(() => {
     if (!active) return;
     const editor = getActiveThreedEditor();
@@ -101,7 +131,6 @@ export default function useMoveBaseMapPointerHandlers({ annotations } = {}) {
     }
 
     function grabAtSnap(snap) {
-      const scene = editor?.sceneManager?.scene;
       let group = null;
       let baseMapId = null;
       if (snap.kind === "PLANE" && snap.baseMapId) {
@@ -138,26 +167,19 @@ export default function useMoveBaseMapPointerHandlers({ annotations } = {}) {
         baseMapId,
       });
 
-      // Fresh target-only snap index, excluding the whole carried subtree:
-      // the carried geometry must never screen the drop targets, and a
-      // grab-time rebuild guarantees up-to-date world positions whatever
-      // happened since the mode was armed.
-      const { verts: targetVerts, adjacency: targetAdjacency } = buildIndex(
-        scene,
-        {
-          excludeSubtree: group,
-          excludeSubtrees: getRevolutionFollowerSubtrees(followers),
-        }
-      );
-
-      setMoveGrab({
+      const grab = {
         baseMapId,
         startWorld: snap.position.clone(),
         groupStartPosition: group.position.clone(),
         followers,
-        targetVerts,
-        targetAdjacency,
-      });
+        targetVerts: [],
+        targetAdjacency: new Map(),
+      };
+      // Fresh target-only snap index: a grab-time rebuild guarantees
+      // up-to-date world positions whatever happened since the mode was
+      // armed.
+      refreshMoveTargetIndex(grab);
+      setMoveGrab(grab);
       dispatch(setMoveBaseMapCarriedId(baseMapId));
     }
 

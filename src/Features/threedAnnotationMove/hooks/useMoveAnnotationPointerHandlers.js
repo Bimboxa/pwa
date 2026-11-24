@@ -138,6 +138,20 @@ export default function useMoveAnnotationPointerHandlers({ annotations }) {
     }
   }, [active, moduleKey, dispatch]);
 
+  // The scene's objects changed mid-move (an object shown / hidden, a
+  // reload): resync the target-only index of the in-progress grab — an index
+  // frozen at the grab click missed every object hidden at that time and
+  // shown again before the drop. Discrete events only, never on pointer move.
+  const snapIndexEpoch = useSelector(
+    (s) => s.threedEditor.drawingMode.snapIndexEpoch
+  );
+  useEffect(() => {
+    const grab = getMoveAnnotationGrab();
+    if (active && grab) {
+      refreshMoveAnnotationGrabTargets(getActiveThreedEditor(), grab);
+    }
+  }, [active, snapIndexEpoch]);
+
   useEffect(() => {
     if (!active) return;
     const editor = getActiveThreedEditor();

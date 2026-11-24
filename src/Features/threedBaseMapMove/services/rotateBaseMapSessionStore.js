@@ -14,7 +14,8 @@ let lastSnap = null;
 //   refBearing: number | null,   // bearing of the reference axis (rad)
 //   currentPhi: number,          // live rotation angle (rad)
 //   targetVerts,                 // target-only snap index (carried subtree
-//   targetAdjacency,             // excluded), built fresh at pivot click
+//   targetAdjacency,             // excluded), built at pivot click, rebuilt
+//                                // at reference click + snap index epoch
 // } | null
 let grab = null;
 
