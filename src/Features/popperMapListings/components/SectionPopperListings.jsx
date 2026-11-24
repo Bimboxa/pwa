@@ -278,6 +278,7 @@ function SortableRowPopperListing({
         count={count}
         hidden={hidden}
         title={hidden ? showS : hideS}
+        tooltipPlacement="right"
         onClick={(e) => onToggleVisibility(e, listing.id)}
         accent={accent}
       />
