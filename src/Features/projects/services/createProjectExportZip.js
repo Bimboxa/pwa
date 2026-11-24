@@ -57,6 +57,7 @@ const PROJECT_TABLES = new Set([
   "globalLayers",
   "workPackages",
   "relsWorkPackageAnnotation",
+  "relsPhaseAnnotation",
   "plannings",
   "planningResources",
   "planningSlots",

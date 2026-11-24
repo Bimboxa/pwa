@@ -38,6 +38,12 @@ function getCurrentUserIdMaster() {
 // cascade deletes.
 let _skipOwnershipGuard = false;
 
+// Whether the current write is a system write (see withSystemWrite): lets
+// table hooks registered elsewhere skip the imports / syncs / cascades.
+export function isSystemWrite() {
+  return _skipOwnershipGuard;
+}
+
 export function withSystemWrite(fn) {
   const previous = _skipOwnershipGuard;
   _skipOwnershipGuard = true;
@@ -574,6 +580,20 @@ db.version(46).stores({
   orthophotos: "id,projectId,baseMapId,listingId",
 });
 
+// v47 — Phasing (Features/phasing): the phases an annotation is present in.
+// The phases are the business objects of a PHASING listing (ordered by their
+// fractional sortIndex); `phaseId` is a businessObjects id.
+// {id, projectId, scopeId, listingId, annotationId, phaseId,
+//  type: "START" | "END" | "EXCLUDE"}
+// Invariants per (annotationId, listingId), service-enforced: at most one
+// START, at most one END, any number of EXCLUDE. No START = present from the
+// first phase; no END = present up to the last one (the phases added later
+// included). An annotation without any row is present in every phase.
+// See Features/phasing/utils/resolveAnnotationPhaseIndexes.js.
+db.version(47).stores({
+  relsPhaseAnnotation: "id,projectId,scopeId,annotationId,phaseId,listingId",
+});
+
 // --- AUDIT HOOKS ---
 
 const AUDIT_TABLES = [
@@ -622,6 +642,7 @@ const AUDIT_TABLES = [
   "globalLayers",
   "workPackages",
   "relsWorkPackageAnnotation",
+  "relsPhaseAnnotation",
   "plannings",
   "planningResources",
   "planningSlots",
@@ -667,6 +688,7 @@ const OWNERSHIP_EXEMPT_TABLES = new Set([
   // edits packages, links, resources and blocks).
   "workPackages",
   "relsWorkPackageAnnotation",
+  "relsPhaseAnnotation",
   "plannings",
   "planningResources",
   "planningSlots",
@@ -935,6 +957,7 @@ const SOFT_DELETE_TABLES = new Set([
   "globalLayers",
   "workPackages",
   "relsWorkPackageAnnotation",
+  "relsPhaseAnnotation",
   "plannings",
   "planningResources",
   "planningSlots",

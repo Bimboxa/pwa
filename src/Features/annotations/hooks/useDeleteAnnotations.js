@@ -192,6 +192,15 @@ export default function useDeleteAnnotations() {
       ...new Set(workPackageRels.filter((r) => !r.deletedAt).map((r) => r.id)),
     ];
 
+    // 1e bis. Cascade: phases of the annotations (PHASING module).
+    const phaseRels = await db.relsPhaseAnnotation
+      .where("annotationId")
+      .anyOf(idsToDelete)
+      .toArray();
+    const phaseRelIds = [
+      ...new Set(phaseRels.filter((r) => !r.deletedAt).map((r) => r.id)),
+    ];
+
     // 1f. Cascade: painted mesh parts hosted by a deleted annotation
     // (« Pinceau » 3D) — restored by the same undo step as their host.
     // Paints of a scope linking this one's listings are left to that scope
@@ -303,6 +312,7 @@ export default function useDeleteAnnotations() {
         db.relAnnotationOpenings,
         db.relsBusinessObjectAnnotation,
         db.relsWorkPackageAnnotation,
+        db.relsPhaseAnnotation,
         db.meshPaints,
       ],
       async () => {
@@ -331,6 +341,11 @@ export default function useDeleteAnnotations() {
         // Cascade soft-delete work-package links
         if (workPackageRelIds.length > 0) {
           await db.relsWorkPackageAnnotation.bulkDelete(workPackageRelIds);
+        }
+
+        // Cascade soft-delete the phases of the annotations
+        if (phaseRelIds.length > 0) {
+          await db.relsPhaseAnnotation.bulkDelete(phaseRelIds);
         }
 
         // Cascade soft-delete painted mesh parts

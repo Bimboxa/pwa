@@ -18,6 +18,11 @@ import useDeleteAnnotations from "Features/annotations/hooks/useDeleteAnnotation
 import { getBusinessObjectDescendants } from "../utils/buildBusinessObjectsTree";
 import selectSelectedBusinessObjectId from "../utils/selectSelectedBusinessObjectId";
 import getMainRelsOfBusinessObjectsService from "../services/getMainRelsOfBusinessObjectsService";
+import reassignPhaseRelsOnDeleteService from "Features/phasing/services/reassignPhaseRelsOnDeleteService";
+import {
+  setSelectedPhaseIds,
+  triggerRelsPhaseAnnotationUpdate,
+} from "Features/phasing/phasingSlice";
 
 export default function useDeleteBusinessObject() {
   const dispatch = useDispatch();
@@ -32,6 +37,8 @@ export default function useDeleteBusinessObject() {
   const linkingBusinessObjectId = useSelector(
     (s) => s.businessObjects.linkingBusinessObjectId
   );
+
+  const selectedPhaseIds = useSelector((s) => s.phasing.selectedPhaseIds);
 
   const deleteAnnotations = useDeleteAnnotations();
 
@@ -65,7 +72,11 @@ export default function useDeleteBusinessObject() {
       db.businessObjects,
       db.relsBusinessObjectAnnotation,
       db.relsBusinessObjectResource,
+      db.relsPhaseAnnotation,
       async () => {
+        // Phases: the periods bounded by a deleted phase move to its
+        // neighbours (before the delete: the service reads the phases order).
+        await reassignPhaseRelsOnDeleteService(objectIds);
         await db.businessObjects.bulkDelete(objectIds);
         const rels = await db.relsBusinessObjectAnnotation
           .where("businessObjectId")
@@ -110,6 +121,13 @@ export default function useDeleteBusinessObject() {
       dispatch(setSoloBusinessObjectId(null));
     if (objectIdsSet.has(linkingBusinessObjectId))
       dispatch(setLinkingBusinessObjectId(null));
+    if (selectedPhaseIds.some((id) => objectIdsSet.has(id)))
+      dispatch(
+        setSelectedPhaseIds(
+          selectedPhaseIds.filter((id) => !objectIdsSet.has(id))
+        )
+      );
+    dispatch(triggerRelsPhaseAnnotationUpdate());
     dispatch(triggerBusinessObjectsUpdate());
     dispatch(triggerRelsBusinessObjectAnnotationUpdate());
     dispatch(triggerRelsBusinessObjectResourceUpdate());

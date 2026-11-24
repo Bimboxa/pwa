@@ -130,6 +130,14 @@ const STANDARD_FEATURES = { hoursBudget: false, color: true };
 // column 1 = the tree numbering (1, 1.1, 1.2…) computed at display time
 // (getBusinessObjectsTreeDisplayMeta) — never written to `code`; goes with
 // `code: false` (no code field, no "Renuméroter").
+// flat: the listing is a flat ordered list — no sub-objects, no level
+// navigation, reorder-only drag and drop (isBusinessObjectsTreeListing).
+// phaseSelection: the objects are the PHASES of a phasing (Features/phasing):
+// a row click selects the phase (displayed phases + phases of the next drawn
+// annotations) instead of making the object the module's active object.
+// annotationLinks: the rows offer the "link annotations" picking mode
+// (relsBusinessObjectAnnotation). false for the phases, linked through
+// db.relsPhaseAnnotation by the phases strip.
 // defaultPropertiesTab: tab of the object properties panel opened when an
 // object of the type is selected ("PROPS" = Infos | "QTY" = Quantités).
 const FEATURE_DEFAULTS = {
@@ -147,6 +155,9 @@ const FEATURE_DEFAULTS = {
   singleObjectPerAnnotation: false,
   assignByGeometry: false,
   autoNumbering: false,
+  flat: false,
+  phaseSelection: false,
+  annotationLinks: true,
   defaultPropertiesTab: "PROPS",
 };
 
@@ -293,6 +304,46 @@ const BUSINESS_OBJECT_TYPES = [
       titleRows: false,
       locate: false,
       color: false,
+    },
+  },
+  {
+    // Phasing: the objects are the ordered PHASES of the works (a name + the
+    // fractional sortIndex, numbered from their position). The annotations
+    // are linked to them by db.relsPhaseAnnotation (start / end / exclude),
+    // from the phases strip of the editors — see Features/phasing. Module key
+    // BUSINESS_OBJECTS_PHASING (knownModuleKeys rule, like NOMENCLATURE), no
+    // module hotkey.
+    key: "PHASING",
+    defaultLabel: "Phasage",
+    defaultIconKey: "linearScale",
+    editors: ["MAP", "THREED"],
+    strings: {
+      objectLabel: "Phase",
+      objectsLabel: "Phases",
+      newObject: "Nouvelle phase",
+      newChildPrefix: "Nouvelle sous-phase de",
+      editObject: "Modifier la phase",
+      addChild: "Ajouter une sous-phase",
+      empty: "Aucune phase",
+      noLinkedAnnotations: "Aucune annotation liée à cette phase",
+      linkTo: "Lier à une phase",
+      listLabel: "Liste de phases",
+      listings: "Listes de phases",
+      createListing: "Créer une liste de phases",
+      linkResourceTo: "Lier à la phase active",
+      linkedObjects: "Phases liées",
+    },
+    features: {
+      color: false,
+      code: false,
+      autoNumbering: true,
+      quantities: false,
+      titleRows: false,
+      locate: false,
+      status: false,
+      flat: true,
+      phaseSelection: true,
+      annotationLinks: false,
     },
   },
 ].map((type) => ({

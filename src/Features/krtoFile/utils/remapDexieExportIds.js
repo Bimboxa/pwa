@@ -86,6 +86,8 @@ export default function remapDexieExportIds(jsonData, opts) {
     resourceId: "resources",
     // Work packages + time planning (PLANNING listings); tasks' global layer.
     workPackageId: "workPackages",
+    // relsPhaseAnnotation: the phases are business objects.
+    phaseId: "businessObjects",
     globalLayerId: "globalLayers",
     planningId: "plannings",
     planningResourceId: "planningResources",

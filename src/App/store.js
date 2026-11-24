@@ -94,6 +94,7 @@ import pdfEditorReducer from "Features/pdfEditor/pdfEditorSlice";
 import scene3dReducer from "Features/scene3d/scene3dSlice";
 import meshPaintReducer from "Features/meshPaint/meshPaintSlice";
 import hiddenAnnotationsReducer from "Features/hiddenAnnotations/hiddenAnnotationsSlice";
+import phasingReducer from "Features/phasing/phasingSlice";
 import scopeVisibilityPersistMiddleware from "Features/scopeVisibility/scopeVisibilityPersistMiddleware";
 
 import { syncTabsMiddleware, initSyncTabsListener } from "./syncTabsMiddleware";
@@ -145,6 +146,7 @@ const store = configureStore({
     scene3d: scene3dReducer,
     meshPaint: meshPaintReducer,
     hiddenAnnotations: hiddenAnnotationsReducer,
+    phasing: phasingReducer,
     mapEditor: mapEditorReducer,
     smartDetect: smartDetectReducer,
     reports: reportsReducer,

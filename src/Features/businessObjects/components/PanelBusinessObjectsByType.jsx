@@ -18,6 +18,9 @@ const PANEL_BY_TYPE_KEY = {
   // Quantities: the same panel, the type's features (autoNumbering) drive
   // the computed numbering column.
   QUANTITY: PanelBusinessObjects,
+  // Phases: the same panel, the type's features (flat, phaseSelection) drive
+  // the flat numbered list and the phase selection.
+  PHASING: PanelBusinessObjects,
 };
 
 export default function PanelBusinessObjectsByType({ typeKey }) {

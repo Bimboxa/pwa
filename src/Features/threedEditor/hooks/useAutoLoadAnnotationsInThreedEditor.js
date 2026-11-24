@@ -19,6 +19,8 @@ import useBlocksBaseMaps from "Features/blocks/hooks/useBlocksBaseMaps";
 import useMeshCellRelations from "Features/annotations/hooks/useMeshCellRelations";
 import useUserHiddenAnnotations from "Features/hiddenAnnotations/hooks/useUserHiddenAnnotations";
 import filterUserHiddenAnnotations from "Features/hiddenAnnotations/utils/filterUserHiddenAnnotations";
+import usePhaseHiddenAnnotationIdSet from "Features/phasing/hooks/usePhaseHiddenAnnotationIdSet";
+import filterPhaseHiddenAnnotations from "Features/phasing/utils/filterPhaseHiddenAnnotations";
 import useExtraBaseMapIdsIn3d from "./useExtraBaseMapIdsIn3d";
 import useSceneExtraBaseMapIdsIn3d from "./useSceneExtraBaseMapIdsIn3d";
 import useRevolutionAxisLinkedBaseMapIdsIn3d from "Features/revolutionAxes/hooks/useRevolutionAxisLinkedBaseMapIdsIn3d";
@@ -210,6 +212,9 @@ export default function useAutoLoadAnnotationsInThreedEditor({
   // hidden for the session (null = nothing to filter).
   const { hiddenIdSet: userHiddenIdSet, hiddenFacesByAnnotationId } =
     useUserHiddenAnnotations();
+  // Phases strip (Features/phasing): annotations present in none of the
+  // displayed phases — not built either.
+  const phaseHiddenIdSet = usePhaseHiddenAnnotationIdSet();
 
   const annotations = useAnnotationsV2({
     caller: "MainThreedEditor",
@@ -334,6 +339,7 @@ export default function useAutoLoadAnnotationsInThreedEditor({
     // Hidden for the session with « Masquer l'annotation »: not built at all
     // (no pick, no snap, no orbit pivot; labels / cotes / cut lines follow).
     let result = filterUserHiddenAnnotations(annotations, userHiddenIdSet);
+    result = filterPhaseHiddenAnnotations(result, phaseHiddenIdSet);
     result = dropDoubledBaseMapLinks(result, selectedLinkCloneId);
     // Coupe base map loaded only for the axes of the plan view: only what is
     // revolved around one of those axes is built.
@@ -374,6 +380,7 @@ export default function useAutoLoadAnnotationsInThreedEditor({
     scopeAnnotationIdSet,
     hiddenSheetIdSet,
     userHiddenIdSet,
+    phaseHiddenIdSet,
     selectedLinkCloneId,
     selectedComponentSourceId,
     axisOnlyBaseMapIdSet,

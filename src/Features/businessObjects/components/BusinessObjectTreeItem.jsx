@@ -9,6 +9,7 @@ import {
   clearSelection,
   setSelectedItem,
 } from "Features/selection/selectionSlice";
+import { togglePhaseSelection } from "Features/phasing/phasingSlice";
 
 import {
   Avatar,
@@ -145,6 +146,12 @@ export default function BusinessObjectTreeItem({
     (s) => s.businessObjects.linkingBusinessObjectId
   );
   const linkingMode = useSelector((s) => s.businessObjects.linkingMode);
+  const isPhaseSelected = useSelector((s) =>
+    s.phasing.selectedPhaseIds.includes(businessObject.id)
+  );
+  const selectedPhasesCount = useSelector(
+    (s) => s.phasing.selectedPhaseIds.length
+  );
 
   const toggleBusinessObjectSolo = useToggleBusinessObjectSolo();
   const openDocumentLink = useOpenBusinessObjectDocumentLink();
@@ -209,6 +216,8 @@ export default function BusinessObjectTreeItem({
   const hasAutoNumbering = Boolean(type.features?.autoNumbering);
   // open / closed points (type feature status): checkbox + struck label
   const hasStatus = Boolean(type.features?.status);
+  // phases (type feature phaseSelection): the row click selects the phase
+  const hasPhaseSelection = Boolean(type.features?.phaseSelection);
   const isClosed = hasStatus && isBusinessObjectClosed(businessObject);
   const closedLabelSx = isClosed
     ? { textDecoration: "line-through", color: "text.disabled" }
@@ -225,7 +234,10 @@ export default function BusinessObjectTreeItem({
   const showDocuments = documentRels?.length > 0;
   // « Désactiver le bouton relier » (properties panel): the row hides its
   // « annotation + » — the picking mode stays reachable from the panel.
-  const showLinking = !readOnly && !businessObject.linkingDisabled;
+  const showLinking =
+    !readOnly &&
+    !businessObject.linkingDisabled &&
+    type.features?.annotationLinks !== false;
   const showExcluding = !readOnly && hasTemplateLinks;
   const hasActions = showDocuments || showLinking || showExcluding;
   const soloS = isSolo
@@ -322,7 +334,31 @@ export default function BusinessObjectTreeItem({
   // exclusively by the filter icon button (zones drawer pattern).
   // Read-only rows only toggle the selection: the active object drives the
   // drawing popper and the LOCATE / LINK interceptors of the module.
-  function handleClick() {
+  // Phases: the click selects the phase instead (Ctrl / Cmd / Shift click
+  // adds / removes it) — the selected phases are the ones the editors display
+  // and the next drawn annotations are assigned to. The phase is never the
+  // module's active object: no LINK interceptor on the drawings.
+  function handleClick(e) {
+    if (hasPhaseSelection && !readOnly) {
+      const additive = Boolean(e?.ctrlKey || e?.metaKey || e?.shiftKey);
+      // same rule as the reducer: a plain click on the ONLY selected phase
+      // clears the selection, an additive one removes the phase
+      const deselecting =
+        isPhaseSelected && (additive || selectedPhasesCount === 1);
+      dispatch(togglePhaseSelection({ id: businessObject.id, additive }));
+      if (deselecting) {
+        if (isSelected) dispatch(clearSelection());
+        return;
+      }
+      dispatch(
+        setSelectedItem({
+          id: businessObject.id,
+          type: "BUSINESS_OBJECT",
+          listingId: businessObject.listingId,
+        })
+      );
+      return;
+    }
     if (readOnly) {
       if (isSelected) {
         dispatch(clearSelection());
@@ -575,7 +611,11 @@ export default function BusinessObjectTreeItem({
         component="div"
         data-business-object-id={businessObject.id}
         divider
-        selected={isSelected || (!readOnly && isActive)}
+        selected={
+          hasPhaseSelection && !readOnly
+            ? isPhaseSelected
+            : isSelected || (!readOnly && isActive)
+        }
         onClick={handleClick}
         onMouseEnter={() => setIsHovered(true)}
         onMouseLeave={() => setIsHovered(false)}
