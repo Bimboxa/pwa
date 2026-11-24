@@ -10,6 +10,8 @@ import { createSlice } from "@reduxjs/toolkit";
 // - pullBackM: while coupled, how far (metres, frame of the model) the 3D
 //   camera stands behind the camera of the video, along its line of sight —
 //   a wider view of the same scene (per-device preference);
+// - photoTemplateId: annotation template of the photos taken from the player
+//   (« Ajouter une photo », per-device preference);
 // - videoVersion: bumped when the source video is (re)loaded on the device,
 //   so that the player reads the file again.
 // The playback time lives in the player itself (it changes at every frame).
@@ -30,17 +32,25 @@ function readSettings() {
     return {
       showPlayer: Boolean(parsed?.showPlayer),
       pullBackM: clampPullBack(parsed?.pullBackM),
+      photoTemplateId:
+        typeof parsed?.photoTemplateId === "string"
+          ? parsed.photoTemplateId
+          : null,
     };
   } catch {
-    return { showPlayer: false, pullBackM: 0 };
+    return { showPlayer: false, pullBackM: 0, photoTemplateId: null };
   }
 }
 
-function writeSettings({ showPlayer, pullBackM }) {
+function writeSettings({ showPlayer, pullBackM, photoTemplateId }) {
   try {
     localStorage.setItem(
       STORAGE_KEY,
-      JSON.stringify({ showPlayer, pullBackM })
+      JSON.stringify({
+        showPlayer,
+        pullBackM,
+        photoTemplateId: photoTemplateId ?? null,
+      })
     );
   } catch {
     // storage unavailable: the preference stays in memory
@@ -68,6 +78,10 @@ const reconstruction3dSlice = createSlice({
       state.pullBackM = clampPullBack(action.payload);
       writeSettings(state);
     },
+    setReconstructionPhotoTemplateId: (state, action) => {
+      state.photoTemplateId = action.payload ?? null;
+      writeSettings(state);
+    },
     bumpReconstructionVideoVersion: (state) => {
       state.videoVersion += 1;
     },
@@ -78,6 +92,7 @@ export const {
   setShowReconstructionPlayer,
   setReconstructionCoupled,
   setReconstructionPullBackM,
+  setReconstructionPhotoTemplateId,
   bumpReconstructionVideoVersion,
 } = reconstruction3dSlice.actions;
 

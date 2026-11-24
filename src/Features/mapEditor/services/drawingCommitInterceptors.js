@@ -1,6 +1,10 @@
 import findDetailBaseMap from "Features/baseMaps/services/findDetailBaseMap";
 import DialogCreateDetailBaseMapOnCommit from "Features/baseMaps/components/DialogCreateDetailBaseMapOnCommit";
 import DialogPickImageOnCommit from "Features/imageAnnotations/components/DialogPickImageOnCommit";
+import {
+  RECONSTRUCTION_FRAME_INTERCEPTOR_KEY,
+  captureReconstructionFrameImage,
+} from "Features/reconstruction3d/services/reconstructionFrameCapture";
 
 import db from "App/db/db";
 import {
@@ -58,6 +62,32 @@ const registry = {
         return { proceed: {} };
       }
       return { openDialog: true };
+    },
+    DialogComponent: DialogPickImageOnCommit,
+  },
+
+  // Photo draw armed from the 3D reconstruction player (« Ajouter une
+  // photo »): a click on the plan places the picture the player displays.
+  // Without a player any more (closed since the arming), same as IMAGE_PICK.
+  [RECONSTRUCTION_FRAME_INTERCEPTOR_KEY]: {
+    intercept: async ({ newAnnotation }) => {
+      if (newAnnotation?.image?.file) return { proceed: {} };
+      let image = null;
+      try {
+        image = await captureReconstructionFrameImage();
+      } catch (error) {
+        console.error("[reconstruction3d] frame capture failed", error);
+      }
+      if (!image) return { openDialog: true };
+      return {
+        proceed: {
+          // the click is where the photo is located: its badge goes there
+          extraOptions: {
+            newAnnotation: { ...newAnnotation, image },
+            imageAnchorAtClick: true,
+          },
+        },
+      };
     },
     DialogComponent: DialogPickImageOnCommit,
   },

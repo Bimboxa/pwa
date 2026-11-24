@@ -33,6 +33,19 @@ function getModelMatrixWorld(sceneManager, baseMapId, target) {
   return target.multiplyMatrices(inner.matrixWorld, GLTF_TO_SCAN);
 }
 
+// Scene graph of the reconstruction in the 3D editor: the scene manager, the
+// group of the base map and the glTF → world matrix of its model (written in
+// `target`). null while the editor or the model is not there.
+export function getReconstructionSceneFrame(baseMapId, target) {
+  const sceneManager = getSceneManager();
+  const group = sceneManager?.imagesManager?.getGroup?.(baseMapId);
+  const inner = group?.userData?.scanWrap?.children?.[0]?.children?.[0];
+  // the model is attached once its file is parsed
+  if (!inner?.children?.length) return null;
+  if (!getModelMatrixWorld(sceneManager, baseMapId, target)) return null;
+  return { sceneManager, group };
+}
+
 // The canvas of the 3D editor (user gestures on it hand the camera back).
 export function getThreedEditorCanvas() {
   return getSceneManager()?.renderer?.domElement ?? null;

@@ -303,6 +303,8 @@ export default function MainMapEditorV3({ forViewerKey = "MAP" }) {
   // 2D editor (the BASE_MAPS instance in the BaseMap module, the MAP instance
   // everywhere else) so the 2D/3D viewer switch syncs the right camera.
   const registersCamera = useSelector(selectActive2dEditorKey) === forViewerKey;
+  // Pose of the main base map in the SVG world, for the camera handle.
+  const basePoseRef = useRef(null);
   useEffect(() => {
     if (!registersCamera) return;
     const handle = {
@@ -310,6 +312,37 @@ export default function MainMapEditorV3({ forViewerKey = "MAP" }) {
       setCameraMatrix: (m) => interactionLayerRef.current?.setCameraMatrix?.(m),
       getViewportSize: () => interactionLayerRef.current?.getViewportSize?.(),
       getViewportRect: () => interactionLayerRef.current?.getViewportRect?.(),
+      // Stored px of the main base map → client px (null while not laid out).
+      imagePxToClient: (point) => {
+        const layer = interactionLayerRef.current;
+        const cam = layer?.getCameraMatrix?.();
+        const rect = layer?.getViewportRect?.();
+        const pose = basePoseRef.current;
+        if (!cam || !rect || !pose || !point) return null;
+        const k = cam.k || 1;
+        return {
+          x: rect.left + cam.x + k * ((pose.x ?? 0) + (pose.k ?? 1) * point.x),
+          y: rect.top + cam.y + k * ((pose.y ?? 0) + (pose.k ?? 1) * point.y),
+        };
+      },
+      // Pans the view so that a stored px of the main base map sits at the
+      // centre of the viewport; the zoom is left as it is.
+      centerOnImagePx: (point) => {
+        const layer = interactionLayerRef.current;
+        const cam = layer?.getCameraMatrix?.();
+        const size = layer?.getViewportSize?.();
+        const pose = basePoseRef.current;
+        if (!cam || !pose || !point || !(size?.width > 0 && size?.height > 0))
+          return false;
+        const k = cam.k || 1;
+        const x =
+          size.width / 2 - k * ((pose.x ?? 0) + (pose.k ?? 1) * point.x);
+        const y =
+          size.height / 2 - k * ((pose.y ?? 0) + (pose.k ?? 1) * point.y);
+        if (!Number.isFinite(x) || !Number.isFinite(y)) return false;
+        layer.setCameraMatrix({ ...cam, x, y });
+        return true;
+      },
     };
     setActiveMapEditor(handle);
     return () => clearActiveMapEditor(handle);
@@ -583,6 +616,7 @@ export default function MainMapEditorV3({ forViewerKey = "MAP" }) {
     viewport,
     basePoseInBg,
   });
+  basePoseRef.current = basePose;
 
   // handlers
   const handleBaseMapPoseChange = (newPose) => {
