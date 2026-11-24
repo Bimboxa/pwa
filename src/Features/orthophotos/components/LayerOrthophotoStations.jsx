@@ -20,6 +20,7 @@ import {
 } from "Features/comments/utils/commentPinProjection";
 import { get2dEditorKeyForModule } from "Features/viewers/utils/effectiveViewerKey";
 import { isValidOrthophotoCorners } from "../utils/getOrthophotoPlacement";
+import { setHoveredOrthophotoIds } from "../utils/orthophotoHoverStore";
 import {
   getOrthophotoHoverColor,
   getOrthophotoHoverLineStyle,
@@ -219,6 +220,7 @@ export default function LayerOrthophotoStations({
               imageSize,
             })
           : null;
+      const hoveredIds = [];
       for (const orthophoto of orthophotos) {
         const outlineEl = hoverElsRef.current.get(orthophoto.id);
         const pillEl = pillElsRef.current.get(orthophoto.id);
@@ -261,6 +263,7 @@ export default function LayerOrthophotoStations({
             reach > 0 ? distance / reach : 0
           );
         }
+        if (show) hoveredIds.push(orthophoto.id);
         if (outlineEl) {
           outlineEl.style.visibility = show ? "visible" : "hidden";
           if (show) {
@@ -281,6 +284,9 @@ export default function LayerOrthophotoStations({
           }
         }
       }
+
+      // shared with the floating panel (grid of the original photos)
+      setHoveredOrthophotoIds(hoveredIds);
 
       // outline + handles of the adjusted orthophoto
       if (!edited) return;
@@ -316,7 +322,10 @@ export default function LayerOrthophotoStations({
     };
 
     rafId = requestAnimationFrame(tick);
-    return () => cancelAnimationFrame(rafId);
+    return () => {
+      cancelAnimationFrame(rafId);
+      setHoveredOrthophotoIds([]);
+    };
   }, [active, store]);
 
   // handlers
