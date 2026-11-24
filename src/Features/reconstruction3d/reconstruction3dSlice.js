@@ -16,7 +16,7 @@ import { createSlice } from "@reduxjs/toolkit";
 
 const STORAGE_KEY = "reconstruction3dSettings";
 
-export const RECONSTRUCTION_PULL_BACK_MAX_M = 5;
+export const RECONSTRUCTION_PULL_BACK_MAX_M = 25;
 
 function clampPullBack(value) {
   const number = Number(value);

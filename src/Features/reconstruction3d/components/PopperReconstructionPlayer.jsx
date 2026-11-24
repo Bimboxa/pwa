@@ -100,9 +100,7 @@ export default function PopperReconstructionPlayer({
 
   const coupled = useSelector((s) => s.reconstruction3d.coupled);
   // `?? 0`: a store created before the setting existed (hot reload)
-  const storedPullBackM = useSelector(
-    (s) => s.reconstruction3d.pullBackM ?? 0
-  );
+  const storedPullBackM = useSelector((s) => s.reconstruction3d.pullBackM ?? 0);
   const videoVersion = useSelector((s) => s.reconstruction3d.videoVersion);
   const walkActive = useSelector((s) => s.threedEditor.walkMode.active);
   // The open right tool drawer slides over the editor: step aside.
@@ -249,10 +247,7 @@ export default function PopperReconstructionPlayer({
   function handlePullBackChange(_e, value) {
     setPullBackDraftM(value);
     const pose = isVideoMode
-      ? getCameraPathPoseAtTime(
-          samples,
-          videoRef.current?.currentTime ?? timeS
-        )
+      ? getCameraPathPoseAtTime(samples, videoRef.current?.currentTime ?? timeS)
       : hasReconstructionPose(frame)
         ? frame.pose
         : null;
@@ -384,7 +379,7 @@ export default function PopperReconstructionPlayer({
                 size="small"
                 min={0}
                 max={RECONSTRUCTION_PULL_BACK_MAX_M}
-                step={0.1}
+                step={0.25}
                 value={pullBackM}
                 aria-label={pullBackS}
                 onChange={handlePullBackChange}
@@ -534,7 +529,15 @@ export default function PopperReconstructionPlayer({
               step={0.01}
               value={Math.min(timeS, durationS || 1)}
               onChange={handleSeek}
-              sx={{ flex: 1 }}
+              // No transition: the value changes at every animation frame,
+              // and a transition restarted at each frame never progresses
+              // (the thumb would stay where it was).
+              sx={{
+                flex: 1,
+                "& .MuiSlider-thumb, & .MuiSlider-track": {
+                  transition: "none",
+                },
+              }}
             />
             <Typography
               variant="caption"
