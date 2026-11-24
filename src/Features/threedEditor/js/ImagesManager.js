@@ -65,8 +65,9 @@ export default class ImagesManager {
     // instead of flashing visible until the next visibility pass.
     this.groupVisibleByBaseMapId = {};
     this.imageVisibleByBaseMapId = {};
-    // Scan mesh of a scan base map (scanWrap): image eye AND the "3D" button
-    // of the base maps list (hiddenScene3dBaseMapIdsIn3d). Same contract.
+    // Scan mesh of a scan base map (scanWrap): the "3D" button of the base
+    // maps list (hiddenScene3dBaseMapIdsIn3d), whatever the image eye. Same
+    // contract.
     this.scanVisibleByBaseMapId = {};
     // Bottom bar « Filaire »: GLB scenes as wireframes (setScene3dWireframe).
     this.scene3dWireframe = false;
@@ -646,8 +647,8 @@ export default class ImagesManager {
   }
 
   // Toggle only the scan mesh (the scanWrap child) of a scan base map. The
-  // caller (useApplyBaseMapVisibilityIn3d) folds the image eye into the
-  // value: the scan is part of the base map "image", plus its own opt-out.
+  // caller (useApplyBaseMapVisibilityIn3d) drives it from the scan's own
+  // opt-out, not from the image eye: the 3D model shows without its image.
   // Same record-before-creation contract — syncScene3d applies it when the
   // scanWrap gets (re)attached.
   setBaseMapScanVisible(baseMapId, visible) {

@@ -152,8 +152,10 @@ keys on both), so it follows the base map pose. `scanWrap` is a sibling of
 `meshWrap` (the scan does not slide with the drawing offset). The base map
 plane stays under the mesh: it loses every depth contest (renderOrder −1 +
 polygonOffset), the image shows through the holes of the mesh. The base map
-3D opacity and the « image » visibility apply to the scan too, plus a scan-only
-opt-out: the « 3D » button of the base maps list (« Fonds de plan » side of
+3D opacity applies to the scan too, but NOT the « image » visibility: the 3D
+model stays displayed while the image is hidden (the model alone, without
+the plane under it), and a base map takes part in the 3D scene for its model
+alone. A scan-only opt-out hides the model: the « 3D » button of the base maps list (« Fonds de plan » side of
 the popper / left panel) toggles `threedEditor.hiddenScene3dBaseMapIdsIn3d`
 (per-scope localStorage, never Dexie), mirrored to `scanWrap.visible` by
 `useApplyBaseMapVisibilityIn3d` → `ImagesManager.setBaseMapScanVisible` — no
