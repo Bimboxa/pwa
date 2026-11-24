@@ -88,6 +88,12 @@ function dropDoubledBaseMapLinks(annotations, selectedCloneId) {
     : annotations;
 }
 
+// Stable fallback while the base maps query is pending. A fresh `[]` at
+// every render re-ran the load effect below, whose dispatches re-render the
+// editor: an endless loop whenever the renderer is ready before the query
+// resolves (« Maximum update depth exceeded »).
+const EMPTY_BASE_MAPS = [];
+
 export default function useAutoLoadAnnotationsInThreedEditor({
   threedEditor,
   rendererIsReady,
@@ -146,7 +152,7 @@ export default function useAutoLoadAnnotationsInThreedEditor({
 
   // Other base maps whose annotations are requested (mode !== NONE), excluding
   // the main one (always loaded by `filterByMainBaseMap`).
-  const { value: baseMaps = [] } = useBaseMaps();
+  const { value: baseMaps = EMPTY_BASE_MAPS } = useBaseMaps();
   // Blocks (Features/blocks): what the block instances of the scene draw.
   const blockDefinitions = useBlockDefinitions();
   const blocksBaseMaps = useBlocksBaseMaps();

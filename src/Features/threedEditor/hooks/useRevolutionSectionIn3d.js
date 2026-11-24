@@ -33,11 +33,15 @@ const SIDE_HYSTERESIS_M = 0.05;
 // Dispatches ONLY on a side flip (rare — the camera crossing the plane).
 // Mounted once from MainThreedEditor, same pattern as
 // useApplyBaseMapVisibilityIn3d.
+// Stable fallback while the base maps query is pending (a fresh `[]` at
+// every render would re-run the effect below).
+const EMPTY_BASE_MAPS = [];
+
 export default function useRevolutionSectionIn3d({ rendererIsReady } = {}) {
   const dispatch = useDispatch();
   const store = useStore();
 
-  const { value: baseMaps = [] } = useBaseMaps();
+  const { value: baseMaps = EMPTY_BASE_MAPS } = useBaseMaps();
   const axisPlanes = useSelector(
     (s) => s.threedEditor.revolutionAxisSectionPlanes
   );
