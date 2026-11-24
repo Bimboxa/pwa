@@ -38,6 +38,7 @@ import LayerCreateBaseMap from "Features/mapEditor/components/LayerCreateBaseMap
 import LayerPdfEditor from "Features/pdfEditor/components/LayerPdfEditor";
 import CommandsToolbar from "Features/commandsToolbar/components/CommandsToolbar";
 import useShowCommandsToolbar from "Features/commandsToolbar/hooks/useShowCommandsToolbar";
+import StripPhases from "Features/phasing/components/StripPhases";
 import { selectCommandsToolbarDock } from "Features/commandsToolbar/commandsToolbarSlice";
 import { isThreedFamilyViewerKey } from "Features/viewers/utils/threedViewerKeys";
 import {
@@ -229,6 +230,19 @@ export default function SectionViewer() {
             smallScreen={compactLayout}
           />
         )}
+        {/* Phases strip (Features/phasing): in flow above the editors — under
+        the commands toolbar when it is docked at the top —, the editors
+        shrink. Null without a PHASING listing in the scope. */}
+        <Box
+          sx={{
+            flex: 1,
+            minWidth: 0,
+            minHeight: 0,
+            display: "flex",
+            flexDirection: "column",
+          }}
+        >
+        <StripPhases />
         <Box
           ref={editorsAreaRef}
           sx={{ flex: 1, minWidth: 0, minHeight: 0, position: "relative" }}
@@ -361,6 +375,7 @@ export default function SectionViewer() {
               smallScreen={compactLayout}
             />
           )}
+        </Box>
         </Box>
         {toolbarAfter && (
           <CommandsToolbar

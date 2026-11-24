@@ -102,6 +102,8 @@ export default async function createKrtoZip(scopeId, options) {
         // Work packages + time planning of PLANNING listings (rows carry
         // projectId + listingId).
         "workPackages", "relsWorkPackageAnnotation",
+        // Phases of the annotations (PHASING listings).
+        "relsPhaseAnnotation",
         "plannings", "planningResources", "planningSlots",
         // Photos: rows carry projectId + listingId (PHOTO album listing, kept
         // by relevantListings above); their image files carry the same

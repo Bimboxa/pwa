@@ -13,6 +13,7 @@ import {
   EventNote,
   CalendarMonth,
   Timeline,
+  LinearScale,
   AccountTree,
   Apartment,
   Roofing,
@@ -45,6 +46,8 @@ const moduleIconsMap = new Map([
   ["eventNote", EventNote],
   ["calendarMonth", CalendarMonth],
   ["timeline", Timeline],
+  // steps on a line: a succession of stages (phasing)
+  ["linearScale", LinearScale],
   ["accountTree", AccountTree],
   ["apartment", Apartment],
   ["roofing", Roofing],

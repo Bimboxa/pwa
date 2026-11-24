@@ -76,6 +76,8 @@ import { SOLO_DIM_STYLE } from "Features/annotations/constants/soloDimStyle";
 import useMeshCellRelations from "Features/annotations/hooks/useMeshCellRelations";
 import useUserHiddenAnnotations from "Features/hiddenAnnotations/hooks/useUserHiddenAnnotations";
 import filterUserHiddenAnnotations from "Features/hiddenAnnotations/utils/filterUserHiddenAnnotations";
+import usePhaseHiddenAnnotationIdSet from "Features/phasing/hooks/usePhaseHiddenAnnotationIdSet";
+import filterPhaseHiddenAnnotations from "Features/phasing/utils/filterPhaseHiddenAnnotations";
 import useUpdateAnnotation from "Features/annotations/hooks/useUpdateAnnotation";
 import applyLayerStackingToAnnotations from "Features/annotations/utils/applyLayerStackingToAnnotations";
 import applyOpeningOnPolygon from "Features/annotations/utils/applyOpeningOnPolygon";
@@ -645,6 +647,9 @@ export default function MainMapEditorV3({ forViewerKey = "MAP" }) {
   // ghosts, print, hover / click, lasso and snapping. Display only: the
   // quantities and the listings read their own useAnnotationsV2.
   const { hiddenIdSet: userHiddenIdSet } = useUserHiddenAnnotations();
+  // Phases strip (Features/phasing): the annotations present in none of the
+  // displayed phases leave the same way. Display only too.
+  const phaseHiddenIdSet = usePhaseHiddenAnnotationIdSet();
   // System instances (Features/systems): each one shows either its source
   // annotation or its generated detail (per instance, 2D mode).
   // Components (Features/annotationComponents): the children stand for the
@@ -658,7 +663,10 @@ export default function MainMapEditorV3({ forViewerKey = "MAP" }) {
     () =>
       applyComponentDisplay(
         applySystemDisplay(
-          filterUserHiddenAnnotations(loadedAnnotations, userHiddenIdSet),
+          filterPhaseHiddenAnnotations(
+            filterUserHiddenAnnotations(loadedAnnotations, userHiddenIdSet),
+            phaseHiddenIdSet
+          ),
           SYSTEM_DISPLAY_EDITOR_2D
         ),
         {
@@ -666,7 +674,7 @@ export default function MainMapEditorV3({ forViewerKey = "MAP" }) {
           hiddenSourceIdSet: userHiddenIdSet,
         }
       ),
-    [loadedAnnotations, userHiddenIdSet, selectedIdsKey]
+    [loadedAnnotations, userHiddenIdSet, phaseHiddenIdSet, selectedIdsKey]
   );
 
   // "Maillage" toggle: ON → replace meshed parents by their mesh cells (keep

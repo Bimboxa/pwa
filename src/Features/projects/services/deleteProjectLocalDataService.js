@@ -82,6 +82,7 @@ export default async function deleteProjectLocalDataService(projectId) {
           db.workZones, // legacy v34
           db.workPackages,
           db.relsWorkPackageAnnotation,
+          db.relsPhaseAnnotation,
           db.globalLayers,
           db.plannings,
           db.planningResources,

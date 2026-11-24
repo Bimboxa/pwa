@@ -12,6 +12,9 @@ const UNDO_TABLES = new Set([
   // Blocks (Features/blocks): « Lier à un bloc » creates the block in the same
   // undo step as the moved members and the instance.
   "blocks",
+  // Phases of the annotations (Features/phasing): a click in the phases strip
+  // is one undo step, and deleting an annotation restores its phases with it.
+  "relsPhaseAnnotation",
 ]);
 const MAX_UNDO = 50;
 

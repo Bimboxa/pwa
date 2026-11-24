@@ -320,6 +320,7 @@ async function applyOneMerge({
       db.relsZoneAnnotation,
       db.relsBusinessObjectAnnotation,
       db.relsWorkPackageAnnotation,
+      db.relsPhaseAnnotation,
     ],
     async () => {
       await db.annotations.update(keepId, {
@@ -346,6 +347,18 @@ async function applyOneMerge({
         await db.relsBusinessObjectAnnotation.bulkDelete(businessObjectRelIds);
       if (workPackageRelIds.length)
         await db.relsWorkPackageAnnotation.bulkDelete(workPackageRelIds);
+      // The dropped annotation's phases go with it (the kept one keeps its
+      // own). Read in the transaction: no extra pre-read to keep in sync.
+      const phaseRelIds = (
+        await db.relsPhaseAnnotation
+          .where("annotationId")
+          .equals(dropId)
+          .toArray()
+      )
+        .filter((r) => !r.deletedAt)
+        .map((r) => r.id);
+      if (phaseRelIds.length)
+        await db.relsPhaseAnnotation.bulkDelete(phaseRelIds);
       if (listingUpdate)
         await db.listings.update(listingUpdate.id, {
           sortedAnnotationIds: listingUpdate.sortedAnnotationIds,
