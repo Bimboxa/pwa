@@ -154,13 +154,17 @@ export default function SectionOrthophotoAddPhotos({ baseMap, orthophotos }) {
   // helpers
 
   const pendingCount = orthophotos.filter(isPendingOrthophoto).length;
+  const excludedCount = orthophotos.filter((o) => o.isExcluded).length;
+  // photos that go in the prompt zip: with an original image, not excluded
   const withSourceCount = orthophotos.filter(
-    (o) => o.sourceImage?.fileName
+    (o) => o.sourceImage?.fileName && !o.isExcluded
   ).length;
   const countsS =
     orthophotos.length === 0
       ? "Aucune photo pour l'instant."
-      : `${orthophotos.length} photo(s), dont ${pendingCount} à assembler.`;
+      : `${orthophotos.length} photo(s), dont ${pendingCount} à assembler${
+          excludedCount ? ` et ${excludedCount} écartée(s)` : ""
+        }.`;
 
   const toast = (message, severity = "info") =>
     dispatch(setToaster({ message, severity }));

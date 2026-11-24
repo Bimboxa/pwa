@@ -20,6 +20,7 @@ import {
 } from "Features/comments/utils/commentPinProjection";
 import { get2dEditorKeyForModule } from "Features/viewers/utils/effectiveViewerKey";
 import { isValidOrthophotoCorners } from "../utils/getOrthophotoPlacement";
+import { setHoveredOrthophotoIds } from "../utils/orthophotoHoverStore";
 import {
   getOrthophotoHoverColor,
   getOrthophotoHoverLineStyle,
@@ -219,6 +220,7 @@ export default function LayerOrthophotoStations({
               imageSize,
             })
           : null;
+      const hoveredIds = [];
       for (const orthophoto of orthophotos) {
         const outlineEl = hoverElsRef.current.get(orthophoto.id);
         const pillEl = pillElsRef.current.get(orthophoto.id);
@@ -228,6 +230,8 @@ export default function LayerOrthophotoStations({
             : orthophoto.corners;
         const isUnder =
           Boolean(hovered) &&
+          // unchecked in the tool: out of the hoverable set
+          !orthophoto.isExcluded &&
           isValidOrthophotoCorners(corners) &&
           isPointInQuad(hovered, corners);
         const locals = isUnder ? corners.map(toLocal) : null;
@@ -259,6 +263,7 @@ export default function LayerOrthophotoStations({
             reach > 0 ? distance / reach : 0
           );
         }
+        if (show) hoveredIds.push(orthophoto.id);
         if (outlineEl) {
           outlineEl.style.visibility = show ? "visible" : "hidden";
           if (show) {
@@ -279,6 +284,9 @@ export default function LayerOrthophotoStations({
           }
         }
       }
+
+      // shared with the floating panel (grid of the original photos)
+      setHoveredOrthophotoIds(hoveredIds);
 
       // outline + handles of the adjusted orthophoto
       if (!edited) return;
@@ -314,7 +322,10 @@ export default function LayerOrthophotoStations({
     };
 
     rafId = requestAnimationFrame(tick);
-    return () => cancelAnimationFrame(rafId);
+    return () => {
+      cancelAnimationFrame(rafId);
+      setHoveredOrthophotoIds([]);
+    };
   }, [active, store]);
 
   // handlers
@@ -561,46 +572,49 @@ export default function LayerOrthophotoStations({
         </>
       )}
 
-      {orthophotos.map((orthophoto) => (
-        <Box
-          key={orthophoto.id}
-          ref={(el) => {
-            if (el) pillElsRef.current.set(orthophoto.id, el);
-            else pillElsRef.current.delete(orthophoto.id);
-          }}
-          onPointerDown={(e) => handleStationPointerDown(e, orthophoto)}
-          style={{ [HOVER_COLOR_VAR]: hoverColorById.get(orthophoto.id) }}
-          sx={{
-            position: "absolute",
-            left: 0,
-            top: 0,
-            // placed by the frame loop; hidden until its first pass
-            visibility: "hidden",
-            pointerEvents: "auto",
-            touchAction: "none",
-            // above the handles of the adjusted orthophoto
-            zIndex: orthophoto.id === selectedOrthophotoId ? 2 : 1,
-            // its rectified image is under the cursor: thin frame, in the
-            // colour and the line style of its outline
-            [`&.${HOVER_CLASS} > div::after`]: {
-              content: '""',
+      {/* station labels — none for a photo unchecked in the tool */}
+      {orthophotos
+        .filter((orthophoto) => !orthophoto.isExcluded)
+        .map((orthophoto) => (
+          <Box
+            key={orthophoto.id}
+            ref={(el) => {
+              if (el) pillElsRef.current.set(orthophoto.id, el);
+              else pillElsRef.current.delete(orthophoto.id);
+            }}
+            onPointerDown={(e) => handleStationPointerDown(e, orthophoto)}
+            style={{ [HOVER_COLOR_VAR]: hoverColorById.get(orthophoto.id) }}
+            sx={{
               position: "absolute",
-              inset: -3,
-              borderRadius: "6px",
-              border: "1px",
-              borderStyle: `var(${HOVER_BORDER_STYLE_VAR}, solid)`,
-              borderColor: `var(${HOVER_COLOR_VAR})`,
-              pointerEvents: "none",
-            },
-          }}
-        >
-          <OrthophotoStationPill
-            name={orthophoto.name}
-            active={orthophoto.id === selectedOrthophotoId}
-            draggable={editable}
-          />
-        </Box>
-      ))}
+              left: 0,
+              top: 0,
+              // placed by the frame loop; hidden until its first pass
+              visibility: "hidden",
+              pointerEvents: "auto",
+              touchAction: "none",
+              // above the handles of the adjusted orthophoto
+              zIndex: orthophoto.id === selectedOrthophotoId ? 2 : 1,
+              // its rectified image is under the cursor: thin frame, in the
+              // colour and the line style of its outline
+              [`&.${HOVER_CLASS} > div::after`]: {
+                content: '""',
+                position: "absolute",
+                inset: -3,
+                borderRadius: "6px",
+                border: "1px",
+                borderStyle: `var(${HOVER_BORDER_STYLE_VAR}, solid)`,
+                borderColor: `var(${HOVER_COLOR_VAR})`,
+                pointerEvents: "none",
+              },
+            }}
+          >
+            <OrthophotoStationPill
+              name={orthophoto.name}
+              active={orthophoto.id === selectedOrthophotoId}
+              draggable={editable}
+            />
+          </Box>
+        ))}
     </Box>
   );
 }

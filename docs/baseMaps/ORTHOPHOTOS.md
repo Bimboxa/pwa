@@ -26,6 +26,7 @@ It only gates the UI: switching it off keeps the rows.
 | `corners` | `[tl, tr, br, bl]`, the 4 corners of the rectified image |
 | `orthoImage` | `{fileName, imageSize, thumbnail, fileUpdatedAt}` rectified image |
 | `sourceImage` | same shape, original photo (may be null) |
+| `isExcluded` | true when unchecked in the tool: kept, but with no station label, out of the hover highlight and of the Prompt IA zip |
 
 - `station` and `corners` are **inline** and **normalized `[0..1]`** on the
   base map reference image (`baseMap.getImageSize()`), origin top-left. They

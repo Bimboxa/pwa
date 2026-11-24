@@ -560,7 +560,9 @@ db.version(45).stores({
 //      the base map, normalized [0..1] like the station,
 //    orthoImage: {fileName, imageSize, thumbnail, fileUpdatedAt} — the
 //      rectified ("unit orthophoto") image,
-//    sourceImage: same shape — the original photo}
+//    sourceImage: same shape — the original photo,
+//    isExcluded: true when unchecked in the tool — kept, but out of the
+//      hover highlight and of the Prompt IA zip}
 //   A row with a sourceImage only (orthoImage / station / corners null) is a
 //   photo waiting to be rectified (« Ajouter des photos » of the tool).
 //   LOCAL to the device: neither the rows nor their image files (db.files,

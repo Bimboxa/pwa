@@ -179,7 +179,10 @@ function buildInstructionsMarkdown(context) {
  */
 export async function buildOrthophotoPromptZip({ baseMap, download = true }) {
   if (!baseMap?.id) return { ok: false, error: "Aucun fond de plan." };
-  const orthophotos = await getOrthophotosOfBaseMap(baseMap.id);
+  // the photos unchecked in the tool are left out of the request
+  const orthophotos = (await getOrthophotosOfBaseMap(baseMap.id)).filter(
+    (o) => !o.isExcluded
+  );
 
   const zip = new JSZip();
   const photos = [];

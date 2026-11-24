@@ -79,6 +79,7 @@ export async function buildOrthophotosArchiveZip({
       name: orthophoto.name,
       station: orthophoto.station ?? null,
       corners: orthophoto.corners ?? null,
+      isExcluded: Boolean(orthophoto.isExcluded),
       ortho: await addImage(orthophoto.orthoImage, "unitaires"),
       source: includeSources
         ? await addImage(orthophoto.sourceImage, "sources")
@@ -191,6 +192,7 @@ export async function readOrthophotosArchiveZip(file) {
       corners: placed ? entry.corners.map(({ x, y }) => ({ x, y })) : null,
       orthoFile,
       sourceFile,
+      isExcluded: entry.isExcluded === true,
     });
   }
   if (items.length === 0)

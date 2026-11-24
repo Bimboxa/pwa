@@ -4,9 +4,9 @@ import { useDispatch, useSelector } from "react-redux";
 
 import { setSelectedOrthophotoId } from "../orthophotosSlice";
 
-import { Box, IconButton, Tooltip, Typography } from "@mui/material";
+import { Box, Checkbox, IconButton, Tooltip, Typography } from "@mui/material";
 import AddIcon from "@mui/icons-material/Add";
-import CloseIcon from "@mui/icons-material/Close";
+import DeleteOutline from "@mui/icons-material/DeleteOutline";
 
 import BoxFlexVStretch from "Features/layout/components/BoxFlexVStretch";
 import DialogDeleteRessource from "Features/layout/components/DialogDeleteRessource";
@@ -20,6 +20,7 @@ import useOrthophotos from "../hooks/useOrthophotos";
 import {
   deleteOrthophotoService,
   isPendingOrthophoto,
+  setOrthophotoExcludedService,
 } from "../services/orthophotoServices";
 
 // Orthophotos tool of the right band (Fonds de plan module): the unit
@@ -40,7 +41,10 @@ export default function PanelOrthophotos() {
     "Ce fond de plan n'est pas une orthomosaïque. Activez « Orthomosaïque » dans ses propriétés pour gérer ses orthophotos unitaires.";
   const emptyS = "Aucune orthophoto unitaire";
   const addS = "Ajouter une orthophoto";
-  const removeS = "Retirer";
+  const removeS = "Supprimer";
+  const includedS = "Photo prise en compte — décocher pour l'écarter";
+  const excludedS = "Photo écartée — cocher pour la reprendre en compte";
+  const excludedTagS = "écartée";
   const noSourceS = "Sans image d'origine";
   const pendingS = "À assembler";
 
@@ -126,6 +130,7 @@ export default function PanelOrthophotos() {
           {orthophotos.map((orthophoto) => {
             const isSelected = orthophoto.id === selectedOrthophotoId;
             const isPending = isPendingOrthophoto(orthophoto);
+            const isExcluded = Boolean(orthophoto.isExcluded);
             const thumbnail =
               orthophoto.orthoImage?.thumbnail ??
               orthophoto.sourceImage?.thumbnail;
@@ -133,11 +138,13 @@ export default function PanelOrthophotos() {
               <Tooltip
                 key={orthophoto.id}
                 title={
-                  isPending
-                    ? `${orthophoto.name} — ${pendingS}`
-                    : orthophoto.sourceImage
-                      ? orthophoto.name
-                      : `${orthophoto.name} — ${noSourceS}`
+                  isExcluded
+                    ? `${orthophoto.name} — ${excludedTagS}`
+                    : isPending
+                      ? `${orthophoto.name} — ${pendingS}`
+                      : orthophoto.sourceImage
+                        ? orthophoto.name
+                        : `${orthophoto.name} — ${noSourceS}`
                 }
                 placement="top"
                 disableInteractive
@@ -164,6 +171,41 @@ export default function PanelOrthophotos() {
                     "&:hover .orthophoto-remove": { opacity: 1 },
                   }}
                 >
+                  {/* excluded photo: veiled */}
+                  {isExcluded && (
+                    <Box
+                      sx={{
+                        position: "absolute",
+                        inset: 0,
+                        bgcolor: "rgba(255,255,255,0.65)",
+                      }}
+                    />
+                  )}
+
+                  {/* taken into account (hover highlight, Prompt IA zip) */}
+                  <Checkbox
+                    size="small"
+                    checked={!isExcluded}
+                    title={isExcluded ? excludedS : includedS}
+                    onClick={(e) => e.stopPropagation()}
+                    onChange={(e) =>
+                      setOrthophotoExcludedService(
+                        orthophoto,
+                        !e.target.checked
+                      )
+                    }
+                    sx={{
+                      position: "absolute",
+                      top: 2,
+                      left: 2,
+                      p: 0,
+                      borderRadius: "3px",
+                      bgcolor: "rgba(255,255,255,0.85)",
+                      "&:hover": { bgcolor: "common.white" },
+                      "& .MuiSvgIcon-root": { fontSize: 18 },
+                    }}
+                  />
+
                   {/* name, on a dark band for any photo */}
                   <Typography
                     variant="caption"
@@ -227,7 +269,7 @@ export default function PanelOrthophotos() {
                       "&:hover": { bgcolor: "rgba(0,0,0,0.8)" },
                     }}
                   >
-                    <CloseIcon sx={{ fontSize: 14 }} />
+                    <DeleteOutline sx={{ fontSize: 14 }} />
                   </IconButton>
                 </Box>
               </Tooltip>
