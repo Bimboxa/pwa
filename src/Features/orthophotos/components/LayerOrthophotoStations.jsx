@@ -36,6 +36,8 @@ import {
 // frame of their station label, one variation of the theme secondary colour
 // per orthophoto (utils/orthophotoHoverStyle).
 const HOVER_CLASS = "orthophoto-under-cursor";
+// ... and the labels of the others, greyed out meanwhile
+const DIMMED_CLASS = "orthophoto-not-under-cursor";
 const HOVER_COLOR_VAR = "--orthophoto-hover-color";
 const HOVER_BORDER_STYLE_VAR = "--orthophoto-hover-border-style";
 
@@ -79,7 +81,8 @@ const DRAG_THRESHOLD_PX = 3;
 //   hovered point, and the frame of its station label, are drawn with a thin
 //   line — one variation of the secondary colour per orthophoto, solid /
 //   tight dashes / spaced dashes as the cursor gets away from the station
-//   (which photos rebuild this spot of the mosaic).
+//   (which photos rebuild this spot of the mosaic); the labels of the other
+//   photos turn light grey meanwhile.
 export default function LayerOrthophotoStations({
   orthophotos,
   mainBaseMap,
@@ -348,6 +351,16 @@ export default function LayerOrthophotoStations({
             );
           }
         }
+      }
+
+      // while some orthophotos are under the cursor, the labels of the
+      // others are greyed out
+      const someHovered = hoveredIds.length > 0;
+      for (const [id, pillEl] of pillElsRef.current) {
+        pillEl.classList.toggle(
+          DIMMED_CLASS,
+          someHovered && !hoveredIds.includes(id)
+        );
       }
 
       // shared with the floating panel (grid of the original photos)
@@ -659,6 +672,17 @@ export default function LayerOrthophotoStations({
               touchAction: "none",
               // above the handles of the adjusted orthophoto
               zIndex: orthophoto.id === selectedOrthophotoId ? 2 : 1,
+              // its photo takes no part in the hovered spot: light grey label
+              // (the selected one keeps its look)
+              [`&.${DIMMED_CLASS} > div`]:
+                orthophoto.id === selectedOrthophotoId
+                  ? {}
+                  : {
+                      color: "grey.400",
+                      bgcolor: "grey.100",
+                      borderColor: "grey.300",
+                      boxShadow: "none",
+                    },
               // its rectified image is under the cursor: thin frame, in the
               // colour and the line style of its outline
               [`&.${HOVER_CLASS} > div::after`]: {
