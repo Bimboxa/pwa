@@ -14,6 +14,7 @@ export default function ButtonCountPill({
   count = 0,
   hidden = false,
   title = "",
+  tooltipPlacement = "top",
   onClick,
   accent = "secondary.main",
   contrastColor = "secondary.contrastText",
@@ -45,7 +46,7 @@ export default function ButtonCountPill({
   // render
 
   return (
-    <Tooltip title={title} arrow placement="top">
+    <Tooltip title={title} arrow placement={tooltipPlacement}>
       <Box
         component="button"
         // No focus on click: a focused pill would hand its focus-visible
