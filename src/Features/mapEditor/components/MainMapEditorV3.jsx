@@ -2749,6 +2749,7 @@ export default function MainMapEditorV3({ forViewerKey = "MAP" }) {
         >
           <InteractionProvider>
             <InteractionLayer
+              hideBaseMapImage={hideBaseMapImage}
               isActiveViewer={isActiveViewer}
               imageDisplayIndexById={imageDisplayIndexById}
               enabledDrawingMode={enabledDrawingMode}

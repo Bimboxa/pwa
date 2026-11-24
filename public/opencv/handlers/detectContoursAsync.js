@@ -47,45 +47,85 @@ async function detectContoursAsync({ msg, payload }) {
       throw new Error(`Coordinates out of bounds`);
     }
 
+    // --- 1. ROI (visible viewport, clamped to the image) ---
+    // Computed first: every following step works on the ROI only, in ROI
+    // coordinates, so a large photo is never processed at full size.
+    let roiX = Math.max(0, pixelX - Math.floor(floodWindowSize / 2));
+    let roiY = Math.max(0, pixelY - Math.floor(floodWindowSize / 2));
+
+    if (viewportBBox && Number.isFinite(viewportBBox.x)) {
+      roiX = Math.max(0, Math.min(imageWidth - 1, Math.floor(viewportBBox.x)));
+      roiY = Math.max(0, Math.min(imageHeight - 1, Math.floor(viewportBBox.y)));
+    }
+
+    const roiWidth = Math.max(
+      1,
+      Math.floor(Math.min(imageWidth - roiX, viewportBBox?.width || floodWindowSize))
+    );
+    const roiHeight = Math.max(
+      1,
+      Math.floor(Math.min(imageHeight - roiY, viewportBBox?.height || floodWindowSize))
+    );
+
+    const seedX = pixelX - roiX;
+    const seedY = pixelY - roiY;
+    if (seedX < 0 || seedX >= roiWidth || seedY < 0 || seedY >= roiHeight) {
+      throw new Error("Click outside the visible area");
+    }
+
+    const roiRect = new cv.Rect(roiX, roiY, roiWidth, roiHeight);
+
     let processedBinary;
 
     if (ignoreBaseMap) {
-      // --- "Ignorer le fond de plan" — skip the grayscale/threshold/morph
-      // pipeline and run on an all-white binary. The fill then propagates over
-      // the whole image and is bounded only by the exclusion mask (existing
-      // annotation footprints) and the ROI/viewport below.
+      // --- "Ignorer le fond de plan" — skip the colour/morph pipeline and run
+      // on an all-white binary. The fill then propagates over the whole ROI
+      // and is bounded only by the exclusion mask (existing annotation
+      // footprints) and the ROI/viewport.
       if (src) src.delete(); // free RGBA mat early — image content is not used
       processedBinary = track(
-        new cv.Mat(imageHeight, imageWidth, cv.CV_8UC1, new cv.Scalar(255))
+        new cv.Mat(roiHeight, roiWidth, cv.CV_8UC1, new cv.Scalar(255))
       );
     } else {
-      // --- 1. PASSAGE EN GRIS ---
-      const gray = track(new cv.Mat());
-      cv.cvtColor(src, gray, cv.COLOR_RGBA2GRAY);
-      src.delete(); // free RGBA mat early — no longer needed
+      // --- 2. CROP TO THE ROI, DROP ALPHA ---
+      const srcRoi = track(src.roi(roiRect));
+      const rgb = track(new cv.Mat());
+      cv.cvtColor(srcRoi, rgb, cv.COLOR_RGBA2RGB);
+      srcRoi.delete();
+      src.delete(); // free the full-size RGBA mat early
 
-      // --- 2. RÉCUPÉRATION DE LA VALEUR CIBLE ---
-      const targetGray = gray.ucharPtr(pixelY, pixelX)[0];
+      // --- 3. DENOISE ---
+      // Median blur removes grain / JPEG noise (photos) while keeping edges,
+      // so the clicked pixel is a stable colour reference.
+      const blurred = track(new cv.Mat());
+      cv.medianBlur(rgb, blurred, 5);
+      rgb.delete();
 
-      // --- 3. CRÉATION DU MASQUE BINAIRE (Correction définitive BindingError) ---
+      // --- 4. COLOUR MASK: pixels close to the clicked colour ---
+      // Per-channel RGB distance to the colour under the click.
+      const seedColor = blurred.ucharPtr(seedY, seedX);
+      const tolerance = Math.max(0, Number(colorTolerance) || 0);
+      const low = [0, 1, 2].map((c) => Math.max(0, seedColor[c] - tolerance));
+      const high = [0, 1, 2].map((c) => Math.min(255, seedColor[c] + tolerance));
+
+      // inRange needs Mats of the same size and type as the source (the
+      // Scalar overload raises a BindingError in opencv.js).
+      const lowMat = track(
+        new cv.Mat(roiHeight, roiWidth, cv.CV_8UC3, new cv.Scalar(low[0], low[1], low[2]))
+      );
+      const highMat = track(
+        new cv.Mat(roiHeight, roiWidth, cv.CV_8UC3, new cv.Scalar(high[0], high[1], high[2]))
+      );
       const binary = track(new cv.Mat());
-      const lowVal = Math.max(0, targetGray - colorTolerance);
-      const highVal = Math.min(255, targetGray + colorTolerance);
+      cv.inRange(blurred, lowMat, highMat, binary);
+      blurred.delete();
+      lowMat.delete();
+      highMat.delete();
 
-      // On crée des Mats de la même taille et du même type (CV_8UC1) que 'gray'
-      // C'est la méthode la plus lourde mais la seule qui garantit 0 erreur de binding
-      const lowMat = track(new cv.Mat(gray.rows, gray.cols, gray.type(), new cv.Scalar(lowVal)));
-      const highMat = track(new cv.Mat(gray.rows, gray.cols, gray.type(), new cv.Scalar(highVal)));
-
-      cv.inRange(gray, lowMat, highMat, binary);
-      gray.delete();    // free early — no longer needed
-      lowMat.delete();  // free early
-      highMat.delete(); // free early
-
-      // --- 4. TRAITEMENT MORPHOLOGIQUE ---
+      // --- 5. MORPHOLOGY (opening of the matching area) ---
       const inverted = track(new cv.Mat());
       cv.bitwise_not(binary, inverted);
-      binary.delete(); // free early — no longer needed
+      binary.delete();
 
       const kernelSize = Math.max(3, morphKernelSize | 0);
       const kernel = track(cv.Mat.ones(kernelSize, kernelSize, cv.CV_8U));
@@ -98,55 +138,58 @@ async function detectContoursAsync({ msg, payload }) {
         new cv.Point(-1, -1),
         Math.max(1, morphIterations | 0)
       );
-      inverted.delete(); // free early — no longer needed
+      inverted.delete();
 
       processedBinary = track(new cv.Mat());
       cv.bitwise_not(closedInverted, processedBinary);
-      closedInverted.delete(); // free early — no longer needed
+      closedInverted.delete();
     }
 
-    // --- 4b. DRAW EXISTING ANNOTATION BOUNDARIES AS BARRIERS ---
+    // --- 5b. DRAW EXISTING ANNOTATION BOUNDARIES AS BARRIERS ---
     if (boundaries?.length) {
-      drawBoundariesOnBinary(processedBinary, boundaries, track);
+      // Boundaries come in image pixels — shift them to ROI coordinates.
+      const shift = (pts) =>
+        pts?.map((p) => ({ x: p.x - roiX, y: p.y - roiY }));
+      const roiBoundaries = boundaries.map((boundary) => ({
+        ...boundary,
+        points: shift(boundary.points),
+        cuts: boundary.cuts?.map((cut) => ({ ...cut, points: shift(cut.points) })),
+      }));
+      drawBoundariesOnBinary(processedBinary, roiBoundaries, track);
     }
 
-    // --- 4c. APPLY EXCLUSION MASK (footprint of all visible annotations) ---
+    // --- 5c. APPLY EXCLUSION MASK (footprint of all visible annotations) ---
     // The mask is a full-image Uint8Array (1 = pixel covered by an existing
     // annotation) built on the main thread via buildExclusionMask — same
     // rasterizer used by smartDetect. Masked pixels are forced to 0 (black)
     // so the flood fill cannot propagate through any annotation footprint
-    // (STRIP, open/closed POLYLINE, POLYGON, POINT). The ROI Mat is a view
-    // into processedBinary, so mutating processedBinary.data here takes effect.
+    // (STRIP, open/closed POLYLINE, POLYGON, POINT).
     if (exclusionMaskBuffer && maskWidth === imageWidth && maskHeight === imageHeight) {
-      const mask = new Uint8Array(exclusionMaskBuffer);
+      const exclusion = new Uint8Array(exclusionMaskBuffer);
       const bin = processedBinary.data;
-      const len = Math.min(mask.length, bin.length);
-      for (let i = 0; i < len; i++) {
-        if (mask[i]) bin[i] = 0;
+      for (let ry = 0; ry < roiHeight; ry++) {
+        const maskRow = (ry + roiY) * maskWidth + roiX;
+        const binRow = ry * roiWidth;
+        for (let rx = 0; rx < roiWidth; rx++) {
+          if (exclusion[maskRow + rx]) bin[binRow + rx] = 0;
+        }
       }
     }
 
-    // --- 5. DÉFINITION DE LA ROI ---
-    let roiX = Math.max(0, pixelX - Math.floor(floodWindowSize / 2));
-    let roiY = Math.max(0, pixelY - Math.floor(floodWindowSize / 2));
-
-    if (viewportBBox && Number.isFinite(viewportBBox.x)) {
-      roiX = Math.max(0, Math.min(imageWidth - 1, Math.floor(viewportBBox.x)));
-      roiY = Math.max(0, Math.min(imageHeight - 1, Math.floor(viewportBBox.y)));
+    // The clicked pixel must belong to the fillable area: otherwise floodFill
+    // would propagate over the NON-matching area (inverted result). Happens
+    // when the click is on an annotation footprint or on a feature thinner
+    // than the morphological opening.
+    if (processedBinary.ucharPtr(seedY, seedX)[0] === 0) {
+      throw new Error("No area found at the click point");
     }
 
-    let roiWidth = Math.min(imageWidth - roiX, viewportBBox?.width || floodWindowSize);
-    let roiHeight = Math.min(imageHeight - roiY, viewportBBox?.height || floodWindowSize);
-
-    const roiRect = new cv.Rect(roiX, roiY, Math.max(1, roiWidth), Math.max(1, roiHeight));
-    const roiMat = track(processedBinary.roi(roiRect));
-
     // --- 6. FLOODFILL ---
-    const mask = track(new cv.Mat.zeros(roiRect.height + 2, roiRect.width + 2, cv.CV_8UC1));
-    const seedPoint = new cv.Point(pixelX - roiX, pixelY - roiY);
+    const mask = track(new cv.Mat.zeros(roiHeight + 2, roiWidth + 2, cv.CV_8UC1));
+    const seedPoint = new cv.Point(seedX, seedY);
 
     cv.floodFill(
-      roiMat,
+      processedBinary,
       mask,
       seedPoint,
       new cv.Scalar(255),
@@ -156,7 +199,7 @@ async function detectContoursAsync({ msg, payload }) {
       4 | (255 << 8) | cv.FLOODFILL_MASK_ONLY
     );
 
-    const maskRoi = track(mask.roi(new cv.Rect(1, 1, roiRect.width, roiRect.height)));
+    const maskRoi = track(mask.roi(new cv.Rect(1, 1, roiWidth, roiHeight)));
 
     // --- 7. EXTRACTION DES CONTOURS ---
     const contours = track(new cv.MatVector());

@@ -13,6 +13,9 @@ const smartDetectInitialState = {
   // and runs on an all-white binary, so it is bounded only by existing
   // annotation footprints (and the viewport ROI).
   ignoreBaseMap: false,
+  // SURFACE_DROP flood fill: max per-channel RGB distance (0..255) between a
+  // pixel and the clicked colour for the pixel to belong to the filled area.
+  colorTolerance: 15,
   // When true, the SURFACE_DROP tool ("goutte d'eau") ignores the OpenCV
   // image flood fill on click and instead runs the annotation-geometry
   // detection (detectPolygonFromAnnotations), building the polygon from the
@@ -52,6 +55,9 @@ export const smartDetectSlice = createSlice({
     setIgnoreBaseMap: (state, action) => {
       state.ignoreBaseMap = action.payload;
     },
+    setColorTolerance: (state, action) => {
+      state.colorTolerance = action.payload;
+    },
     setUseOutlines: (state, action) => {
       state.useOutlines = action.payload;
     },
@@ -77,6 +83,7 @@ export const {
   setNoSmallCuts,
   setConvexHull,
   setIgnoreBaseMap,
+  setColorTolerance,
   setUseOutlines,
   setVisibleAreaOnly,
   setSimplifyPolynomial,

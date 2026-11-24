@@ -6,10 +6,11 @@ import {
   setNoSmallCuts,
   setConvexHull,
   setIgnoreBaseMap,
+  setColorTolerance,
   setUseOutlines,
 } from "../smartDetectSlice";
 
-import { Box, Typography } from "@mui/material";
+import { Box, Slider, Typography } from "@mui/material";
 
 import WhiteSectionGeneric from "Features/form/components/WhiteSectionGeneric";
 import FieldCheck from "Features/form/components/FieldCheck";
@@ -23,7 +24,12 @@ export default function SectionSurfaceDropOptions() {
   const noSmallCuts = useSelector((s) => s.smartDetect.noSmallCuts);
   const convexHull = useSelector((s) => s.smartDetect.convexHull);
   const ignoreBaseMap = useSelector((s) => s.smartDetect.ignoreBaseMap);
+  const colorTolerance = useSelector((s) => s.smartDetect.colorTolerance);
   const useOutlines = useSelector((s) => s.smartDetect.useOutlines);
+
+  // helpers
+
+  const toleranceDisabled = useOutlines || ignoreBaseMap;
 
   // render
 
@@ -84,6 +90,30 @@ export default function SectionSurfaceDropOptions() {
           onChange={(v) => dispatch(setIgnoreBaseMap(v))}
           label="Ignorer le fond de plan"
           options={{ type: "check", showAsInline: true }}
+        />
+      </Box>
+      <Box
+        sx={{
+          display: "flex",
+          alignItems: "center",
+          gap: 2,
+          pl: 1,
+          pr: 2,
+          opacity: toleranceDisabled ? 0.4 : 1,
+          pointerEvents: toleranceDisabled ? "none" : "auto",
+        }}
+      >
+        <Typography variant="body2" sx={{ whiteSpace: "nowrap" }}>
+          Tolérance couleur
+        </Typography>
+        <Slider
+          size="small"
+          min={0}
+          max={100}
+          value={colorTolerance}
+          onChange={(_, v) => dispatch(setColorTolerance(v))}
+          valueLabelDisplay="auto"
+          sx={{ flex: 1, minWidth: 0 }}
         />
       </Box>
     </WhiteSectionGeneric>
