@@ -38,6 +38,7 @@ import Scan3dPanelHost from "Features/localScans/components/Scan3dPanelHost";
 import PanelResources from "Features/resources/components/PanelResources";
 import PanelBaseMapTransforms from "Features/baseMapTransforms/components/PanelBaseMapTransforms";
 import PanelOrthophotos from "Features/orthophotos/components/PanelOrthophotos";
+import PanelReconstruction3d from "Features/reconstruction3d/components/PanelReconstruction3d";
 import PanelNotesAppSync from "Features/notesApp/components/PanelNotesAppSync";
 import PanelTutorial from "Features/tutorial/components/PanelTutorial";
 
@@ -226,6 +227,7 @@ export default function RightPanelContainer() {
           {selectedKey === "SETTINGS" && <PanelEditorSettings />}
           {selectedKey === "BASE_MAP_TRANSFORMS" && <PanelBaseMapTransforms />}
           {selectedKey === "ORTHOPHOTOS" && <PanelOrthophotos />}
+          {selectedKey === "RECONSTRUCTION_3D" && <PanelReconstruction3d />}
           {selectedKey === "NOTES_APP_SYNC" && <PanelNotesAppSync />}
           {selectedKey === "ASSISTANT_RELAY" && <PanelAssistantRelay />}
         </Box>

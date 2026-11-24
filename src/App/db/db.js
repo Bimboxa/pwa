@@ -594,6 +594,26 @@ db.version(47).stores({
   relsPhaseAnnotation: "id,projectId,scopeId,annotationId,phaseId,listingId",
 });
 
+// v48 — Reconstruction 3D (Features/reconstruction3d): the images a 3D
+// reconstruction base map (baseMap.isReconstruction3d) is built from — the
+// photos dropped in the tool, or the frames sampled from the dropped video.
+//   {id, projectId, listingId (the BASE MAP's listing), baseMapId,
+//    name ("F001"), index (order; frames of a video: by time),
+//    timeS: time of the frame in the video, seconds (null for a photo),
+//    image: {fileName, fileSize, imageSize, thumbnail, fileUpdatedAt},
+//    pose: {position: [x, y, z], forward: [x, y, z], hfovDeg?} | null —
+//      camera of the image, in the glTF frame of the reconstructed model
+//      (Y up, the units of the GLB): NEVER world coordinates, so the path
+//      follows the base map when it is moved, turned or rescaled. null
+//      until the Prompt IA result is loaded (or when the AI left it out)}
+//   LOCAL to the device, like the unit orthophotos: neither the rows nor
+//   their image files ship in the Krto zip. The source video is a db.files
+//   Blob without listing (baseMap.reconstruction3d.video.fileName).
+//   See docs/baseMaps/RECONSTRUCTION_3D.md.
+db.version(48).stores({
+  reconstructionFrames: "id,projectId,baseMapId,listingId",
+});
+
 // --- AUDIT HOOKS ---
 
 const AUDIT_TABLES = [
@@ -635,6 +655,7 @@ const AUDIT_TABLES = [
   "photos",
   "photoPlans",
   "orthophotos",
+  "reconstructionFrames",
   "scopeConfigs",
   "businessObjects",
   "relsBusinessObjectAnnotation",
@@ -676,6 +697,8 @@ const OWNERSHIP_EXEMPT_TABLES = new Set([
   "photoPlans",
   // Orthophotos follow their base map: anyone manages them.
   "orthophotos",
+  // Same for the images of a 3D reconstruction base map.
+  "reconstructionFrames",
   // Module/tool activation is shared configuration: anyone edits it, not
   // only the scope creator.
   "scopeConfigs",
@@ -951,6 +974,7 @@ const SOFT_DELETE_TABLES = new Set([
   "photos",
   "photoPlans",
   "orthophotos",
+  "reconstructionFrames",
   "businessObjects",
   "relsBusinessObjectAnnotation",
   "relsBusinessObjectResource",

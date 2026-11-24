@@ -76,6 +76,7 @@ import popperMapListingsReducer from "Features/popperMapListings/popperMapListin
 import sectionBaseMapPlacementReducer from "Features/baseMapLinks/sectionBaseMapPlacementSlice";
 import popperImagesReducer from "Features/popperImages/popperImagesSlice";
 import orthophotosReducer from "Features/orthophotos/orthophotosSlice";
+import reconstruction3dReducer from "Features/reconstruction3d/reconstruction3dSlice";
 import commandsToolbarReducer from "Features/commandsToolbar/commandsToolbarSlice";
 import editorGridReducer from "Features/editorGrid/editorGridSlice";
 import duplicatesDetectionReducer from "Features/duplicatesDetection/duplicatesDetectionSlice";
@@ -180,6 +181,7 @@ const store = configureStore({
     sectionBaseMapPlacement: sectionBaseMapPlacementReducer,
     popperImages: popperImagesReducer,
     orthophotos: orthophotosReducer,
+    reconstruction3d: reconstruction3dReducer,
     panelDrawing: panelDrawingReducer,
     photos: photosReducer,
     comments: commentsReducer,

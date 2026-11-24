@@ -47,6 +47,14 @@ const BASE_MAP_SOURCE_CATALOG = [
     label: "Orthophoto",
     caption: "Assemblage de photos vues de dessus",
   },
+  // Empty 3D reconstruction (baseMap.isReconstruction3d): the photos or the
+  // video are added from the Reconstruction 3D tool, see
+  // docs/baseMaps/RECONSTRUCTION_3D.md.
+  {
+    key: "RECONSTRUCTION_3D",
+    label: "Reconstruction 3D",
+    caption: "Modèle 3D à partir de photos ou d'une vidéo",
+  },
   {
     key: "SATELLITE",
     label: "Image satellite",

@@ -135,20 +135,40 @@ export function IllustrationOrthophoto() {
   );
 }
 
+export function IllustrationReconstruction3d() {
+  return (
+    <SvgFrame bgcolor="#d9d4cf">
+      {/* reconstructed volume */}
+      <g stroke="#f4f2ee" strokeWidth="1.5" strokeLinejoin="round">
+        <polygon points="58,62 96,50 134,62 96,76" fill="#b3a9a1" />
+        <polygon points="58,62 96,76 96,98 58,84" fill="#8f857e" />
+        <polygon points="134,62 96,76 96,98 134,84" fill="#a59a92" />
+      </g>
+      {/* camera path around it */}
+      <path
+        d="M 22 78 C 30 30, 86 12, 150 34"
+        fill="none"
+        stroke="#0d47a1"
+        strokeWidth="1.5"
+        strokeDasharray="4 3"
+      />
+      <g fill="#ffffff" stroke="#0d47a1" strokeWidth="1.5">
+        <circle cx="22" cy="78" r="4" />
+        <circle cx="46" cy="40" r="4" />
+        <circle cx="96" cy="23" r="4" />
+        <circle cx="150" cy="34" r="4" />
+      </g>
+    </SvgFrame>
+  );
+}
+
 export function IllustrationSatellite() {
   return (
     <SvgFrame bgcolor="#ccd8c3">
       <rect x="0" y="48" width="172" height="14" fill="#b9c7ae" />
       <rect x="34" y="24" width="20" height="12" fill="#f4f2ee" />
       <rect x="112" y="72" width="24" height="14" fill="#f4f2ee" />
-      <line
-        x1="0"
-        y1="20"
-        x2="172"
-        y2="34"
-        stroke="#b9c7ae"
-        strokeWidth="4"
-      />
+      <line x1="0" y1="20" x2="172" y2="34" stroke="#b9c7ae" strokeWidth="4" />
     </SvgFrame>
   );
 }
