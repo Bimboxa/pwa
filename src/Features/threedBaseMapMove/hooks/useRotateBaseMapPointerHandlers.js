@@ -61,6 +61,22 @@ function restoreRotatedGroup() {
   clearRotateGrab();
 }
 
+// (Re)builds the target-only snap index of the in-progress rotation: the whole
+// rotated subtree is excluded (same rationale as the "Déplacer" tool), so its
+// live pose never enters the index and the rebuild is safe mid-rotation.
+// Called on discrete events only (pivot click, reference click, snap index
+// epoch) — never on pointer move. An index frozen at the pivot click missed
+// every object hidden at that time and shown again before the last click.
+function refreshRotateTargetIndex(grab) {
+  const editor = getActiveThreedEditor();
+  const scene = editor?.sceneManager?.scene;
+  const group = editor?.sceneManager?.imagesManager?.getGroup(grab.baseMapId);
+  if (!scene || !group) return;
+  const { verts, adjacency } = buildIndex(scene, { excludeSubtree: group });
+  grab.targetVerts = verts;
+  grab.targetAdjacency = adjacency;
+}
+
 // Wires click + key handlers for the "Tourner" (rotate base map) mode —
 // CAD-style 3 clicks: the 1st snapped click sets the rotation pivot and
 // resolves the base map owning the snapped mesh; the 2nd click fixes the
@@ -82,6 +98,16 @@ export default function useRotateBaseMapPointerHandlers() {
   useEffect(() => {
     selectedBaseMapIdRef.current = selectedBaseMapId;
   }, [selectedBaseMapId]);
+
+  // The scene's objects changed mid-rotation (an object shown / hidden, a
+  // reload): resync the target-only index of the in-progress rotation.
+  const snapIndexEpoch = useSelector(
+    (s) => s.threedEditor.drawingMode.snapIndexEpoch
+  );
+  useEffect(() => {
+    const grab = getRotateGrab();
+    if (active && grab) refreshRotateTargetIndex(grab);
+  }, [active, snapIndexEpoch]);
 
   useEffect(() => {
     if (!active) return;
@@ -106,7 +132,6 @@ export default function useRotateBaseMapPointerHandlers() {
     }
 
     function grabPivotAtSnap(snap) {
-      const scene = editor?.sceneManager?.scene;
       let group = null;
       let baseMapId = null;
       if (snap.kind === "PLANE" && snap.baseMapId) {
@@ -135,14 +160,7 @@ export default function useRotateBaseMapPointerHandlers() {
         return;
       }
 
-      // Fresh target-only snap index, excluding the whole rotated subtree
-      // (same rationale as the "Déplacer" tool).
-      const { verts: targetVerts, adjacency: targetAdjacency } = buildIndex(
-        scene,
-        { excludeSubtree: group }
-      );
-
-      setRotateGrab({
+      const grab = {
         baseMapId,
         pivot: snap.position.clone(),
         groupStartPosition: group.position.clone(),
@@ -151,9 +169,12 @@ export default function useRotateBaseMapPointerHandlers() {
         refBearing: null,
         currentPhi: 0,
         angleBuffer: "",
-        targetVerts,
-        targetAdjacency,
-      });
+        targetVerts: [],
+        targetAdjacency: new Map(),
+      };
+      // Fresh target-only snap index (rotated subtree excluded).
+      refreshRotateTargetIndex(grab);
+      setRotateGrab(grab);
       dispatch(setRotateBaseMapCarriedId(baseMapId));
     }
 
@@ -166,6 +187,9 @@ export default function useRotateBaseMapPointerHandlers() {
       grab.refPoint = target.position.clone();
       grab.refBearing = Math.atan2(-dz, dx);
       grab.currentPhi = 0;
+      // The rotation phase starts: resync the targets with what is visible
+      // now (the group is still at its start pose).
+      refreshRotateTargetIndex(grab);
       dispatch(setRotateBaseMapReferenceSet(true));
     }
 

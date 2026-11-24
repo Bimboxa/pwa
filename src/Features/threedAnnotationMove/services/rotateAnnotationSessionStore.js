@@ -20,7 +20,8 @@ let lastSnap = null;
 //                                // copyBuffer)
 //   ghosts,                      // copy previews (moveCopyGhostsThreed)
 //   targetVerts,                 // target-only snap index (carried roots
-//   targetAdjacency,             // excluded), built fresh at pivot click
+//   targetAdjacency,             // excluded), built at pivot click, rebuilt
+//                                // at reference click + snap index epoch
 // } | null
 let grab = null;
 

@@ -95,6 +95,24 @@ function restoreRotatedAnnotations() {
 // the angle; `*` + digits ("*3") keep the originals in place and preview N
 // copies turned by i × the angle (moveCopyGhostsThreed), the commit writes
 // the copies (createTransformedAnnotationCopiesService).
+// (Re)builds the target-only snap index of the in-progress rotation: every
+// carried annotation root is excluded (same rationale as the move tool), so
+// their live pose never enters the index and the rebuild is safe
+// mid-rotation. Called on discrete events only (pivot click, reference
+// click, snap index epoch) — never on pointer move. An index frozen at the
+// pivot click missed every object hidden at that time and shown again before
+// the last click.
+function refreshRotateAnnotationGrabTargets(editor, grab) {
+  const roots = grab.annotationIds
+    .map((id) => getCarriedAnnotationRoot(editor, id))
+    .filter(Boolean);
+  const { verts, adjacency } = buildIndex(editor?.sceneManager?.scene, {
+    excludeSubtrees: roots,
+  });
+  grab.targetVerts = verts;
+  grab.targetAdjacency = adjacency;
+}
+
 export default function useRotateAnnotationPointerHandlers({ annotations }) {
   const dispatch = useDispatch();
   const store = useStore();
@@ -119,6 +137,18 @@ export default function useRotateAnnotationPointerHandlers({ annotations }) {
       dispatch(setRotateAnnotationModeActive(false));
     }
   }, [active, moduleKey, dispatch]);
+
+  // The scene's objects changed mid-rotation (an object shown / hidden, a
+  // reload): resync the target-only index of the in-progress rotation.
+  const snapIndexEpoch = useSelector(
+    (s) => s.threedEditor.drawingMode.snapIndexEpoch
+  );
+  useEffect(() => {
+    const grab = getRotateAnnotationGrab();
+    if (active && grab) {
+      refreshRotateAnnotationGrabTargets(getActiveThreedEditor(), grab);
+    }
+  }, [active, snapIndexEpoch]);
 
   useEffect(() => {
     if (!active) return;
@@ -286,14 +316,7 @@ export default function useRotateAnnotationPointerHandlers({ annotations }) {
       group.updateWorldMatrix(true, false);
       const pivotLocal = group.worldToLocal(snap.position.clone());
 
-      // Fresh target-only snap index, excluding every carried annotation
-      // root (same rationale as the move tool).
-      const { verts: targetVerts, adjacency: targetAdjacency } = buildIndex(
-        editor?.sceneManager?.scene,
-        { excludeSubtrees: roots }
-      );
-
-      setRotateAnnotationGrab({
+      const grab = {
         baseMapId: resolved.baseMapId,
         annotationIds: carriedIds,
         isCutLine,
@@ -309,9 +332,12 @@ export default function useRotateAnnotationPointerHandlers({ annotations }) {
         carriedAnnotations: (annotationsRef.current ?? []).filter((a) =>
           carriedIds.includes(a.id)
         ),
-        targetVerts,
-        targetAdjacency,
-      });
+        targetVerts: [],
+        targetAdjacency: new Map(),
+      };
+      // Fresh target-only snap index (carried roots excluded).
+      refreshRotateAnnotationGrabTargets(editor, grab);
+      setRotateAnnotationGrab(grab);
       dispatch(setRotateAnnotationCarriedIds(carriedIds));
     }
 
@@ -331,6 +357,9 @@ export default function useRotateAnnotationPointerHandlers({ annotations }) {
       grab.refPoint = target.position.clone();
       grab.refBearing = Math.atan2(dy, dx);
       grab.currentPhi = 0;
+      // The rotation phase starts: resync the targets with what is visible
+      // now (the carried roots are still at their start pose).
+      refreshRotateAnnotationGrabTargets(editor, grab);
       dispatch(setRotateAnnotationReferenceSet(true));
     }
 

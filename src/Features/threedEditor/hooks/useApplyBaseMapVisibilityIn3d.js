@@ -1,5 +1,7 @@
 import { useEffect } from "react";
-import { useSelector } from "react-redux";
+import { useDispatch, useSelector } from "react-redux";
+
+import { bumpSnapIndexEpoch } from "Features/threedEditor/threedEditorSlice";
 
 import { BASE_MAPS_SCAN_MODE } from "Features/baseMaps/constants/baseMapsScanMode";
 
@@ -41,6 +43,8 @@ import selectHideBaseMapImagesIn3d from "Features/threedEditor/utils/selectHideB
 export default function useApplyBaseMapVisibilityIn3d({
   rendererIsReady,
 } = {}) {
+  const dispatch = useDispatch();
+
   const visibleIds = useSelector((s) => s.threedEditor.visibleBaseMapIdsIn3d);
   const annotationsModeByBaseMapId = useSelector(
     (s) => s.threedEditor.annotationsModeByBaseMapIdIn3d
@@ -139,7 +143,14 @@ export default function useApplyBaseMapVisibilityIn3d({
       scanVisibleById,
     });
     editor.renderScene?.();
+    // Hidden objects are out of the snap indexes (buildIndex): a flag flip
+    // changes what is snappable without any scene reload, so the indexes are
+    // resynced here — after the flags are applied (same ordering rule as the
+    // axes helper in MainThreedEditor). The rebuild only runs for the tools
+    // currently holding an index.
+    dispatch(bumpSnapIndexEpoch());
   }, [
+    dispatch,
     rendererIsReady,
     visibleKey,
     hiddenScanKey,
