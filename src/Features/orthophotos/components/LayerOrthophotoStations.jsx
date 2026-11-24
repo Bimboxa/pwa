@@ -228,6 +228,8 @@ export default function LayerOrthophotoStations({
             : orthophoto.corners;
         const isUnder =
           Boolean(hovered) &&
+          // unchecked in the tool: out of the hoverable set
+          !orthophoto.isExcluded &&
           isValidOrthophotoCorners(corners) &&
           isPointInQuad(hovered, corners);
         const locals = isUnder ? corners.map(toLocal) : null;
@@ -598,6 +600,7 @@ export default function LayerOrthophotoStations({
             name={orthophoto.name}
             active={orthophoto.id === selectedOrthophotoId}
             draggable={editable}
+            muted={Boolean(orthophoto.isExcluded)}
           />
         </Box>
       ))}

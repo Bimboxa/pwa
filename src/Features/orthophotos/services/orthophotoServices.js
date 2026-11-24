@@ -68,6 +68,15 @@ export async function getOrthophotosOfBaseMap(baseMapId) {
   return sortOrthophotos(rows);
 }
 
+// Excluded photo (unchecked in the tool): kept on the base map but no longer
+// taken into account — out of the hover highlight and of the Prompt IA zip.
+export async function setOrthophotoExcludedService(orthophoto, isExcluded) {
+  if (!orthophoto?.id) return;
+  await db.orthophotos.update(orthophoto.id, {
+    isExcluded: Boolean(isExcluded),
+  });
+}
+
 // A photo added from « Ajouter des photos », not rectified yet: it has its
 // original image only, and waits for the Prompt IA result.
 export function isPendingOrthophoto(orthophoto) {
@@ -149,6 +158,7 @@ export async function addOrthophotosService({ baseMap, items }) {
       corners: item.corners ?? null,
       orthoImage,
       sourceImage,
+      ...(item.isExcluded && { isExcluded: true }),
     });
   }
   if (rows.length === 0) return [];
