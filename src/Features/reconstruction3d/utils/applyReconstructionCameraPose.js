@@ -58,10 +58,16 @@ export function setThreedPerspectiveFov(fovDeg) {
  * @param {string} params.baseMapId
  * @param {{position: number[], forward: number[], hfovDeg?: number}} params.pose
  *   glTF frame of the model
+ * @param {number} [params.pullBackM] distance (unit of the model, metres)
+ *   the 3D camera stands behind the pose, along its line of sight
  * @returns {boolean} false when nothing was applied (no editor, model not
  *   attached yet, orthographic camera)
  */
-export default function applyReconstructionCameraPose({ baseMapId, pose }) {
+export default function applyReconstructionCameraPose({
+  baseMapId,
+  pose,
+  pullBackM = 0,
+}) {
   const sceneManager = getSceneManager();
   const controlsManager = sceneManager?.controlsManager;
   if (!controlsManager?.cameraControls || !pose) return false;
@@ -69,9 +75,15 @@ export default function applyReconstructionCameraPose({ baseMapId, pose }) {
   if (sceneManager.camera?.isOrthographicCamera) return false;
   if (!getModelMatrixWorld(sceneManager, baseMapId, matrix)) return false;
 
-  position.fromArray(pose.position).applyMatrix4(matrix);
+  // pulled back in the frame of the model, so that the distance is in the
+  // unit of the model whatever the scale of the base map
+  forward.fromArray(pose.forward);
+  if (forward.lengthSq() > 0) forward.normalize();
+  position.fromArray(pose.position);
+  if (pullBackM > 0) position.addScaledVector(forward, -pullBackM);
+  position.applyMatrix4(matrix);
   // rotation (and scale) only, renormalized
-  forward.fromArray(pose.forward).transformDirection(matrix);
+  forward.transformDirection(matrix);
   if (![position.x, position.y, position.z].every(Number.isFinite))
     return false;
 

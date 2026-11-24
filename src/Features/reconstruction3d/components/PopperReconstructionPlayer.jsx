@@ -3,8 +3,10 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
 
 import {
+  RECONSTRUCTION_PULL_BACK_MAX_M,
   bumpReconstructionVideoVersion,
   setReconstructionCoupled,
+  setReconstructionPullBackM,
 } from "../reconstruction3dSlice";
 import { setToaster } from "Features/layout/layoutSlice";
 import { triggerBaseMapsUpdate } from "Features/baseMaps/baseMapsSlice";
@@ -88,6 +90,7 @@ export default function PopperReconstructionPlayer({
   const noPoseS =
     "Aucune caméra : chargez le zip renvoyé par l'IA (outil Reconstruction 3D)";
   const walkS = "Couplage indisponible en mode marche";
+  const pullBackS = "Recul de la caméra 3D par rapport à la prise de vue";
   const missingVideoS = "La vidéo n'est pas sur cet appareil.";
   const reloadVideoS = "Recharger la vidéo";
   const noImageS = "Aucune image";
@@ -96,6 +99,10 @@ export default function PopperReconstructionPlayer({
   // data
 
   const coupled = useSelector((s) => s.reconstruction3d.coupled);
+  // `?? 0`: a store created before the setting existed (hot reload)
+  const storedPullBackM = useSelector(
+    (s) => s.reconstruction3d.pullBackM ?? 0
+  );
   const videoVersion = useSelector((s) => s.reconstruction3d.videoVersion);
   const walkActive = useSelector((s) => s.threedEditor.walkMode.active);
   // The open right tool drawer slides over the editor: step aside.
@@ -116,6 +123,10 @@ export default function PopperReconstructionPlayer({
   const [durationS, setDurationS] = useState(video?.durationS ?? 0);
   const [playing, setPlaying] = useState(false);
   const [frameIndex, setFrameIndex] = useState(0);
+  // Value of the pull-back slider while it is dragged: kept local (the 3D
+  // camera follows at once), stored when the drag ends.
+  const [pullBackDraftM, setPullBackDraftM] = useState(null);
+  const pullBackM = pullBackDraftM ?? storedPullBackM;
   const { position, isDragging, handleMouseDown } = usePanelDrag();
   const paperRef = useRef(null);
   const {
@@ -145,6 +156,7 @@ export default function PopperReconstructionPlayer({
   const applyPose = useReconstructionCameraCoupling({
     baseMapId: baseMap.id,
     active: coupling,
+    pullBackM,
   });
 
   const safeIndex = Math.min(frameIndex, Math.max(0, frames.length - 1));
@@ -173,7 +185,7 @@ export default function PopperReconstructionPlayer({
   const appliedTimeRef = useRef(null);
   useEffect(() => {
     appliedTimeRef.current = null;
-  }, [coupling, samples]);
+  }, [coupling, samples, pullBackM]);
 
   useEffect(() => {
     if (!isVideoMode) return undefined;
@@ -210,7 +222,7 @@ export default function PopperReconstructionPlayer({
     };
     apply();
     return () => clearTimeout(timer);
-  }, [isVideoMode, coupling, frame, applyPose]);
+  }, [isVideoMode, coupling, frame, applyPose, pullBackM]);
 
   // handlers
 
@@ -231,6 +243,25 @@ export default function PopperReconstructionPlayer({
     element.currentTime = value;
     // shown at once: the frame of the video follows when decoded
     setTimeS(value);
+  }
+
+  // The camera follows the slider at once, without waiting for a render.
+  function handlePullBackChange(_e, value) {
+    setPullBackDraftM(value);
+    const pose = isVideoMode
+      ? getCameraPathPoseAtTime(
+          samples,
+          videoRef.current?.currentTime ?? timeS
+        )
+      : hasReconstructionPose(frame)
+        ? frame.pose
+        : null;
+    if (pose) applyPose(pose, value);
+  }
+
+  function handlePullBackCommit(_e, value) {
+    dispatch(setReconstructionPullBackM(value));
+    setPullBackDraftM(null);
   }
 
   function handleStep(delta) {
@@ -334,6 +365,34 @@ export default function PopperReconstructionPlayer({
             </Box>
           )}
         </Typography>
+        {coupling && (
+          <Tooltip
+            title={`${pullBackS} : ${pullBackM.toFixed(1).replace(".", ",")} m`}
+          >
+            <Box
+              onMouseDown={stop}
+              sx={{
+                flexShrink: 0,
+                display: "flex",
+                alignItems: "center",
+                width: 84,
+                px: 1,
+                cursor: "default",
+              }}
+            >
+              <Slider
+                size="small"
+                min={0}
+                max={RECONSTRUCTION_PULL_BACK_MAX_M}
+                step={0.1}
+                value={pullBackM}
+                aria-label={pullBackS}
+                onChange={handlePullBackChange}
+                onChangeCommitted={handlePullBackCommit}
+              />
+            </Box>
+          </Tooltip>
+        )}
         <Tooltip title={coupleTitle}>
           <span onMouseDown={stop}>
             <IconButton

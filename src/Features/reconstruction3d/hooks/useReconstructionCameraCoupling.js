@@ -17,7 +17,8 @@ import applyReconstructionCameraPose, {
 // `active`: the player is coupled AND the 3D editor is displayed. While
 // active:
 // - the returned `applyPose(pose)` jumps the 3D camera to a reconstruction
-//   camera (glTF frame of the model, see applyReconstructionCameraPose);
+//   camera (glTF frame of the model, see applyReconstructionCameraPose),
+//   `pullBackM` metres behind it along its line of sight;
 // - the 3D view goes perspective (a camera position means nothing in
 //   orthographic projection);
 // - a gesture of the user on the 3D canvas (press, wheel) hands the camera
@@ -25,7 +26,11 @@ import applyReconstructionCameraPose, {
 //   player keeps playing, its button couples again.
 // When the coupling ends, the field of view the camera had before is
 // restored (the cameras of a reconstruction carry their own).
-export default function useReconstructionCameraCoupling({ baseMapId, active }) {
+export default function useReconstructionCameraCoupling({
+  baseMapId,
+  active,
+  pullBackM = 0,
+}) {
   const dispatch = useDispatch();
 
   // data
@@ -38,6 +43,8 @@ export default function useReconstructionCameraCoupling({ baseMapId, active }) {
   activeRef.current = active;
   const baseMapIdRef = useRef(baseMapId);
   baseMapIdRef.current = baseMapId;
+  const pullBackRef = useRef(pullBackM);
+  pullBackRef.current = pullBackM;
 
   // effects
 
@@ -81,11 +88,13 @@ export default function useReconstructionCameraCoupling({ baseMapId, active }) {
 
   // helpers
 
-  const applyPose = useCallback((pose) => {
+  // `pullBackOverrideM`: a value not rendered yet (slider being dragged)
+  const applyPose = useCallback((pose, pullBackOverrideM) => {
     if (!activeRef.current || !pose) return false;
     return applyReconstructionCameraPose({
       baseMapId: baseMapIdRef.current,
       pose,
+      pullBackM: pullBackOverrideM ?? pullBackRef.current,
     });
   }, []);
 

@@ -7,24 +7,41 @@ import { createSlice } from "@reduxjs/toolkit";
 // - coupled: the player drives the camera of the 3D editor. Switched off as
 //   soon as the user navigates in the 3D view by hand, back on from the
 //   button of the player;
+// - pullBackM: while coupled, how far (metres, frame of the model) the 3D
+//   camera stands behind the camera of the video, along its line of sight —
+//   a wider view of the same scene (per-device preference);
 // - videoVersion: bumped when the source video is (re)loaded on the device,
 //   so that the player reads the file again.
 // The playback time lives in the player itself (it changes at every frame).
 
 const STORAGE_KEY = "reconstruction3dSettings";
 
+export const RECONSTRUCTION_PULL_BACK_MAX_M = 5;
+
+function clampPullBack(value) {
+  const number = Number(value);
+  if (!Number.isFinite(number)) return 0;
+  return Math.min(Math.max(0, number), RECONSTRUCTION_PULL_BACK_MAX_M);
+}
+
 function readSettings() {
   try {
     const parsed = JSON.parse(localStorage.getItem(STORAGE_KEY) ?? "{}");
-    return { showPlayer: Boolean(parsed?.showPlayer) };
+    return {
+      showPlayer: Boolean(parsed?.showPlayer),
+      pullBackM: clampPullBack(parsed?.pullBackM),
+    };
   } catch {
-    return { showPlayer: false };
+    return { showPlayer: false, pullBackM: 0 };
   }
 }
 
-function writeSettings({ showPlayer }) {
+function writeSettings({ showPlayer, pullBackM }) {
   try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify({ showPlayer }));
+    localStorage.setItem(
+      STORAGE_KEY,
+      JSON.stringify({ showPlayer, pullBackM })
+    );
   } catch {
     // storage unavailable: the preference stays in memory
   }
@@ -33,7 +50,7 @@ function writeSettings({ showPlayer }) {
 const reconstruction3dSlice = createSlice({
   name: "reconstruction3d",
   initialState: {
-    showPlayer: readSettings().showPlayer,
+    ...readSettings(),
     coupled: true,
     videoVersion: 0,
   },
@@ -47,6 +64,10 @@ const reconstruction3dSlice = createSlice({
     setReconstructionCoupled: (state, action) => {
       state.coupled = Boolean(action.payload);
     },
+    setReconstructionPullBackM: (state, action) => {
+      state.pullBackM = clampPullBack(action.payload);
+      writeSettings(state);
+    },
     bumpReconstructionVideoVersion: (state) => {
       state.videoVersion += 1;
     },
@@ -56,6 +77,7 @@ const reconstruction3dSlice = createSlice({
 export const {
   setShowReconstructionPlayer,
   setReconstructionCoupled,
+  setReconstructionPullBackM,
   bumpReconstructionVideoVersion,
 } = reconstruction3dSlice.actions;
 
