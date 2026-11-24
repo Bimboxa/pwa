@@ -19,7 +19,7 @@ It only gates the UI: switching it off keeps the rows.
 | Field | Content |
 |---|---|
 | `baseMapId` | the orthomosaic base map |
-| `listingId` | the **base map's** listing (ships the row and its files in the Krto zip) |
+| `listingId` | the **base map's** listing |
 | `name` | station name, `P01`… |
 | `fractionalIndex` | order in the list |
 | `station` | `{x, y}` camera station |
@@ -32,9 +32,40 @@ It only gates the UI: switching it off keeps the rows.
   are not `db.points` rows: the Krto points filter only keeps the points
   referenced by annotations.
 - Image files live in `db.files` with the base map `listingId`.
+- **Local to the device** — see « Saving » below.
 - The table is audited, soft-deleted, ownership-exempt (anyone manages the
   orthophotos of a base map) and **not** undoable.
 - Deleting the base map soft-deletes its orthophotos (`useDeleteBaseMap`).
+
+## Saving
+
+Of an orthomosaic, the Krto zip only ships the **resulting image** (a regular
+base map version) and the `isOrthophoto` flag. The unit orthophotos — rows,
+rectified images, original photos — are left out of `createKrtoZip` (table
+not exported, files excluded by name) and survive a restore
+(`clearScopeDataService` does not touch them). The full project export
+(`createProjectExportZip`) still carries them.
+
+They are saved apart, from « Sauvegarde des orthophotos » of the tool
+(`SectionOrthophotosArchive`, `services/orthophotosArchiveServices.js`):
+
+```
+orthophotos.json              kind "ORTHOPHOTOS_ARCHIVE", base map frame,
+                              per orthophoto: name, station, corners, files
+unitaires/<nn>_<name>.<ext>   rectified images
+sources/<nn>_<name>.<ext>     original photos — only with « Inclure les
+                              photos d'origine » (off by default)
+```
+
+The section shows the size of the original photos and of the zip
+(`image.fileSize`, `hooks/useOrthophotosFileSizes`). Loading an archive made
+without the original photos keeps the ones the device still has.
+
+« Charger un zip » loads such an archive into the selected orthomosaic base
+map: an orthophoto of the archive replaces the one of the same name, the
+others are kept. Placements are normalized, so they fit as long as the base
+map image has the proportions the archive was made on (a mismatch is
+reported).
 
 ## Placement: 4 corners
 

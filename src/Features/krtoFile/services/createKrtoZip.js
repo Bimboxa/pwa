@@ -109,9 +109,11 @@ export default async function createKrtoZip(scopeId, options) {
         // inline on the row (no db.points involvement).
         "photos",
         "photoPlans",
-        // Unit orthophotos of orthomosaic base maps: rows + image files
-        // carry the base map listingId.
-        "orthophotos",
+        // NOT "orthophotos": of an orthomosaic base map, only the resulting
+        // image (a regular base map version) ships. The unit orthophotos —
+        // rows, rectified images, original photos — stay on the device and
+        // are saved apart, in their own zip (orthophotos/services/
+        // orthophotosArchiveServices, docs/baseMaps/ORTHOPHOTOS.md).
         // Painted mesh parts (« Pinceau » 3D): listingId = the PAINTING
         // template's listing (scope content); the host is remapped through
         // hostAnnotationId on duplicate (remapDexieExportIds SIMPLE_FK).
@@ -177,6 +179,15 @@ export default async function createKrtoZip(scopeId, options) {
     const scopePovs = (
         await db.povs.where("scopeId").equals(scopeId).toArray()
     ).filter((p) => !p.deletedAt);
+    // Image files of the unit orthophotos (rectified images + original
+    // photos): they carry the base map listingId but never ship — see the
+    // "orthophotos" note in tablesWithProjectIdAndListingId.
+    const orthophotoFileNames = new Set(
+        (await db.orthophotos.where("projectId").equals(projectId).toArray())
+            .flatMap((o) => [o.orthoImage?.fileName, o.sourceImage?.fileName])
+            .filter(Boolean)
+    );
+
     const povImageFileNames = new Set(
         scopePovs
             .flatMap((p) => [p.image?.fileName, p.transformedImage?.fileName])
@@ -294,7 +305,8 @@ export default async function createKrtoZip(scopeId, options) {
                     value.projectId === projectId &&
                     listingIds.has(value.listingId) &&
                     !disabledListingIds.has(value.listingId) &&
-                    !deletedVersionFileNames.has(value.fileName)
+                    !deletedVersionFileNames.has(value.fileName) &&
+                    !orthophotoFileNames.has(value.fileName)
                 );
             }
 

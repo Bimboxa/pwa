@@ -5,6 +5,7 @@ import { useDispatch, useSelector, useStore } from "react-redux";
 import { setSelectedOrthophotoId } from "../orthophotosSlice";
 
 import { Box } from "@mui/material";
+import { keyframes } from "@mui/material/styles";
 import OpenWithIcon from "@mui/icons-material/OpenWith";
 
 import db from "App/db/db";
@@ -26,6 +27,32 @@ import {
   translateCorners,
 } from "../utils/transformOrthophotoCorners";
 
+// Orthophotos under the cursor: outline of their rectified image and frame
+// of their station label, blinking in neon green.
+const HOVER_COLOR = "#39ff14";
+const HOVER_CLASS = "orthophoto-under-cursor";
+const hoverBlink = keyframes`
+  0%, 49% { opacity: 1; }
+  50%, 100% { opacity: 0.15; }
+`;
+const HOVER_ANIMATION = `${hoverBlink} 0.7s linear infinite`;
+
+// Ray casting, in the normalized frame of the base map.
+function isPointInQuad(point, quad) {
+  let inside = false;
+  for (let i = 0, j = quad.length - 1; i < quad.length; j = i++) {
+    const a = quad[i];
+    const b = quad[j];
+    if (
+      a.y > point.y !== b.y > point.y &&
+      point.x < ((b.x - a.x) * (point.y - a.y)) / (b.y - a.y) + a.x
+    ) {
+      inside = !inside;
+    }
+  }
+  return inside;
+}
+
 const HANDLE_SIZE = 12;
 const CENTRE_SIZE = 24;
 const DRAG_THRESHOLD_PX = 3;
@@ -43,7 +70,10 @@ const DRAG_THRESHOLD_PX = 3;
 // - `editable` (Orthophotos tool opened): a station can be dragged;
 // - handles of the adjusted orthophoto: centre = move, corner = rotate +
 //   scale about the opposite corner, Alt + corner = that corner alone
-//   (deforms the image). One db write on release.
+//   (deforms the image). One db write on release;
+// - hovering the base map: the outline of every rectified image holding the
+//   hovered point, and the frame of its station label, blink in neon green
+//   (which photos rebuild this spot of the mosaic).
 export default function LayerOrthophotoStations({
   orthophotos,
   mainBaseMap,
@@ -80,6 +110,10 @@ export default function LayerOrthophotoStations({
   const outlineElRef = useRef(null);
   // live values of the gesture in progress, kept until the row re-emits
   const draftRef = useRef({ stations: {}, corners: null });
+  // outlines of the orthophotos under the cursor (one polygon each)
+  const hoverElsRef = useRef(new Map());
+  // last pointer position, and whether it is over the editor
+  const pointerRef = useRef({ x: 0, y: 0, over: false });
   const latestRef = useRef({});
   latestRef.current = { orthophotos, mainBaseMap, moduleKey, edited };
 
@@ -89,6 +123,35 @@ export default function LayerOrthophotoStations({
   useEffect(() => {
     draftRef.current = { stations: {}, corners: null };
   }, [orthophotos]);
+
+  // pointer tracking for the "orthophotos under the cursor" highlight: only
+  // while the cursor is over the 2D editor (or one of the station labels),
+  // never over a panel laid on it
+  useEffect(() => {
+    const handleMove = (e) => {
+      const host = document.querySelector(
+        getMapHostSelector(get2dEditorKeyForModule(latestRef.current.moduleKey))
+      );
+      const target = e.target;
+      pointerRef.current = {
+        x: e.clientX,
+        y: e.clientY,
+        over: Boolean(
+          target instanceof Node &&
+          (host?.contains(target) || rootRef.current?.contains(target))
+        ),
+      };
+    };
+    const handleLeave = () => {
+      pointerRef.current = { ...pointerRef.current, over: false };
+    };
+    window.addEventListener("pointermove", handleMove, { passive: true });
+    document.addEventListener("pointerleave", handleLeave);
+    return () => {
+      window.removeEventListener("pointermove", handleMove);
+      document.removeEventListener("pointerleave", handleLeave);
+    };
+  }, []);
 
   const active = orthophotos.length > 0;
   useEffect(() => {
@@ -137,6 +200,44 @@ export default function LayerOrthophotoStations({
         }
         el.style.visibility = "visible";
         el.style.transform = `translate(${Math.round(p.x)}px, ${Math.round(p.y)}px)`;
+      }
+
+      // orthophotos under the cursor: every rectified image whose quad
+      // holds the hovered point of the base map
+      const pointer = pointerRef.current;
+      const hovered =
+        pointer.over && hostRect
+          ? clientToBaseMapNormalized({
+              clientX: pointer.x,
+              clientY: pointer.y,
+              hostRect,
+              basePose,
+              imageSize,
+            })
+          : null;
+      for (const orthophoto of orthophotos) {
+        const outlineEl = hoverElsRef.current.get(orthophoto.id);
+        const pillEl = pillElsRef.current.get(orthophoto.id);
+        const corners =
+          draftRef.current.corners?.id === orthophoto.id
+            ? draftRef.current.corners.corners
+            : orthophoto.corners;
+        const isUnder =
+          Boolean(hovered) &&
+          isValidOrthophotoCorners(corners) &&
+          isPointInQuad(hovered, corners);
+        const locals = isUnder ? corners.map(toLocal) : null;
+        const show = Boolean(locals?.every(Boolean));
+        if (outlineEl) {
+          outlineEl.style.visibility = show ? "visible" : "hidden";
+          if (show) {
+            outlineEl.setAttribute(
+              "points",
+              locals.map((p) => `${p.x},${p.y}`).join(" ")
+            );
+          }
+        }
+        if (pillEl) pillEl.classList.toggle(HOVER_CLASS, show);
       }
 
       // outline + handles of the adjusted orthophoto
@@ -320,6 +421,34 @@ export default function LayerOrthophotoStations({
         pointerEvents: "none",
       }}
     >
+      {/* outlines of the orthophotos under the cursor */}
+      <Box
+        component="svg"
+        sx={{
+          position: "absolute",
+          inset: 0,
+          width: 1,
+          height: 1,
+          pointerEvents: "none",
+          "& polygon": { animation: HOVER_ANIMATION },
+        }}
+      >
+        {orthophotos.map((orthophoto) => (
+          <polygon
+            key={orthophoto.id}
+            ref={(el) => {
+              if (el) hoverElsRef.current.set(orthophoto.id, el);
+              else hoverElsRef.current.delete(orthophoto.id);
+            }}
+            fill="none"
+            stroke={HOVER_COLOR}
+            strokeWidth={2.5}
+            strokeLinejoin="round"
+            style={{ visibility: "hidden" }}
+          />
+        ))}
+      </Box>
+
       {edited && (
         <>
           <Box
@@ -403,6 +532,17 @@ export default function LayerOrthophotoStations({
             touchAction: "none",
             // above the handles of the adjusted orthophoto
             zIndex: orthophoto.id === selectedOrthophotoId ? 2 : 1,
+            // its rectified image is under the cursor: blinking frame
+            [`&.${HOVER_CLASS} > div::after`]: {
+              content: '""',
+              position: "absolute",
+              inset: -3,
+              borderRadius: "6px",
+              border: `2.5px solid ${HOVER_COLOR}`,
+              boxShadow: `0 0 6px ${HOVER_COLOR}`,
+              pointerEvents: "none",
+              animation: HOVER_ANIMATION,
+            },
           }}
         >
           <OrthophotoStationPill

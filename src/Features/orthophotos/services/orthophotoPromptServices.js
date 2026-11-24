@@ -44,7 +44,7 @@ const getExtension = (name) =>
     .split(".")
     .pop()
     .toLowerCase();
-const getImageType = (name) => IMAGE_TYPES[getExtension(name)] ?? null;
+export const getImageType = (name) => IMAGE_TYPES[getExtension(name)] ?? null;
 const isZip = (file) =>
   getExtension(file?.name) === "zip" ||
   file?.type === "application/zip" ||
@@ -114,7 +114,7 @@ export async function addPendingPhotosService({ baseMap, files }) {
   return addOrthophotosService({ baseMap, items });
 }
 
-async function readStoredFile(fileName) {
+export async function readStoredFile(fileName) {
   if (!fileName) return null;
   const record = await db.files.get(fileName);
   if (!record?.fileArrayBuffer) return null;
@@ -275,7 +275,7 @@ export async function buildOrthophotoPromptZip({ baseMap, download = true }) {
 
 // Models often wrap everything in one top folder: drop it so the paths match
 // the ones written in orthophoto.json.
-function getCommonRoot(paths) {
+export function getCommonRoot(paths) {
   if (!paths.length) return "";
   const first = paths[0].split("/");
   if (first.length < 2) return "";
