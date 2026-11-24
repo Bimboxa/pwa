@@ -13,11 +13,17 @@ import mergePaintedQtiesIntoTemplateQties from "Features/annotations/utils/merge
 import getAnnotationQties from "Features/annotations/utils/getAnnotationQties";
 import filterAnnotationsByViewBox from "Features/annotations/utils/filterAnnotationsByViewBox";
 
-export default function useAnnotationTemplateQtiesByIdForBaseMap(baseMapId, { viewBox, disabledAnnotationTemplates, disabledLayerIds } = {}) {
+export default function useAnnotationTemplateQtiesByIdForBaseMap(baseMapId, { viewBox, disabledAnnotationTemplates, disabledLayerIds, hiddenAnnotationIdSet } = {}) {
   // data
 
   const allAnnotations = useAnnotationsV2({ caller: "useAnnotationTemplateQtiesByIdForBaseMap", filterByBaseMapId: baseMapId, filterBySelectedScope: true, withQties: true, expandBlockInstances: true });
   let annotations = filterAnnotationsByViewBox(allAnnotations, viewBox);
+
+  // annotations left out by the caller (e.g. not in the phase of a portfolio
+  // container)
+  if (hiddenAnnotationIdSet?.size) {
+    annotations = annotations?.filter((a) => !hiddenAnnotationIdSet.has(a.id));
+  }
 
   if (disabledAnnotationTemplates?.length) {
     annotations = annotations?.filter(

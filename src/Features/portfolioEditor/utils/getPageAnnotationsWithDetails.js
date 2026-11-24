@@ -1,6 +1,7 @@
 import db from "App/db/db";
 import getEntityWithImagesAsync from "Features/entities/services/getEntityWithImagesAsync";
 import getItemsByKey from "Features/misc/utils/getItemsByKey";
+import getPhaseHiddenAnnotationIdsService from "Features/phasing/services/getPhaseHiddenAnnotationIdsService";
 
 /**
  * Async function to get annotations with entity details (image/description)
@@ -40,12 +41,17 @@ export default async function getPageAnnotationsWithDetails(pageId) {
       container.disabledAnnotationTemplates || []
     );
     const disabledLayers = new Set(container.disabledLayerIds || []);
+    // « Journal des phases »: the container shows one phase
+    const phaseHiddenIds = new Set(
+      await getPhaseHiddenAnnotationIdsService(container.phaseId)
+    );
 
     for (const annotation of allAnnotations) {
       if (annotation.baseMapId !== container.baseMapId) continue;
       if (seenIds.has(annotation.id)) continue;
       if (disabledTemplates.has(annotation.annotationTemplateId)) continue;
       if (annotation.layerId && disabledLayers.has(annotation.layerId)) continue;
+      if (phaseHiddenIds.has(annotation.id)) continue;
 
       seenIds.add(annotation.id);
       visibleAnnotations.push(annotation);

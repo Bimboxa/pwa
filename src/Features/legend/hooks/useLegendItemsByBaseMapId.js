@@ -12,7 +12,7 @@ import filterAnnotationsByViewBox from "Features/annotations/utils/filterAnnotat
 // includeHiddenInLegend: keep the templates flagged `hiddenInLegend` (tagged
 // `hiddenInLegend: true` on their item) without the eye-hidden ones — used by
 // the capture legend editor, which lists them so they can be re-enabled.
-export default function useLegendItemsByBaseMapId(baseMapId, { viewBox, disabledAnnotationTemplates, disabledLayerIds, includeHidden, includeHiddenInLegend = false, hideHeight = false } = {}) {
+export default function useLegendItemsByBaseMapId(baseMapId, { viewBox, disabledAnnotationTemplates, disabledLayerIds, hiddenAnnotationIdSet, includeHidden, includeHiddenInLegend = false, hideHeight = false } = {}) {
   // data
 
   const annotationTemplates = useAnnotationTemplates({ sortByOrder: true });
@@ -26,6 +26,12 @@ export default function useLegendItemsByBaseMapId(baseMapId, { viewBox, disabled
   });
 
   let annotations = filterAnnotationsByViewBox(allAnnotations, viewBox);
+
+  // annotations left out by the caller (e.g. not in the phase of a portfolio
+  // container)
+  if (hiddenAnnotationIdSet?.size) {
+    annotations = annotations?.filter((a) => !hiddenAnnotationIdSet.has(a.id));
+  }
 
   if (disabledLayerIds?.length) {
     annotations = annotations?.filter((a) => {

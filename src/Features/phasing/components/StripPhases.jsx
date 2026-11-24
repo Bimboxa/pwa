@@ -14,7 +14,9 @@ import { selectSelectedItems } from "Features/selection/selectionSlice";
 import {
   Box,
   Checkbox,
+  Chip,
   Divider,
+  IconButton,
   FormControlLabel,
   ToggleButton,
   ToggleButtonGroup,
@@ -22,7 +24,7 @@ import {
   Typography,
 } from "@mui/material";
 import { alpha, useTheme } from "@mui/material/styles";
-import { Add } from "@mui/icons-material";
+import { Add, Edit } from "@mui/icons-material";
 
 import useShowCommandsToolbar from "Features/commandsToolbar/hooks/useShowCommandsToolbar";
 import usePhasingListing from "../hooks/usePhasingListing";
@@ -30,6 +32,7 @@ import usePhases from "../hooks/usePhases";
 import useRelsPhaseAnnotation from "../hooks/useRelsPhaseAnnotation";
 
 import DialogCreatePhase from "./DialogCreatePhase";
+import DialogBusinessObjectForm from "Features/businessObjects/components/DialogBusinessObjectForm";
 
 import { getSelectedAnnotationIds } from "Features/annotations/utils/annotationLabelSelection";
 import { getBusinessObjectTypeKeyFromModuleKey } from "Features/businessObjects/utils/businessObjectModuleKeys";
@@ -139,6 +142,7 @@ export default function StripPhases() {
   const newAnnotationS = "Nouvelle annotation";
   const allPhasesS = "Toutes les phases";
   const bySelectionS = "Phases définies par la sélection";
+  const renameS = "Renommer la phase";
 
   // data
 
@@ -164,6 +168,8 @@ export default function StripPhases() {
 
   const [hoveredIndex, setHoveredIndex] = useState(null);
   const [openCreate, setOpenCreate] = useState(false);
+  // phase being renamed from the chip of the selected phase
+  const [renamedPhase, setRenamedPhase] = useState(null);
 
   // helpers — selected annotations and the phases they are present in
 
@@ -287,6 +293,10 @@ export default function StripPhases() {
     .filter(Boolean);
   const singlePhaseNumber =
     selectedPhaseNumbers.length === 1 ? selectedPhaseNumbers[0] : null;
+  // ONE selected phase: its name shows next to the arrows, with a rename
+  // button
+  const singlePhase =
+    singlePhaseNumber != null ? phases[singlePhaseNumber - 1] : null;
   const counts = previewCountByIndex ?? countByIndex;
   const paper = theme.palette.background.paper;
   // outline of the white (idle) blocks
@@ -394,6 +404,34 @@ export default function StripPhases() {
         </Tooltip>
       </Box>
 
+      {singlePhase && (
+        <Box
+          sx={{
+            display: "flex",
+            alignItems: "center",
+            gap: 0.5,
+            minWidth: 0,
+            flexShrink: 1,
+          }}
+        >
+          <Chip
+            size="small"
+            color="primary"
+            label={singlePhase.label}
+            sx={{ maxWidth: 220, fontWeight: 600 }}
+          />
+          <Tooltip title={renameS}>
+            <IconButton
+              size="small"
+              onClick={() => setRenamedPhase(singlePhase)}
+              sx={{ p: 0.5 }}
+            >
+              <Edit sx={{ fontSize: 16 }} />
+            </IconButton>
+          </Tooltip>
+        </Box>
+      )}
+
       <FormControlLabel
         control={
           <Checkbox
@@ -464,6 +502,14 @@ export default function StripPhases() {
         </>
       )}
 
+      {renamedPhase && (
+        <DialogBusinessObjectForm
+          open
+          listing={listing}
+          businessObject={renamedPhase}
+          onClose={() => setRenamedPhase(null)}
+        />
+      )}
       <DialogCreatePhase
         open={openCreate}
         onClose={() => setOpenCreate(false)}

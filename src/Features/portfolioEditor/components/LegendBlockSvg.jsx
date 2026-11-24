@@ -6,6 +6,7 @@ import {
   selectSelectedItems,
 } from "Features/selection/selectionSlice";
 
+import usePhaseHiddenAnnotationIdSetOfPhase from "Features/phasing/hooks/usePhaseHiddenAnnotationIdSetOfPhase";
 import useLegendItemsByBaseMapId from "Features/legend/hooks/useLegendItemsByBaseMapId";
 import useAnnotationSpriteImage from "Features/annotations/hooks/useAnnotationSpriteImage";
 import useAnnotationTemplateQtiesByIdForBaseMap from "Features/annotations/hooks/useAnnotationTemplateQtiesByIdForBaseMap";
@@ -28,8 +29,13 @@ export default function LegendBlockSvg({ container, zoom }) {
 
   const selectedItems = useSelector(selectSelectedItems);
   const viewBox = container.viewBox;
+  // « Journal des phases »: legend and quantities of the container's phase
+  const phaseHiddenIdSet = usePhaseHiddenAnnotationIdSetOfPhase(
+    container.phaseId
+  );
   const legendItems = useLegendItemsByBaseMapId(container.baseMapId, {
     viewBox,
+    hiddenAnnotationIdSet: phaseHiddenIdSet,
     disabledAnnotationTemplates: container.disabledAnnotationTemplates,
     disabledLayerIds: container.disabledLayerIds,
     hideHeight: container.legendFormat?.hideHeight,
@@ -37,6 +43,7 @@ export default function LegendBlockSvg({ container, zoom }) {
   const spriteImage = useAnnotationSpriteImage();
   const qtiesById = useAnnotationTemplateQtiesByIdForBaseMap(container.baseMapId, {
     viewBox,
+    hiddenAnnotationIdSet: phaseHiddenIdSet,
     disabledAnnotationTemplates: container.disabledAnnotationTemplates,
     disabledLayerIds: container.disabledLayerIds,
   });

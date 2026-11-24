@@ -9,6 +9,8 @@ import {
 
 import useBaseMap from "Features/baseMaps/hooks/useBaseMap";
 import useAnnotationsV2 from "Features/annotations/hooks/useAnnotationsV2";
+import usePhaseHiddenAnnotationIdSetOfPhase from "Features/phasing/hooks/usePhaseHiddenAnnotationIdSetOfPhase";
+import filterPhaseHiddenAnnotations from "Features/phasing/utils/filterPhaseHiddenAnnotations";
 import useAnnotationSpriteImage from "Features/annotations/hooks/useAnnotationSpriteImage";
 import filterAnnotationsByViewBox from "Features/annotations/utils/filterAnnotationsByViewBox";
 
@@ -46,6 +48,10 @@ export default function BaseMapContainerSvg({
     filterBySelectedScope: true,
     sortByOrderIndex: true,
   });
+  // « Journal des phases »: the container shows one phase (container.phaseId)
+  const phaseHiddenIdSet = usePhaseHiddenAnnotationIdSetOfPhase(
+    container.phaseId
+  );
 
   // refs
 
@@ -86,6 +92,11 @@ export default function BaseMapContainerSvg({
       return !disabledLayers.includes(a.layerId);
     });
   }
+
+  visibleAnnotations = filterPhaseHiddenAnnotations(
+    visibleAnnotations,
+    phaseHiddenIdSet
+  );
 
   // Openings last: their white gap must cover the host wall.
   const nonLabelAnnotations = sortOpeningsLast(

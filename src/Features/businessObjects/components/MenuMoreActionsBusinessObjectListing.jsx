@@ -41,7 +41,9 @@ export default function MenuMoreActionsBusinessObjectListing({
 
   // state
 
-  const [openRenameListing, setOpenRenameListing] = useState(false);
+  // Listing being renamed, kept HERE: closing the menu makes the host drop
+  // its `listing` prop, which must not unmount the dialog it just opened.
+  const [renamedListing, setRenamedListing] = useState(null);
 
   // helpers
 
@@ -54,8 +56,8 @@ export default function MenuMoreActionsBusinessObjectListing({
   // handlers
 
   const handleRename = () => {
+    setRenamedListing(listing);
     onClose();
-    setOpenRenameListing(true);
   };
 
   const handleDelete = async () => {
@@ -93,11 +95,11 @@ export default function MenuMoreActionsBusinessObjectListing({
         </MenuItem>
       </Menu>
 
-      {openRenameListing && listing && (
+      {renamedListing && (
         <DialogRenameBusinessObjectListing
           open
-          listing={listing}
-          onClose={() => setOpenRenameListing(false)}
+          listing={renamedListing}
+          onClose={() => setRenamedListing(null)}
         />
       )}
     </>

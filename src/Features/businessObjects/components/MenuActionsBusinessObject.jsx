@@ -14,6 +14,8 @@ export default function MenuActionsBusinessObject({
   listing,
   onAddChildBusinessObject,
   onClose,
+  // label of the edit item (the row menu of the phases says "Renommer")
+  editLabel = "Modifier",
 }) {
   // state
 
@@ -43,7 +45,7 @@ export default function MenuActionsBusinessObject({
         {onAddChildBusinessObject && (
           <MenuItem onClick={handleAddChild}>{type.strings.addChild}</MenuItem>
         )}
-        <MenuItem onClick={() => setOpenEdit(true)}>Modifier</MenuItem>
+        <MenuItem onClick={() => setOpenEdit(true)}>{editLabel}</MenuItem>
         {type.features.assignByGeometry && (
           <MenuItemAssignBusinessObjectAnnotations
             businessObject={businessObject}

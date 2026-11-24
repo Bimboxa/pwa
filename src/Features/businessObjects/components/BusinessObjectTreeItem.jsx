@@ -27,6 +27,7 @@ import {
 import {
   DragIndicator,
   DescriptionOutlined,
+  MoreHoriz,
   ChevronRight,
   Pentagon,
   Place,
@@ -44,6 +45,7 @@ import SoloIconToggle from "Features/mapEditor/components/SoloIconToggle";
 import IconAnnotationLinkAdd from "Features/icons/IconAnnotationLinkAdd";
 import IconAnnotationLinkRemove from "Features/icons/IconAnnotationLinkRemove";
 import PopperBusinessObjectQtyGap from "./PopperBusinessObjectQtyGap";
+import MenuActionsBusinessObject from "./MenuActionsBusinessObject";
 import ChipBusinessObjectState from "./ChipBusinessObjectState";
 import selectSelectedBusinessObjectId from "../utils/selectSelectedBusinessObjectId";
 import getBusinessObjectQtyLabel from "../utils/getBusinessObjectQtyLabel";
@@ -161,6 +163,7 @@ export default function BusinessObjectTreeItem({
 
   const [gapAnchor, setGapAnchor] = useState(null);
   const [documentsAnchor, setDocumentsAnchor] = useState(null);
+  const [menuAnchor, setMenuAnchor] = useState(null);
   // hover in React state (AnnotationTemplateRow pattern): drives the solo
   // slot affordance
   const [isHovered, setIsHovered] = useState(false);
@@ -239,7 +242,13 @@ export default function BusinessObjectTreeItem({
     !businessObject.linkingDisabled &&
     type.features?.annotationLinks !== false;
   const showExcluding = !readOnly && hasTemplateLinks;
-  const hasActions = showDocuments || showLinking || showExcluding;
+  // Phases: "..." menu on the row (Renommer / Supprimer) — the phase is not
+  // the module's active object, so its properties panel is not at hand.
+  const showRowMenu = hasPhaseSelection && !readOnly;
+  const moreS = "Plus d'actions";
+  const renameS = "Renommer";
+  const hasActions =
+    showDocuments || showLinking || showExcluding || showRowMenu;
   const soloS = isSolo
     ? "Tout afficher"
     : `Afficher uniquement « ${businessObject.label} »`;
@@ -599,6 +608,21 @@ export default function BusinessObjectTreeItem({
           </IconButton>
         </Tooltip>
       )}
+      {showRowMenu && (
+        <Tooltip title={moreS}>
+          <IconButton
+            size="small"
+            onClick={(e) => {
+              e.stopPropagation();
+              setMenuAnchor(e.currentTarget);
+            }}
+            onPointerDown={stopPointerDown}
+            sx={{ ...actionButtonSx, color: "panel.textMuted" }}
+          >
+            <MoreHoriz sx={{ fontSize: 16 }} />
+          </IconButton>
+        </Tooltip>
+      )}
     </Box>
   ) : null;
 
@@ -816,6 +840,15 @@ export default function BusinessObjectTreeItem({
         {actions}
         {drill}
       </ListItemButton>
+      {showRowMenu && (
+        <MenuActionsBusinessObject
+          anchorEl={menuAnchor}
+          businessObject={businessObject}
+          listing={listing}
+          editLabel={renameS}
+          onClose={() => setMenuAnchor(null)}
+        />
+      )}
 
       {gapAnchor && showQtyGap && (
         <PopperBusinessObjectQtyGap
