@@ -349,11 +349,49 @@ export async function readOrthophotoResultZip(file, { baseMapId }) {
   return { ...parsed, filesByPath };
 }
 
+// What the mosaic of a result does to a base map that already has one.
+export const ORTHOPHOTO_RESULT_MODES = {
+  // the active version takes the new image (its former file is dropped)
+  REPLACE: "REPLACE",
+  // a new active version; the former ones stay, inactive
+  NEW_VERSION: "NEW_VERSION",
+};
+
+// "Version 1", "Version 2"… — first number not used by a version label.
+function getNextMosaicVersionLabel(versions) {
+  const used = new Set((versions ?? []).map((v) => v.label));
+  for (let i = (versions?.length ?? 0) + 1; ; i++) {
+    const label = `Version ${i}`;
+    if (!used.has(label)) return label;
+  }
+}
+
+// Mosaic versions of the base map (the blank page of an empty orthophoto
+// base map left out), to offer « replace » vs « new version » before a
+// result is applied.
+// → { hasMosaic, activeLabel, nextLabel }
+export async function getOrthophotoMosaicVersionsInfo(baseMapId) {
+  const versions = (
+    await db.baseMapVersions.where("baseMapId").equals(baseMapId).toArray()
+  )
+    .filter((v) => !v.deletedAt && !testIsWhitePageImage(v.image))
+    .sort((a, b) =>
+      (a.fractionalIndex || "").localeCompare(b.fractionalIndex || "")
+    );
+  const active = versions.find((v) => v.isActive) ?? versions.at(-1) ?? null;
+  return {
+    hasMosaic: versions.length > 0,
+    activeLabel: active?.label ?? null,
+    nextLabel: getNextMosaicVersionLabel(versions),
+  };
+}
+
 /**
  * Applies a parsed result (readOrthophotoResultZip) to the base map:
- * - the mosaic becomes its image: a new active version, the record frame
- *   (refWidth / refHeight) follows the mosaic, the blank page of an empty
- *   orthophoto base map is dropped;
+ * - the mosaic becomes its image — `mode` NEW_VERSION: a new active version
+ *   named `versionLabel` ("Version N" by default); REPLACE: the image of the
+ *   active version. The record frame (refWidth / refHeight) follows the
+ *   mosaic, the blank page of an empty orthophoto base map is dropped;
  * - each returned photo gets its rectified image, station and corners.
  * Photos left out by the model stay pending.
  *
@@ -366,6 +404,8 @@ export async function applyOrthophotoResultService({
   baseMapId,
   data,
   filesByPath,
+  mode = ORTHOPHOTO_RESULT_MODES.NEW_VERSION,
+  versionLabel = null,
 }) {
   const record = await db.baseMaps.get(baseMapId);
   if (!record) throw new Error("Fond de plan introuvable.");
@@ -374,6 +414,7 @@ export async function applyOrthophotoResultService({
   // 1. mosaic
   const mosaicFile = filesByPath.get(data.file);
   const versionId = nanoid();
+  // unique per import: a replaced version must not reuse its file name
   const mosaicFileName = `version_${versionId}_${baseMapId}.${getExtension(mosaicFile.name) || "png"}`;
   const url = URL.createObjectURL(mosaicFile);
   let imageSize;
@@ -420,6 +461,16 @@ export async function applyOrthophotoResultService({
     ? versions[versions.length - 1].fractionalIndex || null
     : null;
 
+  // REPLACE: the active mosaic version takes the new image; without one
+  // (blank base map) a version is created anyway.
+  const activeVersion =
+    keptVersions.find((v) => v.isActive) ?? keptVersions.at(-1) ?? null;
+  const replacedVersion =
+    mode === ORTHOPHOTO_RESULT_MODES.REPLACE ? activeVersion : null;
+  const label =
+    (typeof versionLabel === "string" && versionLabel.trim()) ||
+    getNextMosaicVersionLabel(keptVersions);
+
   const wasBlank =
     testIsWhitePageImage(record.image) || keptVersions.length === 0;
   const frameChanged =
@@ -441,6 +492,8 @@ export async function applyOrthophotoResultService({
   const rowByName = new Map(rows.map((r) => [r.name, r]));
   const rowUpdates = [];
   const obsoleteFileNames = [];
+  if (replacedVersion?.image?.fileName)
+    obsoleteFileNames.push(replacedVersion.image.fileName);
   for (const photo of data.photos) {
     const row = rowByName.get(photo.name);
     const orthoFile = filesByPath.get(photo.orthoFile);
@@ -475,23 +528,35 @@ export async function applyOrthophotoResultService({
         await db.files.bulkDelete(obsoleteFileNames);
       if (blankVersionIds.length > 0)
         await db.baseMapVersions.bulkDelete(blankVersionIds);
-      if (keptVersions.some((v) => v.isActive))
+      const toDeactivate = keptVersions.filter(
+        (v) => v.isActive && v.id !== replacedVersion?.id
+      );
+      if (toDeactivate.length > 0)
         await db.baseMapVersions.bulkUpdate(
-          keptVersions
-            .filter((v) => v.isActive)
-            .map((v) => ({ key: v.id, changes: { isActive: false } }))
+          toDeactivate.map((v) => ({
+            key: v.id,
+            changes: { isActive: false },
+          }))
         );
-      await db.baseMapVersions.put({
-        id: versionId,
-        baseMapId,
-        projectId,
-        listingId,
-        label: `Orthomosaïque (${data.photos.length} photos)`,
-        fractionalIndex: generateKeyBetween(lastIndex, null),
-        isActive: true,
-        image,
-        transform: { x: 0, y: 0, rotation: 0, scale: 1 },
-      });
+      if (replacedVersion) {
+        await db.baseMapVersions.update(replacedVersion.id, {
+          image,
+          isActive: true,
+          transform: { x: 0, y: 0, rotation: 0, scale: 1 },
+        });
+      } else {
+        await db.baseMapVersions.put({
+          id: versionId,
+          baseMapId,
+          projectId,
+          listingId,
+          label,
+          fractionalIndex: generateKeyBetween(lastIndex, null),
+          isActive: true,
+          image,
+          transform: { x: 0, y: 0, rotation: 0, scale: 1 },
+        });
+      }
       await db.baseMaps.update(baseMapId, {
         image,
         whitePage: null,
@@ -513,6 +578,10 @@ export async function applyOrthophotoResultService({
     frameChanged,
     hadAnnotations,
     scaleKept: meterByPx != null,
-    inactiveVersionIds: keptVersions.map((v) => v.id),
+    inactiveVersionIds: keptVersions
+      .filter((v) => v.id !== replacedVersion?.id)
+      .map((v) => v.id),
+    versionLabel: replacedVersion ? replacedVersion.label : label,
+    replaced: Boolean(replacedVersion),
   };
 }
