@@ -39,12 +39,22 @@ export default function useOrthophotosFileSizes(orthophotos) {
           if (!image?.fileName || Number.isFinite(image.fileSize)) continue;
           if (measuredRef.current.has(image.fileName)) continue;
           measuredRef.current.add(image.fileName);
-          const record = await db.files.get(image.fileName);
+          try {
+            const record = await db.files.get(image.fileName);
+            // The whole image object is rewritten (no dotted key path) and
+            // the write is not cancelled with the effect: the rows re-emit
+            // on every measure, which would abort the next one.
+            await db.orthophotos.update(orthophoto.id, {
+              [key]: {
+                ...image,
+                // a file absent from this device weighs nothing
+                fileSize: record?.fileArrayBuffer?.byteLength ?? 0,
+              },
+            });
+          } catch (e) {
+            console.warn("[orthophotos] file size not measured", e);
+          }
           if (cancelled) return;
-          // a file absent from this device weighs nothing in an archive
-          await db.orthophotos.update(orthophoto.id, {
-            [`${key}.fileSize`]: record?.fileArrayBuffer?.byteLength ?? 0,
-          });
         }
       }
     })();

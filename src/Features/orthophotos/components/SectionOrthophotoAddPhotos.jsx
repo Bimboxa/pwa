@@ -20,6 +20,7 @@ import FolderOpenOutlined from "@mui/icons-material/FolderOpenOutlined";
 import UploadFileOutlined from "@mui/icons-material/UploadFileOutlined";
 
 import WhiteSectionGeneric from "Features/form/components/WhiteSectionGeneric";
+import DialogApplyOrthophotoResult from "./DialogApplyOrthophotoResult";
 
 import readDroppedEntries from "Features/promptIaProject/utils/readDroppedEntries";
 import stringifyFileSize from "Features/files/utils/stringifyFileSize";
@@ -28,6 +29,7 @@ import {
   addPendingPhotosService,
   applyOrthophotoResultService,
   buildOrthophotoPromptZip,
+  getOrthophotoMosaicVersionsInfo,
   readOrthophotoResultZip,
   readPhotoFilesFromEntries,
 } from "../services/orthophotoPromptServices";
@@ -150,6 +152,9 @@ export default function SectionOrthophotoAddPhotos({ baseMap, orthophotos }) {
   const [applying, setApplying] = useState(false);
   const [zipInfo, setZipInfo] = useState(null);
   const [report, setReport] = useState(null);
+  // result read from a dropped zip, waiting for the replace / new version
+  // choice: { read, activeLabel, nextLabel }
+  const [pendingResult, setPendingResult] = useState(null);
 
   // helpers
 
@@ -239,10 +244,13 @@ export default function SectionOrthophotoAddPhotos({ baseMap, orthophotos }) {
     }
   }
 
+  // Step 3, part 1: read the dropped zip. A base map that already has a
+  // mosaic asks first what to do with it (DialogApplyOrthophotoResult).
   async function handleResultEntries(entriesOrPromise) {
     if (applying) return;
     setApplying(true);
     setReport(null);
+    let waitsForChoice = false;
     try {
       const entries = await entriesOrPromise;
       const file = entries.find((entry) => /\.zip$/i.test(entry.path))?.file;
@@ -257,38 +265,34 @@ export default function SectionOrthophotoAddPhotos({ baseMap, orthophotos }) {
         setReport({ severity: "error", lines: [read.error] });
         return;
       }
-      const applied = await applyOrthophotoResultService({
-        baseMapId: baseMap.id,
-        data: read.data,
-        filesByPath: read.filesByPath,
-      });
-      dispatch(setHiddenVersionIds(applied.inactiveVersionIds));
-      dispatch(triggerEntitiesTableUpdate("baseMaps"));
-      dispatch(triggerBaseMapsUpdate());
-
-      const lines = [
-        `Fond de plan mis à jour : ${applied.updated} orthophoto(s) assemblée(s).`,
-      ];
-      if (applied.pending.length > 0)
-        lines.push(`Non assemblée(s) : ${applied.pending.join(", ")}.`);
-      if (applied.frameChanged && applied.hadAnnotations)
-        lines.push(
-          "Le cadre de la mosaïque a changé : vérifiez la position des annotations existantes."
-        );
-      if (!applied.scaleKept)
-        lines.push("Échelle non définie : calibrez le fond de plan.");
-      if (read.data.note) lines.push(`Note de l'IA : ${read.data.note}`);
-      lines.push(...read.data.warnings);
+      const info = await getOrthophotoMosaicVersionsInfo(baseMap.id);
+      if (info.hasMosaic) {
+        waitsForChoice = true;
+        setPendingResult({ read, ...info });
+        return;
+      }
+      await applyResult(read, {});
+    } catch (e) {
+      console.error("[orthophotos] result import failed", e);
       setReport({
-        severity:
-          applied.pending.length > 0 ||
-          read.data.warnings.length > 0 ||
-          (applied.frameChanged && applied.hadAnnotations)
-            ? "warning"
-            : "success",
-        lines,
+        severity: "error",
+        lines: [`Import impossible : ${e?.message ?? e}`],
       });
-      setZipInfo(null);
+    } finally {
+      if (!waitsForChoice) setApplying(false);
+    }
+  }
+
+  // Step 3, part 2: the choice of the dialog.
+  async function handleResultChoice(choice) {
+    const read = pendingResult?.read;
+    setPendingResult(null);
+    if (!read) {
+      setApplying(false);
+      return;
+    }
+    try {
+      await applyResult(read, choice);
     } catch (e) {
       console.error("[orthophotos] result import failed", e);
       setReport({
@@ -298,6 +302,50 @@ export default function SectionOrthophotoAddPhotos({ baseMap, orthophotos }) {
     } finally {
       setApplying(false);
     }
+  }
+
+  function handleResultCancel() {
+    setPendingResult(null);
+    setApplying(false);
+  }
+
+  async function applyResult(read, { mode, versionLabel }) {
+    const applied = await applyOrthophotoResultService({
+      baseMapId: baseMap.id,
+      data: read.data,
+      filesByPath: read.filesByPath,
+      ...(mode && { mode }),
+      versionLabel,
+    });
+    dispatch(setHiddenVersionIds(applied.inactiveVersionIds));
+    dispatch(triggerEntitiesTableUpdate("baseMaps"));
+    dispatch(triggerBaseMapsUpdate());
+
+    const lines = [
+      `Fond de plan mis à jour (${
+        applied.replaced ? "version remplacée" : "nouvelle version"
+      } « ${applied.versionLabel} ») : ${applied.updated} orthophoto(s) assemblée(s).`,
+    ];
+    if (applied.pending.length > 0)
+      lines.push(`Non assemblée(s) : ${applied.pending.join(", ")}.`);
+    if (applied.frameChanged && applied.hadAnnotations)
+      lines.push(
+        "Le cadre de la mosaïque a changé : vérifiez la position des annotations existantes."
+      );
+    if (!applied.scaleKept)
+      lines.push("Échelle non définie : calibrez le fond de plan.");
+    if (read.data.note) lines.push(`Note de l'IA : ${read.data.note}`);
+    lines.push(...read.data.warnings);
+    setReport({
+      severity:
+        applied.pending.length > 0 ||
+        read.data.warnings.length > 0 ||
+        (applied.frameChanged && applied.hadAnnotations)
+          ? "warning"
+          : "success",
+      lines,
+    });
+    setZipInfo(null);
   }
 
   // render
@@ -420,6 +468,15 @@ export default function SectionOrthophotoAddPhotos({ baseMap, orthophotos }) {
           </Alert>
         )}
       </Box>
+
+      <DialogApplyOrthophotoResult
+        open={Boolean(pendingResult)}
+        activeLabel={pendingResult?.activeLabel}
+        nextLabel={pendingResult?.nextLabel}
+        photosCount={pendingResult?.read.data.photos.length ?? 0}
+        onCancel={handleResultCancel}
+        onConfirm={handleResultChoice}
+      />
     </WhiteSectionGeneric>
   );
 }
