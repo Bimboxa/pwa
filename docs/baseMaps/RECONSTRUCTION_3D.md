@@ -106,6 +106,17 @@ the plan is displayed in the units of the GLB (`getBaseMapRenderScale`). With
 `relativeToBaseMap`, calibrating the plan with the scale tool resizes the
 model and its camera path.
 
+### Vertical offset of the model
+
+By default the lowest point of the model sits on the plane of the image
+(`inner.z = −zone.zMin`). « Calage → Décalage Z du modèle »
+(`SectionReconstructionModelOffset`, shown once a model is loaded) writes
+`scene3d.offsetZ` (model units; typed in scene units, converted with the
+`relativeToBaseMap` ratio): `attachScene3dGlbToBaseMapGroup` adds it to
+`inner.z`, the group key and the repair key of
+`useAutoLoadMapsInThreedEditor` carry it (re-attach). The camera path reads
+`inner.matrixWorld`, so it follows. Loading a new result resets it.
+
 ## The player (bottom bar)
 
 `SectionReconstruction3dBottomBarControls` (2D and 3D editors, once the base

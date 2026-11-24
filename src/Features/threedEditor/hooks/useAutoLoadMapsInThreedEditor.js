@@ -89,6 +89,8 @@ export default function useAutoLoadMapsInThreedEditor({
       b?.meterByPx ?? "",
       b?.scene3d?.sceneId ?? "",
       b?.scene3d?.display3d ?? "",
+      // vertical offset of a GLB model (Reconstruction 3D tool)
+      b?.scene3d?.offsetZ ?? "",
       b?.scene3d?.format === "GLB" && isRealisticRenderMode ? "pbr" : "",
       b?.localScan?.resourceId ?? "",
       // « Zmap pour le raycaster » switch of the Scan 3D panel

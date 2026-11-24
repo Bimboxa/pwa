@@ -60,11 +60,14 @@ export default function attachScene3dGlbToBaseMapGroup(
   pivot.rotation.z = MathUtils.degToRad(-(zone.rotationDeg || 0));
   scanWrap.add(pivot);
 
+  // scene3d.offsetZ (model units, set from the Reconstruction 3D tool) moves
+  // the model along Z relative to the plane of the image; 0 = lowest point
+  // of the model on the plane.
   const inner = new Group();
   inner.position.set(
     -zone.center[0],
     -zone.center[1],
-    -(zone.zMin ?? scene3d.bbox?.min?.[2] ?? 0)
+    -(zone.zMin ?? scene3d.bbox?.min?.[2] ?? 0) + (Number(scene3d.offsetZ) || 0)
   );
   pivot.add(inner);
 

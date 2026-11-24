@@ -3,6 +3,7 @@ import CloseIcon from "@mui/icons-material/Close";
 
 import BoxFlexVStretch from "Features/layout/components/BoxFlexVStretch";
 import SectionReconstructionSteps from "./SectionReconstructionSteps";
+import SectionReconstructionModelOffset from "./SectionReconstructionModelOffset";
 
 import useMainBaseMap from "Features/mapEditor/hooks/useMainBaseMap";
 import stringifyFileSize from "Features/files/utils/stringifyFileSize";
@@ -203,6 +204,12 @@ export default function PanelReconstruction3d() {
         </Box>
 
         <SectionReconstructionSteps baseMap={baseMap} frames={frames} />
+
+        {hasModel && (
+          <Box sx={{ mt: 1 }}>
+            <SectionReconstructionModelOffset baseMap={baseMap} />
+          </Box>
+        )}
       </BoxFlexVStretch>
     </BoxFlexVStretch>
   );

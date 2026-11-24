@@ -34,7 +34,9 @@ export function getScene3dGroupKey(baseMap, options) {
   if (!scene3d?.sceneId) return null;
   const key = `${scene3d.sceneId}|${getScene3dDisplay3d(baseMap)}`;
   return isScene3dGlb(baseMap)
-    ? `${key}|${options?.realisticShading ? "PBR" : "UNLIT"}`
+    ? `${key}|${options?.realisticShading ? "PBR" : "UNLIT"}|${
+        Number(scene3d.offsetZ) || 0
+      }`
     : key;
 }
 
