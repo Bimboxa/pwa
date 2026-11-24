@@ -2,7 +2,7 @@ import { useRef } from "react";
 
 import { useDispatch, useSelector } from "react-redux";
 
-import { setEditedOrthophotoId } from "../orthophotosSlice";
+import { setEditedOrthophotoId, setShowStations } from "../orthophotosSlice";
 
 import { Avatar, Box, Button, Typography } from "@mui/material";
 import Transform from "@mui/icons-material/Transform";
@@ -125,6 +125,13 @@ export default function SectionOrthophotoDetail({ orthophoto, baseMap }) {
     });
   }
 
+  // The handles belong to the stations layer: adjusting switches the
+  // stations on (count chip of the bottom bar).
+  function handleToggleAdjust() {
+    if (!isAdjusting) dispatch(setShowStations(true));
+    dispatch(setEditedOrthophotoId(isAdjusting ? null : orthophoto.id));
+  }
+
   function handleResetCorners() {
     db.orthophotos.update(orthophoto.id, {
       corners: getDefaultOrthophotoCorners({
@@ -172,11 +179,7 @@ export default function SectionOrthophotoDetail({ orthophoto, baseMap }) {
             size="small"
             variant={isAdjusting ? "contained" : "outlined"}
             startIcon={<Transform />}
-            onClick={() =>
-              dispatch(
-                setEditedOrthophotoId(isAdjusting ? null : orthophoto.id)
-              )
-            }
+            onClick={handleToggleAdjust}
           >
             {isAdjusting ? stopAdjustS : adjustS}
           </Button>

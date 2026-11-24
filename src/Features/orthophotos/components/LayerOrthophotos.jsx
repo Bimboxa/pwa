@@ -46,10 +46,10 @@ function LayerOrthophotosContent({ editable }) {
 // Unit orthophotos of the orthomosaic base map displayed by the 2D editor:
 // the camera stations (and, from the Orthophotos tool, the handles of the
 // orthophoto being adjusted) over the editor, and the floating panel of the
-// selected one. Shown while the bottom bar toggle is on, or while the
-// Orthophotos tool of the Fonds de plan module is opened (there the stations
-// can be dragged). Steps aside while a drawing mode is armed (a station must
-// not take a click of the drawing) and under a capture framing.
+// selected one. Shown while the count chip of the bottom bar is on — only
+// then; with the Orthophotos tool of the Fonds de plan module opened, the
+// stations can also be dragged. Steps aside while a drawing mode is armed (a
+// station must not take a click of the drawing) and under a capture framing.
 // Mounted once over the editors area (SectionViewer).
 export default function LayerOrthophotos() {
   const dispatch = useDispatch();
@@ -76,15 +76,22 @@ export default function LayerOrthophotos() {
 
   const is2dEditor =
     effectiveViewerKey === "MAP" || effectiveViewerKey === "BASE_MAPS";
-  const enabled = is2dEditor && isOrthophoto && (showStations || toolOpened);
+  // the count chip of the bottom bar rules, even with the tool opened: off,
+  // no station, no hover behaviour, no floating panel
+  const enabled = is2dEditor && isOrthophoto && showStations;
   const visible = enabled && !isDrawing && !captureFramingActive;
 
   // effects
 
-  // The selection only lives with the stations of ONE base map.
+  // The selection only lives with the stations of ONE base map — or with
+  // the opened tool, whose grid selects a photo to edit it even while the
+  // stations are off.
+  const keepsSelection = enabled || (toolOpened && isOrthophoto);
   useEffect(() => {
-    if (hasSelection && !enabled) dispatch(setSelectedOrthophotoId(null));
-  }, [hasSelection, enabled, dispatch]);
+    if (hasSelection && !keepsSelection) {
+      dispatch(setSelectedOrthophotoId(null));
+    }
+  }, [hasSelection, keepsSelection, dispatch]);
 
   useEffect(() => {
     dispatch(setSelectedOrthophotoId(null));

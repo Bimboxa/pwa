@@ -85,9 +85,9 @@ The rectified image is stretched onto its 4 corners
   stations as a DOM layer over the displayed 2D editor
   (`LayerOrthophotoStations`, same technique as the comment pins) and the
   floating panel of the selected one (`PopperOrthophoto`: original photo,
-  draggable / resizable). Shown while the bottom bar toggle
-  (`SectionOrthophotosBottomBarControls`, `orthophotos.showStations`,
-  per-device) is on, or while the Orthophotos tool is opened.
+  draggable / resizable). Shown while the count chip of the bottom
+  bar (`SectionOrthophotosBottomBarControls`, `orthophotos.showStations`,
+  per-device) is on, and only then — tool opened or not.
 - `OrthophotoOverlayLayer` (rendered by `StaticMapContent` inside the base
   map group): the rectified image of the selected orthophoto, above the
   mosaic and under the annotations.

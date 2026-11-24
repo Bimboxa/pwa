@@ -90,7 +90,8 @@ export default function SectionOrthophotosBottomBarControls() {
       <ButtonBaseMapsGrid
         title={showHoverOutlines ? hideOutlinesS : showOutlinesS}
         icon={<HighlightAlt />}
-        active={showHoverOutlines}
+        active={showStations && showHoverOutlines}
+        disabled={!showStations}
         onClick={() => dispatch(setShowHoverOutlines(!showHoverOutlines))}
       />
       <Divider orientation="vertical" flexItem sx={{ my: 0.75 }} />

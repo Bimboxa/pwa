@@ -28,8 +28,8 @@ import {
 // thumbnails (click selects, "x" on hover removes), add, the
 // detail of the selected one (name, images, « Recaler ») and « Ajouter des
 // photos » (Prompt IA round trip that builds the mosaic). While the tool
-// is opened the stations are drawn over the plan and can be dragged
-// (LayerOrthophotos).
+// is opened the stations — when the count chip of the bottom bar shows them
+// — can be dragged over the plan (LayerOrthophotos).
 export default function PanelOrthophotos() {
   const dispatch = useDispatch();
 

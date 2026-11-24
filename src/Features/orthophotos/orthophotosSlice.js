@@ -12,7 +12,7 @@ import { createSlice } from "@reduxjs/toolkit";
 // - overlayOpacity: opacity of that rectified image (session only);
 // - popperMode: what PopperOrthophoto shows — "SELECTION" (the original
 //   photo of the selected station) or "SOURCE" (grid of the original photos
-//   of the active orthophotos; stays open without a selection);
+//   of the active orthophotos). The panel shows as long as the stations do;
 // - editedOrthophotoId: the orthophoto whose 4 corners are being adjusted
 //   from the Orthophotos tool (Fonds de plan module).
 
