@@ -5,7 +5,7 @@ import { useDispatch, useSelector, useStore } from "react-redux";
 import { setSelectedOrthophotoId } from "../orthophotosSlice";
 
 import { Box } from "@mui/material";
-import { keyframes } from "@mui/material/styles";
+import { useTheme } from "@mui/material/styles";
 import OpenWithIcon from "@mui/icons-material/OpenWith";
 
 import db from "App/db/db";
@@ -21,21 +21,22 @@ import {
 import { get2dEditorKeyForModule } from "Features/viewers/utils/effectiveViewerKey";
 import { isValidOrthophotoCorners } from "../utils/getOrthophotoPlacement";
 import {
+  getOrthophotoHoverColor,
+  getOrthophotoHoverLineStyle,
+} from "../utils/orthophotoHoverStyle";
+import {
   getCornersCentre,
   moveCorner,
   rotateScaleCorners,
   translateCorners,
 } from "../utils/transformOrthophotoCorners";
 
-// Orthophotos under the cursor: outline of their rectified image and frame
-// of their station label, blinking in neon green.
-const HOVER_COLOR = "#39ff14";
+// Orthophotos under the cursor: thin outline of their rectified image and
+// frame of their station label, one variation of the theme secondary colour
+// per orthophoto (utils/orthophotoHoverStyle).
 const HOVER_CLASS = "orthophoto-under-cursor";
-const hoverBlink = keyframes`
-  0%, 49% { opacity: 1; }
-  50%, 100% { opacity: 0.15; }
-`;
-const HOVER_ANIMATION = `${hoverBlink} 0.7s linear infinite`;
+const HOVER_COLOR_VAR = "--orthophoto-hover-color";
+const HOVER_BORDER_STYLE_VAR = "--orthophoto-hover-border-style";
 
 // Ray casting, in the normalized frame of the base map.
 function isPointInQuad(point, quad) {
@@ -72,7 +73,9 @@ const DRAG_THRESHOLD_PX = 3;
 //   scale about the opposite corner, Alt + corner = that corner alone
 //   (deforms the image). One db write on release;
 // - hovering the base map: the outline of every rectified image holding the
-//   hovered point, and the frame of its station label, blink in neon green
+//   hovered point, and the frame of its station label, are drawn with a thin
+//   line — one variation of the secondary colour per orthophoto, solid /
+//   tight dashes / spaced dashes as the cursor gets away from the station
 //   (which photos rebuild this spot of the mosaic).
 export default function LayerOrthophotoStations({
   orthophotos,
@@ -81,6 +84,7 @@ export default function LayerOrthophotoStations({
 }) {
   const dispatch = useDispatch();
   const store = useStore();
+  const theme = useTheme();
 
   // data
 
@@ -228,6 +232,33 @@ export default function LayerOrthophotoStations({
           isPointInQuad(hovered, corners);
         const locals = isUnder ? corners.map(toLocal) : null;
         const show = Boolean(locals?.every(Boolean));
+        // Line style: how close the cursor is to the camera station (the
+        // centre of the rectified image when it has none), relative to the
+        // reach of the image — solid near it, tight then spaced dashes.
+        let lineStyle = null;
+        if (show) {
+          const station = toLocal(
+            draftRef.current.stations[orthophoto.id] ??
+              orthophoto.station ??
+              getCornersCentre(corners)
+          );
+          const reach = station
+            ? Math.max(
+                ...locals.map((p) =>
+                  Math.hypot(p.x - station.x, p.y - station.y)
+                )
+              )
+            : 0;
+          const distance = station
+            ? Math.hypot(
+                pointer.x - rootRect.left - station.x,
+                pointer.y - rootRect.top - station.y
+              )
+            : 0;
+          lineStyle = getOrthophotoHoverLineStyle(
+            reach > 0 ? distance / reach : 0
+          );
+        }
         if (outlineEl) {
           outlineEl.style.visibility = show ? "visible" : "hidden";
           if (show) {
@@ -235,9 +266,18 @@ export default function LayerOrthophotoStations({
               "points",
               locals.map((p) => `${p.x},${p.y}`).join(" ")
             );
+            outlineEl.setAttribute("stroke-dasharray", lineStyle.dashArray);
           }
         }
-        if (pillEl) pillEl.classList.toggle(HOVER_CLASS, show);
+        if (pillEl) {
+          pillEl.classList.toggle(HOVER_CLASS, show);
+          if (show) {
+            pillEl.style.setProperty(
+              HOVER_BORDER_STYLE_VAR,
+              lineStyle.borderStyle
+            );
+          }
+        }
       }
 
       // outline + handles of the adjusted orthophoto
@@ -400,6 +440,14 @@ export default function LayerOrthophotoStations({
 
   // render
 
+  // one variation of the secondary colour per orthophoto
+  const hoverColorById = new Map(
+    orthophotos.map((orthophoto, index) => [
+      orthophoto.id,
+      getOrthophotoHoverColor(theme.palette.secondary.main, index),
+    ])
+  );
+
   const handleSx = {
     position: "absolute",
     left: 0,
@@ -430,7 +478,6 @@ export default function LayerOrthophotoStations({
           width: 1,
           height: 1,
           pointerEvents: "none",
-          "& polygon": { animation: HOVER_ANIMATION },
         }}
       >
         {orthophotos.map((orthophoto) => (
@@ -441,8 +488,8 @@ export default function LayerOrthophotoStations({
               else hoverElsRef.current.delete(orthophoto.id);
             }}
             fill="none"
-            stroke={HOVER_COLOR}
-            strokeWidth={2.5}
+            stroke={hoverColorById.get(orthophoto.id)}
+            strokeWidth={1}
             strokeLinejoin="round"
             style={{ visibility: "hidden" }}
           />
@@ -522,6 +569,7 @@ export default function LayerOrthophotoStations({
             else pillElsRef.current.delete(orthophoto.id);
           }}
           onPointerDown={(e) => handleStationPointerDown(e, orthophoto)}
+          style={{ [HOVER_COLOR_VAR]: hoverColorById.get(orthophoto.id) }}
           sx={{
             position: "absolute",
             left: 0,
@@ -532,16 +580,17 @@ export default function LayerOrthophotoStations({
             touchAction: "none",
             // above the handles of the adjusted orthophoto
             zIndex: orthophoto.id === selectedOrthophotoId ? 2 : 1,
-            // its rectified image is under the cursor: blinking frame
+            // its rectified image is under the cursor: thin frame, in the
+            // colour and the line style of its outline
             [`&.${HOVER_CLASS} > div::after`]: {
               content: '""',
               position: "absolute",
               inset: -3,
               borderRadius: "6px",
-              border: `2.5px solid ${HOVER_COLOR}`,
-              boxShadow: `0 0 6px ${HOVER_COLOR}`,
+              border: "1px",
+              borderStyle: `var(${HOVER_BORDER_STYLE_VAR}, solid)`,
+              borderColor: `var(${HOVER_COLOR_VAR})`,
               pointerEvents: "none",
-              animation: HOVER_ANIMATION,
             },
           }}
         >
