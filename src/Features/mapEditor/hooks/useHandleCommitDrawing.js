@@ -261,7 +261,17 @@ export default function useHandleCommitDrawing({ annotations } = {}) {
                 dispatch(setToaster({ message: "Aucune image pour cette annotation.", isError: true }));
                 return;
             }
-            rawPoints = rectPoints;
+            // `imageAnchorAtClick` (photo of the 3D reconstruction player):
+            // the click is the ANCHOR of the photo (its numbered badge, i.e.
+            // its top-left corner), not its centre.
+            if (options?.imageAnchorAtClick) {
+                const click = rawPoints[0];
+                const dx = click.x - rectPoints[0].x;
+                const dy = click.y - rectPoints[0].y;
+                rawPoints = rectPoints.map((p) => ({ x: p.x + dx, y: p.y + dy }));
+            } else {
+                rawPoints = rectPoints;
+            }
             drawRectangle = true;
         }
 
