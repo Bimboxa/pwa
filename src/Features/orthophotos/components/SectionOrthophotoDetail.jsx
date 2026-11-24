@@ -83,6 +83,8 @@ export default function SectionOrthophotoDetail({ orthophoto, baseMap }) {
   const stationHelpS =
     "Faites glisser la pastille sur le plan pour déplacer la station.";
   const resetS = "Réinitialiser le calage";
+  const pendingHelpS =
+    "Photo à assembler : générez le prompt IA depuis « Ajouter des photos », ou ajoutez ici son orthophoto rectifiée.";
 
   // data
 
@@ -93,6 +95,8 @@ export default function SectionOrthophotoDetail({ orthophoto, baseMap }) {
   // helpers
 
   const isAdjusting = editedOrthophotoId === orthophoto.id;
+  // a photo waiting to be rectified has nothing to lay on the plan yet
+  const isPending = !orthophoto.orthoImage?.fileName;
 
   // handlers
 
@@ -101,6 +105,24 @@ export default function SectionOrthophotoDetail({ orthophoto, baseMap }) {
     if (next && next !== orthophoto.name) {
       db.orthophotos.update(orthophoto.id, { name: next });
     }
+  }
+
+  // A rectified image given by hand to a photo that had none yet: it lands
+  // centred on the plan, like an orthophoto added from the dialog.
+  async function handleReplaceOrtho(file) {
+    const image = await replaceOrthophotoImageService({
+      orthophoto,
+      role: "ortho",
+      file,
+    });
+    if (!image || orthophoto.corners) return;
+    await db.orthophotos.update(orthophoto.id, {
+      corners: getDefaultOrthophotoCorners({
+        baseMapSize: baseMap.getImageSize?.(),
+        imageSize: image.imageSize,
+      }),
+      station: orthophoto.station ?? { x: 0.5, y: 0.5 },
+    });
   }
 
   function handleResetCorners() {
@@ -128,9 +150,7 @@ export default function SectionOrthophotoDetail({ orthophoto, baseMap }) {
         <ImageRow
           label={orthoS}
           image={orthophoto.orthoImage}
-          onReplace={(file) =>
-            replaceOrthophotoImageService({ orthophoto, role: "ortho", file })
-          }
+          onReplace={handleReplaceOrtho}
         />
         <ImageRow
           label={sourceS}
@@ -141,36 +161,44 @@ export default function SectionOrthophotoDetail({ orthophoto, baseMap }) {
         />
       </WhiteSectionGeneric>
 
-      <WhiteSectionGeneric>
-        <Button
-          fullWidth
-          size="small"
-          variant={isAdjusting ? "contained" : "outlined"}
-          startIcon={<Transform />}
-          onClick={() =>
-            dispatch(setEditedOrthophotoId(isAdjusting ? null : orthophoto.id))
-          }
-        >
-          {isAdjusting ? stopAdjustS : adjustS}
-        </Button>
-        <Typography
-          variant="caption"
-          color="text.secondary"
-          sx={{ display: "block", mt: 1 }}
-        >
-          {isAdjusting ? adjustHelpS : stationHelpS}
+      {isPending ? (
+        <Typography variant="caption" color="text.secondary">
+          {pendingHelpS}
         </Typography>
-        {isAdjusting && (
+      ) : (
+        <WhiteSectionGeneric>
           <Button
+            fullWidth
             size="small"
-            color="inherit"
-            onClick={handleResetCorners}
-            sx={{ mt: 0.5 }}
+            variant={isAdjusting ? "contained" : "outlined"}
+            startIcon={<Transform />}
+            onClick={() =>
+              dispatch(
+                setEditedOrthophotoId(isAdjusting ? null : orthophoto.id)
+              )
+            }
           >
-            {resetS}
+            {isAdjusting ? stopAdjustS : adjustS}
           </Button>
-        )}
-      </WhiteSectionGeneric>
+          <Typography
+            variant="caption"
+            color="text.secondary"
+            sx={{ display: "block", mt: 1 }}
+          >
+            {isAdjusting ? adjustHelpS : stationHelpS}
+          </Typography>
+          {isAdjusting && (
+            <Button
+              size="small"
+              color="inherit"
+              onClick={handleResetCorners}
+              sx={{ mt: 0.5 }}
+            >
+              {resetS}
+            </Button>
+          )}
+        </WhiteSectionGeneric>
+      )}
     </Box>
   );
 }

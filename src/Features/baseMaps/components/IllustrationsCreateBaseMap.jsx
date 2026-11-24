@@ -102,6 +102,39 @@ export function IllustrationBlankPage() {
   );
 }
 
+export function IllustrationOrthophoto() {
+  return (
+    <SvgFrame bgcolor="#d9d4cf">
+      {/* overlapping top-down photos assembled into one mosaic */}
+      <g stroke="#f4f2ee" strokeWidth="2">
+        <rect x="22" y="18" width="62" height="44" fill="#a59a92" />
+        <rect
+          x="70"
+          y="30"
+          width="62"
+          height="44"
+          fill="#8f857e"
+          transform="rotate(6 101 52)"
+        />
+        <rect
+          x="44"
+          y="56"
+          width="62"
+          height="40"
+          fill="#b3a9a1"
+          transform="rotate(-4 75 76)"
+        />
+      </g>
+      {/* camera stations */}
+      <g fill="#ffffff" stroke="#0d47a1" strokeWidth="1.5">
+        <rect x="42" y="32" width="20" height="11" rx="2" />
+        <rect x="92" y="44" width="20" height="11" rx="2" />
+        <rect x="64" y="72" width="20" height="11" rx="2" />
+      </g>
+    </SvgFrame>
+  );
+}
+
 export function IllustrationSatellite() {
   return (
     <SvgFrame bgcolor="#ccd8c3">

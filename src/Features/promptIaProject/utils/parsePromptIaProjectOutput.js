@@ -219,7 +219,10 @@ function parseBbox(bbox) {
 // rectified image, all normalized [0..1] on the mosaic, origin top-left).
 // The mosaic file is required; a unit orthophoto that cannot be used is
 // dropped with a warning.
-function parseOrthophoto(raw, { where, name, imagePaths, warnings }) {
+// Also used by the Orthophotos tool (orthophotos/utils/
+// parseOrthophotoPromptOutput), whose result zip updates ONE existing base
+// map.
+export function parseOrthophoto(raw, { where, name, imagePaths, warnings }) {
   if (!isObject(raw)) return { error: `${where}.orthophoto doit être un objet.` };
   const file = resolveZipPath(raw.file, imagePaths);
   if (!file)

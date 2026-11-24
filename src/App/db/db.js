@@ -561,6 +561,8 @@ db.version(45).stores({
 //    orthoImage: {fileName, imageSize, thumbnail, fileUpdatedAt} — the
 //      rectified ("unit orthophoto") image,
 //    sourceImage: same shape — the original photo}
+//   A row with a sourceImage only (orthoImage / station / corners null) is a
+//   photo waiting to be rectified (« Ajouter des photos » of the tool).
 //   Image files live in db.files WITH the base map listingId so they ship
 //   in the Krto zip. See docs/baseMaps/ORTHOPHOTOS.md.
 db.version(46).stores({

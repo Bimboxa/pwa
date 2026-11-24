@@ -40,6 +40,13 @@ const BASE_MAP_SOURCE_CATALOG = [
     label: "Page blanche",
     caption: "Format à l'échelle",
   },
+  // Empty orthomosaic (baseMap.isOrthophoto): the photos are added from the
+  // Orthophotos tool, see docs/baseMaps/ORTHOPHOTOS.md.
+  {
+    key: "ORTHOPHOTO",
+    label: "Orthophoto",
+    caption: "Assemblage de photos vues de dessus",
+  },
   {
     key: "SATELLITE",
     label: "Image satellite",

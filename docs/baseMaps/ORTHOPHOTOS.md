@@ -71,6 +71,40 @@ shows the outline of the rectified image with its handles: centre = move,
 corner = rotate + scale about the opposite corner, Alt + corner = that corner
 alone (the placement becomes projective). One db write per gesture.
 
+## Starting from photos (« Ajouter des photos »)
+
+An orthomosaic can start empty: the « Orthophoto » card of the base map
+creation section creates a white page flagged `isOrthophoto`, with no scale.
+The mosaic is then built by an external AI chat, from the section « Ajouter
+des photos » of the Orthophotos tool (`SectionOrthophotoAddPhotos`,
+`services/orthophotoPromptServices.js`):
+
+1. **Photos** — dropped files, folders or zips of photos become **pending**
+   rows: `sourceImage` only, `orthoImage` / `station` / `corners` null
+   (`isPendingOrthophoto`). They are named `P01`, `P02`… and listed « À
+   assembler »; they have no station on the plan.
+2. **Prompt zip** — `buildOrthophotoPromptZip`: `INSTRUCTIONS.md`
+   (`docs/PROMPT_IA_ORTHOPHOTO_INSTRUCTIONS.md`), `contexte.json`
+   (`kind: "ORTHOPHOTO"`, each photo with `status: "NEW" | "PLACED"` and its
+   current placement), `donnees/photos/<name>.<ext>` and, when the base map
+   already has a mosaic, `donnees/mosaique.<ext>`.
+3. **Result zip** — `orthophoto.json` + `orthophotos/mosaique.png` +
+   `orthophotos/unitaires/<name>.png`, read by `readOrthophotoResultZip`
+   (`utils/parseOrthophotoPromptOutput.js`: same `orthophoto` object as the
+   project Prompt IA, a photo being designated by its `name`; the originals
+   never come back) and applied by `applyOrthophotoResultService`:
+   - the mosaic becomes a new **active version** of the base map; the white
+     page version is dropped, a former mosaic stays as an inactive (hidden)
+     version; `refWidth` / `refHeight` follow the mosaic;
+   - `meterByPx` comes from the result; without it, the scale of the record
+     only survives an unchanged frame;
+   - each returned photo gets its rectified image, station and corners; the
+     others stay pending.
+
+When the base map already has a mosaic the instructions ask the model to keep
+its frame, since the annotations and the placements are normalized on it. A
+changed frame is reported to the user when annotations exist.
+
 ## Prompt IA
 
 Project / Krto flow (`projet.json`): a base map carrying `orthophoto` instead
@@ -93,4 +127,5 @@ orthomosaic are always normalized on its image, whatever `coordinateSpace`.
 ## Not covered yet
 
 3D display and captures, single base map share (`baseMapShare`), remap of the
-stations / corners when a base map is re-framed, per-listing Prompt IA.
+stations / corners when a base map is re-framed, per-listing Prompt IA, HEIC
+photos (ignored at drop: the browser cannot decode them).

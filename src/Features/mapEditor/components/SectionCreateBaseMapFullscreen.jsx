@@ -10,6 +10,8 @@ import {
   setPdfFile,
 } from "Features/baseMapCreator/baseMapCreatorSlice";
 import { setToaster } from "Features/layout/layoutSlice";
+import { triggerBaseMapsUpdate } from "Features/baseMaps/baseMapsSlice";
+import { setSelectedMenuItemKey } from "Features/rightPanel/rightPanelSlice";
 
 import useProjectBaseMapListings from "Features/baseMaps/hooks/useProjectBaseMapListings";
 import useDefaultBaseMapsListingProps from "Features/baseMaps/hooks/useDefaultBaseMapsListingProps";
@@ -41,6 +43,7 @@ import {
   IllustrationPdf,
   IllustrationImage,
   IllustrationBlankPage,
+  IllustrationOrthophoto,
   IllustrationSatellite,
   IllustrationScene3d,
 } from "Features/baseMaps/components/IllustrationsCreateBaseMap";
@@ -54,6 +57,8 @@ import isLocalScanResource from "Features/localScans/utils/isLocalScanResource";
 
 import { selectDisabledBaseMapSourceKeys } from "Features/scopeConfig/utils/scopeConfigSelectors";
 import BASE_MAP_SOURCE_CATALOG from "Features/baseMaps/data/baseMapSourceCatalog";
+import { ORTHOPHOTOS_TOOL_KEY } from "Features/orthophotos/constants/orthophotosTool";
+import db from "App/db/db";
 
 import testIsPdf from "Features/pdf/utils/testIsPdf";
 import testIsImage from "Features/files/utils/testIsImage";
@@ -93,6 +98,10 @@ export default function SectionCreateBaseMapFullscreen({
   const imageSubtitleS = "JPG, PNG ou capture";
   const blankTitleS = "Page blanche";
   const blankSubtitleS = "Format à l'échelle";
+  const orthophotoTitleS = "Orthophoto";
+  const orthophotoSubtitleS = "Assemblage de photos vues de dessus";
+  const orthophotoNameS = "Orthophoto";
+  const orthophotoCreateS = "Créer";
   const satelliteTitleS = "Image satellite";
   const satelliteSubtitleS = "Extrait géoréférencé";
   const scene3dTitleS = "Scène 3D";
@@ -143,6 +152,7 @@ export default function SectionCreateBaseMapFullscreen({
   // « Ressources » of the Scène 3D card: only with a scan 3D resource
   const hasScanResources = useResources().some(isLocalScanResource);
 
+  const selectedViewerKey = useSelector((s) => s.viewers.selectedViewerKey);
   const selectedBaseMapsListingId = useSelector(
     (s) => s.mapEditor.selectedBaseMapsListingId
   );
@@ -321,6 +331,34 @@ export default function SectionCreateBaseMapFullscreen({
       meterByPx,
       orientation: "HORIZONTAL",
     });
+
+    onCreated?.(entity);
+    onClose?.();
+  }
+
+  // Empty orthomosaic: a white page flagged `isOrthophoto`, with no scale —
+  // the photos are added (and the mosaic generated) from the Orthophotos
+  // tool, opened right away in the Fonds de plan module.
+  async function handleCreateOrthophoto() {
+    const { pixelWidth, pixelHeight } = getBlankBaseMapGeometry({
+      format: "paysage",
+      size: "A3",
+      scale: 50,
+    });
+
+    const entity = await createBaseMapFromImage({
+      whitePage: { width: pixelWidth, height: pixelHeight },
+      name: orthophotoNameS,
+      listing,
+      orientation: "HORIZONTAL",
+    });
+    if (entity?.id) {
+      await db.baseMaps.update(entity.id, { isOrthophoto: true });
+      dispatch(triggerBaseMapsUpdate());
+      if (selectedViewerKey === "BASE_MAPS") {
+        dispatch(setSelectedMenuItemKey(ORTHOPHOTOS_TOOL_KEY));
+      }
+    }
 
     onCreated?.(entity);
     onClose?.();
@@ -621,6 +659,23 @@ export default function SectionCreateBaseMapFullscreen({
                         {otherS}
                       </Button>
                     </>
+                  }
+                />
+              )}
+              {isSourceEnabled("ORTHOPHOTO") && (
+                <CardCreateBaseMapOption
+                  title={orthophotoTitleS}
+                  subtitle={orthophotoSubtitleS}
+                  illustration={<IllustrationOrthophoto />}
+                  actions={
+                    <Button
+                      variant="outlined"
+                      color="inherit"
+                      size="small"
+                      onClick={handleCreateOrthophoto}
+                    >
+                      {orthophotoCreateS}
+                    </Button>
                   }
                 />
               )}

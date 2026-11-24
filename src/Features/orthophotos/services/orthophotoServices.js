@@ -67,6 +67,12 @@ export async function getOrthophotosOfBaseMap(baseMapId) {
   return sortOrthophotos(rows);
 }
 
+// A photo added from « Ajouter des photos », not rectified yet: it has its
+// original image only, and waits for the Prompt IA result.
+export function isPendingOrthophoto(orthophoto) {
+  return !orthophoto?.orthoImage?.fileName;
+}
+
 export function sortOrthophotos(rows) {
   return [...rows].sort(
     (a, b) =>
@@ -87,6 +93,8 @@ export function getNextOrthophotoName(orthophotos) {
 // Adds several orthophotos to ONE base map in a single transaction.
 // items: [{name, sourceFile, orthoFile, station: {x,y}, corners: [4 × {x,y}]}]
 // (station / corners normalized [0..1] on the base map reference image).
+// An item with a `sourceFile` only is a PENDING photo (no rectified image,
+// station nor corners yet — see isPendingOrthophoto).
 export async function addOrthophotosService({ baseMap, items }) {
   const { id: baseMapId, projectId, listingId } = baseMap ?? {};
   if (!baseMapId || !projectId || !items?.length) return [];
@@ -99,17 +107,22 @@ export async function addOrthophotosService({ baseMap, items }) {
   const rows = [];
   const fileRecords = [];
   for (const item of items) {
-    if (!item?.orthoFile) continue;
+    if (!item?.orthoFile && !item?.sourceFile) continue;
     const id = nanoid();
-    const ortho = await buildOrthophotoImageAsync({
-      file: item.orthoFile,
-      role: "ortho",
-      orthophotoId: id,
-      projectId,
-      listingId,
-      baseMapId,
-    });
-    fileRecords.push(ortho.fileRecord);
+    // no rectified image yet: a photo waiting for the Prompt IA round trip
+    let orthoImage = null;
+    if (item.orthoFile) {
+      const ortho = await buildOrthophotoImageAsync({
+        file: item.orthoFile,
+        role: "ortho",
+        orthophotoId: id,
+        projectId,
+        listingId,
+        baseMapId,
+      });
+      fileRecords.push(ortho.fileRecord);
+      orthoImage = ortho.image;
+    }
     let sourceImage = null;
     if (item.sourceFile) {
       const source = await buildOrthophotoImageAsync({
@@ -133,7 +146,7 @@ export async function addOrthophotosService({ baseMap, items }) {
       fractionalIndex: lastIndex,
       station: item.station ?? null,
       corners: item.corners ?? null,
-      orthoImage: ortho.image,
+      orthoImage,
       sourceImage,
     });
   }
@@ -147,6 +160,7 @@ export async function addOrthophotosService({ baseMap, items }) {
 }
 
 // Replaces the rectified ("ortho") or the original ("source") image.
+// Returns the new image descriptor.
 export async function replaceOrthophotoImageService({
   orthophoto,
   role,
@@ -168,6 +182,7 @@ export async function replaceOrthophotoImageService({
     await db.orthophotos.update(orthophoto.id, { [key]: image });
     if (previousFileName) await db.files.delete(previousFileName);
   });
+  return image;
 }
 
 // Soft-deletes the row (middleware) and deletes its two image files —

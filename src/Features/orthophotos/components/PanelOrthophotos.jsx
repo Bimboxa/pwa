@@ -21,14 +21,19 @@ import BoxFlexVStretch from "Features/layout/components/BoxFlexVStretch";
 import DialogDeleteRessource from "Features/layout/components/DialogDeleteRessource";
 import DialogAddOrthophoto from "./DialogAddOrthophoto";
 import SectionOrthophotoDetail from "./SectionOrthophotoDetail";
+import SectionOrthophotoAddPhotos from "./SectionOrthophotoAddPhotos";
 
 import useMainBaseMap from "Features/mapEditor/hooks/useMainBaseMap";
 import useOrthophotos from "../hooks/useOrthophotos";
-import { deleteOrthophotoService } from "../services/orthophotoServices";
+import {
+  deleteOrthophotoService,
+  isPendingOrthophoto,
+} from "../services/orthophotoServices";
 
 // Orthophotos tool of the right band (Fonds de plan module): the unit
-// orthophotos of the selected orthomosaic base map — list, add, delete, and
-// the detail of the selected one (name, images, « Recaler »). While the tool
+// orthophotos of the selected orthomosaic base map — list, add, delete, the
+// detail of the selected one (name, images, « Recaler ») and « Ajouter des
+// photos » (Prompt IA round trip that builds the mosaic). While the tool
 // is opened the stations are drawn over the plan and can be dragged
 // (LayerOrthophotos).
 export default function PanelOrthophotos() {
@@ -44,6 +49,7 @@ export default function PanelOrthophotos() {
   const addS = "Ajouter une orthophoto";
   const deleteS = "Supprimer";
   const noSourceS = "Sans image d'origine";
+  const pendingS = "À assembler";
 
   // data
 
@@ -115,13 +121,22 @@ export default function PanelOrthophotos() {
               sx={{ "&:hover .orthophoto-delete": { opacity: 1 } }}
             >
               <Avatar
-                src={orthophoto.orthoImage?.thumbnail}
+                src={
+                  orthophoto.orthoImage?.thumbnail ??
+                  orthophoto.sourceImage?.thumbnail
+                }
                 variant="rounded"
                 sx={{ width: 28, height: 28, mr: 1.5 }}
               />
               <ListItemText
                 primary={orthophoto.name}
-                secondary={orthophoto.sourceImage ? null : noSourceS}
+                secondary={
+                  isPendingOrthophoto(orthophoto)
+                    ? pendingS
+                    : orthophoto.sourceImage
+                      ? null
+                      : noSourceS
+                }
                 slotProps={{
                   primary: { variant: "body2", noWrap: true },
                   secondary: { variant: "caption" },
@@ -168,10 +183,17 @@ export default function PanelOrthophotos() {
         </List>
 
         {selected && (
-          <Box sx={{ p: 1.5 }}>
+          <Box sx={{ p: 1.5, pb: 0 }}>
             <SectionOrthophotoDetail orthophoto={selected} baseMap={baseMap} />
           </Box>
         )}
+
+        <Box sx={{ p: 1.5 }}>
+          <SectionOrthophotoAddPhotos
+            baseMap={baseMap}
+            orthophotos={orthophotos}
+          />
+        </Box>
       </BoxFlexVStretch>
 
       <DialogAddOrthophoto
