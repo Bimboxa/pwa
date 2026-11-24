@@ -73,6 +73,8 @@ const DRAG_THRESHOLD_PX = 3;
 // - handles of the adjusted orthophoto: centre = move, corner = rotate +
 //   scale about the opposite corner, Alt + corner = that corner alone
 //   (deforms the image). One db write on release;
+// - Tab / Shift + Tab: next / previous label of the stack of overlapping
+//   labels the selected one belongs to;
 // - hovering the base map: the outline of every rectified image holding the
 //   hovered point, and the frame of its station label, are drawn with a thin
 //   line — one variation of the secondary colour per orthophoto, solid /
@@ -120,7 +122,13 @@ export default function LayerOrthophotoStations({
   // last pointer position, and whether it is over the editor
   const pointerRef = useRef({ x: 0, y: 0, over: false });
   const latestRef = useRef({});
-  latestRef.current = { orthophotos, mainBaseMap, moduleKey, edited };
+  latestRef.current = {
+    orthophotos,
+    mainBaseMap,
+    moduleKey,
+    edited,
+    selectedOrthophotoId,
+  };
 
   // effects
 
@@ -157,6 +165,63 @@ export default function LayerOrthophotoStations({
       document.removeEventListener("pointerleave", handleLeave);
     };
   }, []);
+
+  // Tab (Shift + Tab: backwards) hands the selection to the next station
+  // label of the stack the selected one belongs to — the labels overlapping
+  // it on screen, directly or through another label — so a label hidden
+  // under the selected one can be reached without zooming in. Left to the
+  // browser while typing, and when the selected label overlaps none.
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if (e.key !== "Tab" || e.ctrlKey || e.metaKey || e.altKey) return;
+      const target = e.target;
+      if (
+        target instanceof HTMLElement &&
+        (target.isContentEditable ||
+          ["INPUT", "TEXTAREA", "SELECT"].includes(target.tagName))
+      ) {
+        return;
+      }
+      const { orthophotos, selectedOrthophotoId } = latestRef.current;
+      if (!selectedOrthophotoId) return;
+
+      const rectById = new Map();
+      for (const orthophoto of orthophotos) {
+        const el = pillElsRef.current.get(orthophoto.id);
+        if (!el || el.style.visibility === "hidden") continue;
+        const rect = (el.firstElementChild ?? el).getBoundingClientRect();
+        if (rect.width > 0) rectById.set(orthophoto.id, rect);
+      }
+      if (!rectById.has(selectedOrthophotoId)) return;
+      const overlap = (a, b) =>
+        a.left < b.right &&
+        b.left < a.right &&
+        a.top < b.bottom &&
+        b.top < a.bottom;
+      // stack of the selected label (transitive overlap)
+      const stack = new Set([selectedOrthophotoId]);
+      const queue = [selectedOrthophotoId];
+      while (queue.length > 0) {
+        const rect = rectById.get(queue.pop());
+        for (const [id, other] of rectById) {
+          if (stack.has(id) || !overlap(rect, other)) continue;
+          stack.add(id);
+          queue.push(id);
+        }
+      }
+      if (stack.size < 2) return;
+
+      const ids = orthophotos.map((o) => o.id).filter((id) => stack.has(id));
+      const index = ids.indexOf(selectedOrthophotoId);
+      const nextId =
+        ids[(index + (e.shiftKey ? -1 : 1) + ids.length) % ids.length];
+      e.preventDefault();
+      e.stopPropagation();
+      dispatch(setSelectedOrthophotoId(nextId));
+    };
+    window.addEventListener("keydown", handleKeyDown, true);
+    return () => window.removeEventListener("keydown", handleKeyDown, true);
+  }, [dispatch]);
 
   const active = orthophotos.length > 0;
   useEffect(() => {
