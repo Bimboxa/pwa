@@ -393,6 +393,7 @@ const InteractionLayer = forwardRef(({
   baseMapImageScale,
   baseMapImageOffset,
   baseMapImageUrl,
+  hideBaseMapImage, // base map image hidden in this editor (annotations only)
   pagePxPerPt,
   baseMapMainAngleInDeg,
   bgPose = { x: 0, y: 0, k: 1 },
@@ -628,6 +629,7 @@ const InteractionLayer = forwardRef(({
   const noSmallCuts = useSelector((s) => s.smartDetect.noSmallCuts);
   const convexHullEnabled = useSelector((s) => s.smartDetect.convexHull);
   const ignoreBaseMap = useSelector((s) => s.smartDetect.ignoreBaseMap);
+  const colorTolerance = useSelector((s) => s.smartDetect.colorTolerance);
   const useOutlines = useSelector((s) => s.smartDetect.useOutlines);
   const visibleAreaOnly = useSelector((s) => s.smartDetect.visibleAreaOnly);
   const { zoomContainer } = useSmartZoom();
@@ -6641,7 +6643,9 @@ const InteractionLayer = forwardRef(({
       // reuse the annotation-geometry detection (the S-key POLYGON_CLICK algo)
       // triggered from the click position. Runs sync but is wrapped async so
       // the cursor spinner paints and Escape can cancel.
-      if (useOutlinesRef.current) {
+      // Same when there is no image to read: "Ignorer le fond de plan" checked
+      // or base map image hidden — the surface is bounded by annotations only.
+      if (useOutlinesRef.current || ignoreBaseMap || hideBaseMapImage) {
         // Ignore additional clicks while a run is in flight.
         if (surfaceOutlineRunningRef.current) return;
 
@@ -6757,17 +6761,36 @@ const InteractionLayer = forwardRef(({
       // is bounded by the annotations only, as with "Ignorer le fond de plan".
       const isWhitePage = testIsWhitePageUrl(baseMapImageUrl);
 
-      const { points, cuts } = await cv.detectContoursAsync({
-        imageUrl: isWhitePage ? null : baseMapImageUrl,
-        x: pixelX,
-        y: pixelY,
-        viewportBBox,
-        exclusionMaskBuffer,
-        maskWidth,
-        maskHeight,
-        skipApproxPoly: rawDetection,
-        ignoreBaseMap: ignoreBaseMap || isWhitePage,
-      });
+      let points, cuts;
+      try {
+        ({ points, cuts } = await cv.detectContoursAsync({
+          imageUrl: isWhitePage ? null : baseMapImageUrl,
+          x: pixelX,
+          y: pixelY,
+          viewportBBox,
+          exclusionMaskBuffer,
+          maskWidth,
+          maskHeight,
+          skipApproxPoly: rawDetection,
+          ignoreBaseMap: ignoreBaseMap || isWhitePage,
+          colorTolerance,
+        }));
+      } catch (err) {
+        // The worker rejects with { error: string }; a timeout with an Error.
+        const reason = err?.error || err?.message || String(err);
+        console.error("[SURFACE_DROP] detection failed", reason);
+        const isNoArea = /No valid contour|No area found/.test(reason);
+        dispatch(
+          setToaster({
+            message: isNoArea
+              ? "Aucune zone détectée à cet endroit. Essayez d'ajuster la tolérance couleur."
+              : `Échec de la détection de la zone : ${reason}`,
+            isError: true,
+          })
+        );
+        return;
+      }
+      if (!points?.length) return;
 
       // Convert returned points from source pixel coords back to local coords
       const toLocal = (p) => ({
