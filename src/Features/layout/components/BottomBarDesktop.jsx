@@ -12,6 +12,7 @@ import SwitchCoupledNavigation from "Features/layout/components/SwitchCoupledNav
 import SectionReadOnlyScopeInBottomBar from "Features/scopes/components/SectionReadOnlyScopeInBottomBar";
 import SectionImagesBottomBarControls from "Features/popperImages/components/SectionImagesBottomBarControls";
 import SectionOrthophotosBottomBarControls from "Features/orthophotos/components/SectionOrthophotosBottomBarControls";
+import SectionReconstruction3dBottomBarControls from "Features/reconstruction3d/components/SectionReconstruction3dBottomBarControls";
 import SectionBaseMapsBottomBarControls from "Features/baseMaps/components/SectionBaseMapsBottomBarControls";
 
 // The typed length / dimension constraints of the drawing modes (rectangle
@@ -71,6 +72,8 @@ export default function BottomBarDesktop() {
         <SectionImagesBottomBarControls />
         {/* Unit orthophotos of an orthomosaic base map (stations toggle) */}
         <SectionOrthophotosBottomBarControls />
+        {/* Video / photos player of a 3D reconstruction base map */}
+        <SectionReconstruction3dBottomBarControls />
         {/* Base map image mode + base maps grid of the displayed editor */}
         <SectionBaseMapsBottomBarControls />
         <SwitchCoupledNavigation />

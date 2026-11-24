@@ -68,6 +68,7 @@ const PROJECT_TABLES = new Set([
   "photos",
   "photoPlans",
   "orthophotos",
+  "reconstructionFrames",
   "entityModels",
   "relAnnotationMappingCategory",
   "relAnnotationSubtractions",

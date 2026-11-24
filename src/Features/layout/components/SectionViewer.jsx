@@ -26,6 +26,7 @@ import PanelPhotos from "Features/photos/components/PanelPhotos";
 import PanelComments from "Features/comments/components/PanelComments";
 import LayerComments from "Features/comments/components/LayerComments";
 import LayerOrthophotos from "Features/orthophotos/components/LayerOrthophotos";
+import LayerReconstruction3d from "Features/reconstruction3d/components/LayerReconstruction3d";
 import PanelViewer from "Features/panelDrawing/components/PanelViewer";
 import PanelPovList from "Features/pov/components/PanelPovList";
 import ButtonSavePov from "Features/pov/components/ButtonSavePov";
@@ -364,6 +365,11 @@ export default function SectionViewer() {
           floating panel of the selected one, over the displayed 2D editor
           (renders nothing on any other base map) */}
           <LayerOrthophotos />
+
+          {/* 3D reconstruction: floating video / photos player of the base
+          map, coupled with the camera of the 3D editor (renders nothing on
+          any other base map) */}
+          <LayerReconstruction3d />
 
           {/* PDF editor: layer sliding up over the displayed editor, under the
           right tools panel (opened by the business objects' document links) */}

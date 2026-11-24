@@ -125,6 +125,12 @@ export default class BaseMap {
     // Orthomosaic base map: assembled from several top-down photos. Its
     // unit orthophotos live in db.orthophotos (Features/orthophotos).
     isOrthophoto,
+    // 3D reconstruction base map: a GLB rebuilt by an AI chat from photos or
+    // a video (Features/reconstruction3d). `reconstruction3d` = {mediaType:
+    // "VIDEO" | "PHOTOS", video: {fileName, srcFileName, durationS, width,
+    // height, fileSize} | null}; its images live in db.reconstructionFrames.
+    isReconstruction3d,
+    reconstruction3d,
     // Detail baseMap: created from a PDF page dropped from the Resources
     // panel. Stores NO file in db.files: the image is rendered on the fly
     // from createdFrom = {type:"PDF_PAGE", pdfFileName, resourceId,
@@ -187,6 +193,8 @@ export default class BaseMap {
     this.flattenedBaseMapId = flattenedBaseMapId;
     this.sourcePhotoBaseMapId = sourcePhotoBaseMapId;
     this.isOrthophoto = Boolean(isOrthophoto);
+    this.isReconstruction3d = Boolean(isReconstruction3d);
+    this.reconstruction3d = reconstruction3d ?? null;
     this.isDetail = isDetail;
     this.isBlocksBaseMap = Boolean(isBlocksBaseMap);
     this.createdFrom = createdFrom;
@@ -589,6 +597,8 @@ export default class BaseMap {
       scene3d: this.scene3d ?? null,
       localScan: this.localScan ?? null,
       isOrthophoto: this.isOrthophoto,
+      isReconstruction3d: this.isReconstruction3d,
+      reconstruction3d: this.reconstruction3d ?? null,
       fromDXF: this.fromDXF,
       dxf: this.dxf ?? null,
     };

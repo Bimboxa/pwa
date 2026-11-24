@@ -44,6 +44,7 @@ import {
   IllustrationImage,
   IllustrationBlankPage,
   IllustrationOrthophoto,
+  IllustrationReconstruction3d,
   IllustrationSatellite,
   IllustrationScene3d,
 } from "Features/baseMaps/components/IllustrationsCreateBaseMap";
@@ -58,6 +59,7 @@ import isLocalScanResource from "Features/localScans/utils/isLocalScanResource";
 import { selectDisabledBaseMapSourceKeys } from "Features/scopeConfig/utils/scopeConfigSelectors";
 import BASE_MAP_SOURCE_CATALOG from "Features/baseMaps/data/baseMapSourceCatalog";
 import { ORTHOPHOTOS_TOOL_KEY } from "Features/orthophotos/constants/orthophotosTool";
+import { RECONSTRUCTION_3D_TOOL_KEY } from "Features/reconstruction3d/constants/reconstruction3dTool";
 import db from "App/db/db";
 
 import testIsPdf from "Features/pdf/utils/testIsPdf";
@@ -102,6 +104,9 @@ export default function SectionCreateBaseMapFullscreen({
   const orthophotoSubtitleS = "Assemblage de photos vues de dessus";
   const orthophotoNameS = "Orthophoto";
   const orthophotoCreateS = "Créer";
+  const reconstructionTitleS = "Reconstruction 3D";
+  const reconstructionSubtitleS = "Modèle 3D à partir de photos ou d'une vidéo";
+  const reconstructionNameS = "Reconstruction 3D";
   const satelliteTitleS = "Image satellite";
   const satelliteSubtitleS = "Extrait géoréférencé";
   const scene3dTitleS = "Scène 3D";
@@ -331,6 +336,35 @@ export default function SectionCreateBaseMapFullscreen({
       meterByPx,
       orientation: "HORIZONTAL",
     });
+
+    onCreated?.(entity);
+    onClose?.();
+  }
+
+  // Empty 3D reconstruction: a white page flagged `isReconstruction3d`, with
+  // no scale — the photos / the video are added (and the model loaded) from
+  // the Reconstruction 3D tool, opened right away in the Fonds de plan
+  // module.
+  async function handleCreateReconstruction3d() {
+    const { pixelWidth, pixelHeight } = getBlankBaseMapGeometry({
+      format: "paysage",
+      size: "A3",
+      scale: 50,
+    });
+
+    const entity = await createBaseMapFromImage({
+      whitePage: { width: pixelWidth, height: pixelHeight },
+      name: reconstructionNameS,
+      listing,
+      orientation: "HORIZONTAL",
+    });
+    if (entity?.id) {
+      await db.baseMaps.update(entity.id, { isReconstruction3d: true });
+      dispatch(triggerBaseMapsUpdate());
+      if (selectedViewerKey === "BASE_MAPS") {
+        dispatch(setSelectedMenuItemKey(RECONSTRUCTION_3D_TOOL_KEY));
+      }
+    }
 
     onCreated?.(entity);
     onClose?.();
@@ -673,6 +707,23 @@ export default function SectionCreateBaseMapFullscreen({
                       color="inherit"
                       size="small"
                       onClick={handleCreateOrthophoto}
+                    >
+                      {orthophotoCreateS}
+                    </Button>
+                  }
+                />
+              )}
+              {isSourceEnabled("RECONSTRUCTION_3D") && (
+                <CardCreateBaseMapOption
+                  title={reconstructionTitleS}
+                  subtitle={reconstructionSubtitleS}
+                  illustration={<IllustrationReconstruction3d />}
+                  actions={
+                    <Button
+                      variant="outlined"
+                      color="inherit"
+                      size="small"
+                      onClick={handleCreateReconstruction3d}
                     >
                       {orthophotoCreateS}
                     </Button>

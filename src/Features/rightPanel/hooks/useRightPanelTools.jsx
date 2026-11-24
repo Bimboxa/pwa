@@ -18,6 +18,7 @@ import {
   School,
   ViewInAr,
   LinkedCamera,
+  VideoCameraBack,
 } from "@mui/icons-material";
 
 import { Badge, Box } from "@mui/material";
@@ -35,6 +36,8 @@ import {
 import useHasLocalScanBaseMaps from "Features/localScans/hooks/useHasLocalScanBaseMaps";
 import useIsMainBaseMapOrthophoto from "Features/orthophotos/hooks/useIsMainBaseMapOrthophoto";
 import { ORTHOPHOTOS_TOOL_KEY } from "Features/orthophotos/constants/orthophotosTool";
+import useIsMainBaseMapReconstruction3d from "Features/reconstruction3d/hooks/useIsMainBaseMapReconstruction3d";
+import { RECONSTRUCTION_3D_TOOL_KEY } from "Features/reconstruction3d/constants/reconstruction3dTool";
 
 import sortToolsByOrder from "../utils/sortToolsByOrder";
 
@@ -116,6 +119,7 @@ export default function useRightPanelTools() {
   // while an active folder of the scope holds one.
   const hasLocalScanBaseMaps = useHasLocalScanBaseMaps();
   const isMainBaseMapOrthophoto = useIsMainBaseMapOrthophoto();
+  const isMainBaseMapReconstruction3d = useIsMainBaseMapReconstruction3d();
 
   // const - tools without a `viewers` field are available in every viewer
 
@@ -320,6 +324,16 @@ export default function useRightPanelTools() {
       viewers: ["BASE_MAPS"],
       contextual: true,
       disabled: !isMainBaseMapOrthophoto,
+    },
+    // Photos / video of the selected base map — only while it is a 3D
+    // reconstruction (baseMap.isReconstruction3d).
+    {
+      key: RECONSTRUCTION_3D_TOOL_KEY,
+      label: "Reconstr. 3D",
+      icon: <VideoCameraBack />,
+      viewers: ["BASE_MAPS"],
+      contextual: true,
+      disabled: !isMainBaseMapReconstruction3d,
     },
   ];
 

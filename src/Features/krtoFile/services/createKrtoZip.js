@@ -116,6 +116,9 @@ export default async function createKrtoZip(scopeId, options) {
         // rows, rectified images, original photos — stay on the device and
         // are saved apart, in their own zip (orthophotos/services/
         // orthophotosArchiveServices, docs/baseMaps/ORTHOPHOTOS.md).
+        // NOT "reconstructionFrames" either: the images of a 3D
+        // reconstruction base map stay on the device, like its GLB and its
+        // video (docs/baseMaps/RECONSTRUCTION_3D.md).
         // Painted mesh parts (« Pinceau » 3D): listingId = the PAINTING
         // template's listing (scope content); the host is remapped through
         // hostAnnotationId on duplicate (remapDexieExportIds SIMPLE_FK).
@@ -187,6 +190,18 @@ export default async function createKrtoZip(scopeId, options) {
     const orthophotoFileNames = new Set(
         (await db.orthophotos.where("projectId").equals(projectId).toArray())
             .flatMap((o) => [o.orthoImage?.fileName, o.sourceImage?.fileName])
+            .filter(Boolean)
+    );
+
+    // Same for the images of the 3D reconstruction base maps.
+    const reconstructionFileNames = new Set(
+        (
+            await db.reconstructionFrames
+                .where("projectId")
+                .equals(projectId)
+                .toArray()
+        )
+            .map((f) => f.image?.fileName)
             .filter(Boolean)
     );
 
@@ -308,7 +323,8 @@ export default async function createKrtoZip(scopeId, options) {
                     listingIds.has(value.listingId) &&
                     !disabledListingIds.has(value.listingId) &&
                     !deletedVersionFileNames.has(value.fileName) &&
-                    !orthophotoFileNames.has(value.fileName)
+                    !orthophotoFileNames.has(value.fileName) &&
+                    !reconstructionFileNames.has(value.fileName)
                 );
             }
 

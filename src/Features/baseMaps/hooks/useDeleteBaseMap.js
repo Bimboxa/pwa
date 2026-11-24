@@ -46,6 +46,7 @@ export default function useDeleteBaseMap() {
         db.annotations,
         db.points,
         db.orthophotos,
+        db.reconstructionFrames,
       ],
       async () => {
         await db.baseMaps.delete(baseMap.id);
@@ -59,6 +60,11 @@ export default function useDeleteBaseMap() {
           // Unit orthophotos of an orthomosaic base map (soft-deleted; their
           // image files stay, like the version files, for the purge flow).
           await db.orthophotos.where("baseMapId").equals(baseMap.id).delete();
+          // Images of a 3D reconstruction base map (same rule).
+          await db.reconstructionFrames
+            .where("baseMapId")
+            .equals(baseMap.id)
+            .delete();
           // DETAIL annotations living on OTHER baseMaps may link this one
           // (detailBaseMapId): unlink them to avoid dangling references.
           await db.annotations
