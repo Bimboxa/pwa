@@ -95,6 +95,7 @@ export default async function clearScopeDataService(scopeId) {
             await db.annotations.where("listingId").anyOf(listingIds).delete();
             await db.annotationTemplates.where("listingId").anyOf(listingIds).delete();
             await db.photoPlans.where("listingId").anyOf(listingIds).delete();
+            await db.orthophotos.where("listingId").anyOf(listingIds).delete();
             await db.meshPaints.where("listingId").anyOf(listingIds).delete();
         }
 

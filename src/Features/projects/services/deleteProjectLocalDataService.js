@@ -92,6 +92,7 @@ export default async function deleteProjectLocalDataService(projectId) {
           db.dimensions3d,
           db.photos,
           db.photoPlans,
+          db.orthophotos,
           db.entityModels,
           db.relAnnotationMappingCategory,
           db.relAnnotationSubtractions,

@@ -34,6 +34,7 @@ import NodeLegendStatic from "Features/mapEditorGeneric/components/NodeLegendSta
 import NodeClippingPlanStatic from "Features/mapEditorGeneric/components/NodeClippingPlanStatic";
 import MeshSelectionHighlight from "Features/mapEditor/components/MeshSelectionHighlight";
 import OverlayBaseMapsLayer from "Features/baseMapOverlays/components/OverlayBaseMapsLayer";
+import OrthophotoOverlayLayer from "Features/orthophotos/components/OrthophotoOverlayLayer";
 
 import { useInteraction } from "Features/mapEditor/context/InteractionContext";
 import LayerEditorGrid from "Features/editorGrid/components/LayerEditorGrid";
@@ -83,6 +84,9 @@ function StaticMapContent({
   // ... and their images follow the global image mode ({ hideImage, opacity,
   // grayScale }, see resolveBaseMapImageDisplay)
   overlayImageDisplay,
+  // id of the base map when it is an orthomosaic (baseMap.isOrthophoto):
+  // its selected unit orthophoto is laid over the image
+  orthophotoBaseMapId = null,
 }) {
   // data
 
@@ -460,6 +464,15 @@ function StaticMapContent({
           meterByPx={baseMapMeterByPx}
           basePose={basePose}
         />
+
+        {/* --- SELECTED UNIT ORTHOPHOTO (orthomosaic base maps) ---
+            Above the main image, under the annotations. */}
+        {orthophotoBaseMapId && (
+          <OrthophotoOverlayLayer
+            baseMapId={orthophotoBaseMapId}
+            baseMapImageSize={baseMapImageSize}
+          />
+        )}
 
         {/* --- OVERLAID BASE MAPS (greyed, read-only) ---
             Above the main image, under the main annotations. */}

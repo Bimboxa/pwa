@@ -81,6 +81,9 @@ export default class BaseMap {
     // the flattened one points back to its source photo.
     flattenedBaseMapId,
     sourcePhotoBaseMapId,
+    // Orthomosaic base map: assembled from several top-down photos. Its
+    // unit orthophotos live in db.orthophotos (Features/orthophotos).
+    isOrthophoto,
     // Detail baseMap: created from a PDF page dropped from the Resources
     // panel. Stores NO file in db.files: the image is rendered on the fly
     // from createdFrom = {type:"PDF_PAGE", pdfFileName, resourceId,
@@ -142,6 +145,7 @@ export default class BaseMap {
     this.isPhoto = isPhoto;
     this.flattenedBaseMapId = flattenedBaseMapId;
     this.sourcePhotoBaseMapId = sourcePhotoBaseMapId;
+    this.isOrthophoto = Boolean(isOrthophoto);
     this.isDetail = isDetail;
     this.isBlocksBaseMap = Boolean(isBlocksBaseMap);
     this.createdFrom = createdFrom;
@@ -567,6 +571,7 @@ export default class BaseMap {
       whitePage: this.whitePage ?? null,
       scene3d: this.scene3d ?? null,
       localScan: this.localScan ?? null,
+      isOrthophoto: this.isOrthophoto,
       fromDXF: this.fromDXF,
       dxf: this.dxf ?? null,
     };

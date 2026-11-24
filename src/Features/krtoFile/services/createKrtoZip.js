@@ -109,6 +109,9 @@ export default async function createKrtoZip(scopeId, options) {
         // inline on the row (no db.points involvement).
         "photos",
         "photoPlans",
+        // Unit orthophotos of orthomosaic base maps: rows + image files
+        // carry the base map listingId.
+        "orthophotos",
         // Painted mesh parts (« Pinceau » 3D): listingId = the PAINTING
         // template's listing (scope content); the host is remapped through
         // hostAnnotationId on duplicate (remapDexieExportIds SIMPLE_FK).

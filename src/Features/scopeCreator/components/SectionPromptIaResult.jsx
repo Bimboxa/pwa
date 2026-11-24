@@ -36,7 +36,7 @@ export default function SectionPromptIaResult({
   const titleS = "3 · Zip renvoyé par l'IA";
   const dropS = "Glisser & déposer le zip renvoyé par le chat IA";
   const dropSubS =
-    "projet.json + PDFs des fonds de plan (+ maillages GLB, image satellite, documents)";
+    "projet.json + PDFs des fonds de plan (+ maillages GLB, orthophotos, image satellite, documents)";
   const referenceLabelByType = {
     SATELLITE: "Référence : image satellite",
     BASE_MAP: "Référence : fond de plan",

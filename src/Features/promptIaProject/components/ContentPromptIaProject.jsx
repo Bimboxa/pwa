@@ -60,6 +60,7 @@ export default function ContentPromptIaProject({
       project,
       data: read.data,
       pdfFilesByPath: read.pdfFilesByPath,
+      orthophotoFilesByPath: read.orthophotoFilesByPath,
       referenceImageFile: read.referenceImageFile,
       documentFilesByPath: read.documentFilesByPath,
     });

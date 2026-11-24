@@ -149,6 +149,7 @@ export default function useCreateProjectFromPromptIa() {
       project,
       data,
       pdfFilesByPath,
+      orthophotoFilesByPath = null,
       referenceImageFile = null,
       documentFilesByPath = null,
     }) => {
@@ -205,6 +206,7 @@ export default function useCreateProjectFromPromptIa() {
             projectId: created.id,
             data,
             pdfFilesByPath,
+            orthophotoFilesByPath,
             referenceImageFile,
             documentFilesByPath,
             tick,

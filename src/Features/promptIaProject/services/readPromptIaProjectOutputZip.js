@@ -34,10 +34,11 @@ function pickJsonPath(paths) {
 
 /**
  * Reads the zip returned by the AI chat: `projet.json` + the PDFs + the
- * satellite image, linked documents and the GLBs attached to plan views.
+ * satellite image, linked documents, the GLBs attached to plan views and the
+ * images of the orthomosaic base maps (mosaic + unit orthophotos).
  *
  * @param {File|Blob} file
- * @returns {Promise<{ok: true, data: Object, summary: Object, pdfFilesByPath: Map<string, File>, referenceImageFile: File|null, documentFilesByPath: Map<string, File>}
+ * @returns {Promise<{ok: true, data: Object, summary: Object, pdfFilesByPath: Map<string, File>, orthophotoFilesByPath: Map<string, File>, referenceImageFile: File|null, documentFilesByPath: Map<string, File>}
  *   | {ok: false, error: string}>}
  */
 export default async function readPromptIaProjectOutputZip(file) {
@@ -83,6 +84,7 @@ export default async function readPromptIaProjectOutputZip(file) {
   // Only the PDFs a base map uses are extracted.
   const pdfFilesByPath = new Map();
   const modelFilesByPath = new Map();
+  const orthophotoFilesByPath = new Map();
   for (const baseMap of parsed.data.baseMaps) {
     const scene = baseMap.scene3d;
     if (scene) {
@@ -96,6 +98,25 @@ export default async function readPromptIaProjectOutputZip(file) {
         );
       }
       scene.modelFile = modelFilesByPath.get(scene.file);
+    }
+    // Orthomosaic: the mosaic + the images of its unit orthophotos.
+    if (baseMap.orthophoto) {
+      const { file: mosaicPath, photos } = baseMap.orthophoto;
+      const paths = [
+        mosaicPath,
+        ...photos.flatMap((photo) => [photo.orthoFile, photo.sourceFile]),
+      ].filter(Boolean);
+      for (const imagePath of paths) {
+        if (orthophotoFilesByPath.has(imagePath)) continue;
+        const blob = await byPath.get(imagePath).async("blob");
+        orthophotoFilesByPath.set(
+          imagePath,
+          new File([blob], imagePath.split("/").pop(), {
+            type: getImageType(imagePath),
+          })
+        );
+      }
+      continue;
     }
     const path = baseMap.source.file;
     if (pdfFilesByPath.has(path)) continue;
@@ -134,6 +155,7 @@ export default async function readPromptIaProjectOutputZip(file) {
   return {
     ...parsed,
     pdfFilesByPath,
+    orthophotoFilesByPath,
     referenceImageFile,
     documentFilesByPath,
   };

@@ -37,6 +37,7 @@ import PanelEditorSettings from "Features/settings/components/PanelEditorSetting
 import Scan3dPanelHost from "Features/localScans/components/Scan3dPanelHost";
 import PanelResources from "Features/resources/components/PanelResources";
 import PanelBaseMapTransforms from "Features/baseMapTransforms/components/PanelBaseMapTransforms";
+import PanelOrthophotos from "Features/orthophotos/components/PanelOrthophotos";
 import PanelNotesAppSync from "Features/notesApp/components/PanelNotesAppSync";
 import PanelTutorial from "Features/tutorial/components/PanelTutorial";
 
@@ -224,6 +225,7 @@ export default function RightPanelContainer() {
           {selectedKey === "LOCAL_LLM" && <PanelLocalLlm />}
           {selectedKey === "SETTINGS" && <PanelEditorSettings />}
           {selectedKey === "BASE_MAP_TRANSFORMS" && <PanelBaseMapTransforms />}
+          {selectedKey === "ORTHOPHOTOS" && <PanelOrthophotos />}
           {selectedKey === "NOTES_APP_SYNC" && <PanelNotesAppSync />}
           {selectedKey === "ASSISTANT_RELAY" && <PanelAssistantRelay />}
         </Box>

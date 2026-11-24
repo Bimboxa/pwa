@@ -58,6 +58,7 @@ import DialogDeleteRessource from "Features/layout/components/DialogDeleteRessou
 import FieldTextV2 from "Features/form/components/FieldTextV2";
 import FieldBaseMapOpacity from "./FieldBaseMapOpacity";
 import FieldBaseMapIsBlocks from "Features/blocks/components/FieldBaseMapIsBlocks";
+import FieldBaseMapIsOrthophoto from "Features/orthophotos/components/FieldBaseMapIsOrthophoto";
 import FieldBaseMapBlueprintScale from "./FieldBaseMapBlueprintScale";
 import PanelBaseMapPrintZone from "./PanelBaseMapPrintZone";
 import CardBaseMapPrintZone from "./CardBaseMapPrintZone";
@@ -380,6 +381,9 @@ export default function PanelBaseMapProperties() {
 
         {/* Blocks base map (Features/blocks): the page defines blocks */}
         <FieldBaseMapIsBlocks baseMap={baseMap} />
+
+        {/* Orthomosaic (Features/orthophotos): unit orthophotos + stations */}
+        <FieldBaseMapIsOrthophoto baseMap={baseMap} />
 
         <FieldBaseMapVersions baseMap={baseMap} />
       </BoxFlexVStretch>

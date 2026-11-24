@@ -19,6 +19,7 @@ import getDebugAuthFromLocalStorage from "Features/auth/services/getDebugAuthFro
 import fetchIgnStaticImage from "Features/satelliteMap/services/fetchIgnStaticImage";
 import createResourcesFromFilesService from "Features/resources/services/createResourcesFromFilesService";
 import createPdfBaseMapsFromPromptIaService from "../services/createPdfBaseMapsFromPromptIaService";
+import createOrthophotoBaseMapsFromPromptIaService from "../services/createOrthophotoBaseMapsFromPromptIaService";
 import createScopeBusinessObjectsFromPromptIaService from "../services/createScopeBusinessObjectsFromPromptIaService";
 import {
   createPromptIaListingTemplatesService,
@@ -80,14 +81,16 @@ const sameBbox = (a, b) =>
  * by the dashboard "Prompt IA" project creation and the "Prompt IA" Krto
  * configuration.
  *
- * importProjectContent({ projectId, data, pdfFilesByPath, referenceImageFile,
- *   documentFilesByPath, tick, errors, counts })
+ * importProjectContent({ projectId, data, pdfFilesByPath,
+ *   orthophotoFilesByPath, referenceImageFile, documentFilesByPath, tick,
+ *   errors, counts })
  *   → { baseMaps: Map(payload id → { record, frame, page }), satellite,
  *       documents: Map(payload id → { resource, getPdfDocument, … }),
  *       destroy() }
  *   Satellite reference (when `site.reference.type === "SATELLITE"`), base
  *   maps rendered from the PDFs into the project's PLAN / ELEVATION listings
- *   (the project must have at least one base maps listing), placements from
+ *   (the project must have at least one base maps listing), orthomosaic base
+ *   maps (images of the zip) with their unit orthophotos, placements from
  *   the matching points, documents kept as PROJECT resources. One failing
  *   item is reported in `errors` and the import goes on. Call `destroy()`
  *   once the scopes are imported (releases the parsed PDF documents).
@@ -129,24 +132,46 @@ export default function useImportPromptIaContent() {
   async function createProjectBaseMaps({
     data,
     pdfFilesByPath,
+    orthophotoFilesByPath,
     projectId,
     tick,
     errors,
+    counts,
   }) {
     const listingByKind = await getBaseMapListingsByKind(projectId);
     const { listings } = listingByKind;
+    const getListing = (baseMap) =>
+      listingByKind[baseMap.listing] ?? listingByKind.PLAN ?? listings[0];
 
-    return createPdfBaseMapsFromPromptIaService({
-      baseMaps: data.baseMaps,
+    const baseMaps = await createPdfBaseMapsFromPromptIaService({
+      baseMaps: data.baseMaps.filter((b) => !b.orthophoto),
       pdfFilesByPath,
       projectId,
       createBaseMaps,
       createdBy: getCreatedBy(),
-      getListing: (baseMap) =>
-        listingByKind[baseMap.listing] ?? listingByKind.PLAN ?? listings[0],
+      getListing,
       tick,
       errors,
     });
+
+    // Orthomosaic base maps: images of the zip, with their unit orthophotos.
+    // Their entries carry no PDF frame (`page: null`): their coordinates are
+    // always normalized on the image.
+    const orthophotoBaseMaps = data.baseMaps.filter((b) => b.orthophoto);
+    if (orthophotoBaseMaps.length > 0) {
+      const { created, orthophotosCount } =
+        await createOrthophotoBaseMapsFromPromptIaService({
+          baseMaps: orthophotoBaseMaps,
+          orthophotoFilesByPath,
+          createBaseMaps,
+          getListing,
+          tick,
+          errors,
+        });
+      created.forEach((value, key) => baseMaps.set(key, value));
+      if (counts) counts.orthophotos = orthophotosCount;
+    }
+    return baseMaps;
   }
 
   // helpers - placements
@@ -249,9 +274,11 @@ export default function useImportPromptIaContent() {
     // normalized point of a base map of the json → pixels
     const toPixels = (point, target) => {
       const size = getRecordImageSize(target.record);
-      const p = inPdfSpace
-        ? userToImage(point, target.frame, target.page)
-        : point;
+      // an orthomosaic has no PDF page: always normalized on its image
+      const p =
+        inPdfSpace && target.page
+          ? userToImage(point, target.frame, target.page)
+          : point;
       return { x: p.x * size.width, y: p.y * size.height };
     };
 
@@ -415,7 +442,8 @@ export default function useImportPromptIaContent() {
       annotations,
       record,
       convertPayload:
-        coordinateSpace === "pdf_user_space"
+        // an orthomosaic has no PDF page: always normalized on its image
+        coordinateSpace === "pdf_user_space" && page
           ? (payload) => convertPayloadToImageSpace(payload, frame, page)
           : null,
       projectId,
@@ -431,6 +459,7 @@ export default function useImportPromptIaContent() {
     projectId,
     data,
     pdfFilesByPath,
+    orthophotoFilesByPath = null,
     referenceImageFile = null,
     documentFilesByPath = null,
     tick,
@@ -452,9 +481,11 @@ export default function useImportPromptIaContent() {
     const baseMaps = await createProjectBaseMaps({
       data,
       pdfFilesByPath,
+      orthophotoFilesByPath,
       projectId,
       tick,
       errors,
+      counts,
     });
     counts.baseMaps = baseMaps.size + (satellite?.created ? 1 : 0);
 
