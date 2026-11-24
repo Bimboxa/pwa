@@ -136,7 +136,19 @@ des photos » of the Orthophotos tool (`SectionOrthophotoAddPhotos`,
    - `meterByPx` comes from the result; without it, the scale of the record
      only survives an unchanged frame;
    - each returned photo gets its rectified image, station and corners; the
-     others stay pending.
+     others stay pending;
+   - the version records the photos it is made of in `orthophotoIds` (ids of
+     the returned photos). The grid of the tool greys the assembled photos
+     that are not part of the displayed version and counts the ones that
+     are; a version without `orthophotoIds` (older import, copied version)
+     shows the grid as is.
+
+**Unchecked photos.** `isExcluded` belongs to the photo, not to a version: it
+rules the **next** request. An unchecked photo is left out of the zip; when
+it was already assembled its name goes to `baseMap.removedPhotoNames` of
+`contexte.json`, and the request asks the model to recompose the mosaic from
+the listed photos only instead of copying the current one — otherwise the
+new version would look the same as the former.
 
 When the base map already has a mosaic the instructions ask the model to keep
 its frame, since the annotations and the placements are normalized on it. A

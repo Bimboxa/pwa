@@ -42,8 +42,11 @@ export default function PanelOrthophotos() {
   const emptyS = "Aucune orthophoto unitaire";
   const addS = "Ajouter une orthophoto";
   const removeS = "Supprimer";
-  const includedS = "Photo prise en compte — décocher pour l'écarter";
-  const excludedS = "Photo écartée — cocher pour la reprendre en compte";
+  const includedS =
+    "Photo prise en compte dans la prochaine demande — décocher pour l'écarter";
+  const excludedS =
+    "Photo écartée de la prochaine demande — cocher pour la reprendre en compte";
+  const notInVersionS = "absente de";
   const excludedTagS = "écartée";
   const noSourceS = "Sans image d'origine";
   const pendingS = "À assembler";
@@ -67,6 +70,19 @@ export default function PanelOrthophotos() {
   // helpers
 
   const selected = orthophotos.find((o) => o.id === selectedOrthophotoId);
+
+  // The photos the displayed version was assembled from, when the version
+  // recorded them (orthophotoIds, written at result import). The checkboxes
+  // are about the next request, not about this version.
+  const activeVersion = baseMap?.getActiveVersion?.();
+  const versionOrthophotoIds = Array.isArray(activeVersion?.orthophotoIds)
+    ? new Set(activeVersion.orthophotoIds)
+    : null;
+  const versionLabel = activeVersion?.label || "cette version";
+  const versionCount = versionOrthophotoIds
+    ? orthophotos.filter((o) => versionOrthophotoIds.has(o.id)).length
+    : 0;
+  const versionCountS = `${versionCount} photo${versionCount > 1 ? "s" : ""} dans ${versionLabel}`;
 
   // handlers
 
@@ -104,6 +120,11 @@ export default function PanelOrthophotos() {
         <Typography variant="body2" sx={{ fontWeight: "bold" }}>
           {baseMap.name || "Fond de plan"}
         </Typography>
+        {versionOrthophotoIds && (
+          <Typography variant="caption" color="text.secondary">
+            {versionCountS}
+          </Typography>
+        )}
       </Box>
 
       <BoxFlexVStretch sx={{ overflow: "auto" }}>
@@ -131,6 +152,10 @@ export default function PanelOrthophotos() {
             const isSelected = orthophoto.id === selectedOrthophotoId;
             const isPending = isPendingOrthophoto(orthophoto);
             const isExcluded = Boolean(orthophoto.isExcluded);
+            const isNotInVersion =
+              Boolean(versionOrthophotoIds) &&
+              !isPending &&
+              !versionOrthophotoIds.has(orthophoto.id);
             const thumbnail =
               orthophoto.orthoImage?.thumbnail ??
               orthophoto.sourceImage?.thumbnail;
@@ -138,13 +163,15 @@ export default function PanelOrthophotos() {
               <Tooltip
                 key={orthophoto.id}
                 title={
-                  isExcluded
-                    ? `${orthophoto.name} — ${excludedTagS}`
-                    : isPending
-                      ? `${orthophoto.name} — ${pendingS}`
-                      : orthophoto.sourceImage
-                        ? orthophoto.name
-                        : `${orthophoto.name} — ${noSourceS}`
+                  isNotInVersion
+                    ? `${orthophoto.name} — ${notInVersionS} ${versionLabel}${isExcluded ? `, ${excludedTagS}` : ""}`
+                    : isExcluded
+                      ? `${orthophoto.name} — ${excludedTagS}`
+                      : isPending
+                        ? `${orthophoto.name} — ${pendingS}`
+                        : orthophoto.sourceImage
+                          ? orthophoto.name
+                          : `${orthophoto.name} — ${noSourceS}`
                 }
                 placement="top"
                 disableInteractive
@@ -171,6 +198,18 @@ export default function PanelOrthophotos() {
                     "&:hover .orthophoto-remove": { opacity: 1 },
                   }}
                 >
+                  {/* not part of the displayed version: greyed */}
+                  {isNotInVersion && (
+                    <Box
+                      sx={{
+                        position: "absolute",
+                        inset: 0,
+                        backdropFilter: "grayscale(1)",
+                        bgcolor: "rgba(120,120,120,0.35)",
+                      }}
+                    />
+                  )}
+
                   {/* excluded photo: veiled */}
                   {isExcluded && (
                     <Box

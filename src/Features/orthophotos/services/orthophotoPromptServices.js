@@ -133,6 +133,12 @@ export async function readStoredFile(fileName) {
 function buildInstructionsMarkdown(context) {
   const { baseMap, photos } = context;
   const newCount = photos.filter((p) => p.status === "NEW").length;
+  const removedNames = baseMap.removedPhotoNames ?? [];
+  const mosaicRequest = !baseMap.mosaic
+    ? ""
+    : removedNames.length > 0
+      ? `Le fond de plan a déjà une mosaïque (\`${baseMap.mosaic.file}\`, ${baseMap.mosaic.width} × ${baseMap.mosaic.height} px) : **recompose-la à partir des seules photos listées ci-dessous**, en conservant son cadre. Retire les ${removedNames.length} photo(s) écartée(s) (${removedNames.join(", ")})${newCount > 0 ? ` et ajoute les ${newCount} nouvelle(s) photo(s)` : ""}.`
+      : `Le fond de plan a déjà une mosaïque (\`${baseMap.mosaic.file}\`, ${baseMap.mosaic.width} × ${baseMap.mosaic.height} px) : ajoute-lui les ${newCount} nouvelle(s) photo(s) en conservant son cadre.`;
   const lines = [
     `# Orthomosaïque — ${baseMap.name}`,
     "",
@@ -144,7 +150,7 @@ function buildInstructionsMarkdown(context) {
     `**Fond de plan** : ${baseMap.name}`,
     "",
     baseMap.mosaic
-      ? `Le fond de plan a déjà une mosaïque (\`${baseMap.mosaic.file}\`, ${baseMap.mosaic.width} × ${baseMap.mosaic.height} px) : ajoute-lui les ${newCount} nouvelle(s) photo(s) en conservant son cadre.`
+      ? mosaicRequest
       : `Le fond de plan est vide : assemble les ${photos.length} photo(s) en une orthomosaïque.`,
     "",
     "**Fichiers**",
@@ -180,10 +186,13 @@ function buildInstructionsMarkdown(context) {
  */
 export async function buildOrthophotoPromptZip({ baseMap, download = true }) {
   if (!baseMap?.id) return { ok: false, error: "Aucun fond de plan." };
-  // the photos unchecked in the tool are left out of the request
-  const orthophotos = (await getOrthophotosOfBaseMap(baseMap.id)).filter(
-    (o) => !o.isExcluded
-  );
+  // the photos unchecked in the tool are left out of the request; the ones
+  // already assembled are named, so that the model takes them off the mosaic
+  const allOrthophotos = await getOrthophotosOfBaseMap(baseMap.id);
+  const orthophotos = allOrthophotos.filter((o) => !o.isExcluded);
+  const removedPhotoNames = allOrthophotos
+    .filter((o) => o.isExcluded && !isPendingOrthophoto(o))
+    .map((o) => o.name);
 
   const zip = new JSZip();
   const photos = [];
@@ -238,6 +247,8 @@ export async function buildOrthophotoPromptZip({ baseMap, download = true }) {
     baseMap: {
       name: baseMap.name || "Orthophoto",
       mosaic,
+      // assembled photos to take off the current mosaic
+      ...(mosaic && removedPhotoNames.length > 0 && { removedPhotoNames }),
       // only meaningful while the frame of the mosaic is kept
       meterByPx: mosaic ? (record?.meterByPx ?? null) : null,
     },
@@ -497,6 +508,8 @@ export async function applyOrthophotoResultService({
   const rows = await getOrthophotosOfBaseMap(baseMapId);
   const rowByName = new Map(rows.map((r) => [r.name, r]));
   const rowUpdates = [];
+  // the photos this mosaic is made of, recorded on its version
+  const usedOrthophotoIds = [];
   const obsoleteFileNames = [];
   if (replacedVersion?.image?.fileName)
     obsoleteFileNames.push(replacedVersion.image.fileName);
@@ -519,6 +532,7 @@ export async function applyOrthophotoResultService({
     fileRecords.push(ortho.fileRecord);
     if (row.orthoImage?.fileName)
       obsoleteFileNames.push(row.orthoImage.fileName);
+    usedOrthophotoIds.push(row.id);
     rowUpdates.push({
       key: row.id,
       changes: {
@@ -553,6 +567,7 @@ export async function applyOrthophotoResultService({
           image,
           isActive: true,
           transform: { x: 0, y: 0, rotation: 0, scale: 1 },
+          orthophotoIds: usedOrthophotoIds,
         });
       } else {
         await db.baseMapVersions.put({
@@ -565,6 +580,7 @@ export async function applyOrthophotoResultService({
           isActive: true,
           image,
           transform: { x: 0, y: 0, rotation: 0, scale: 1 },
+          orthophotoIds: usedOrthophotoIds,
         });
       }
       await db.baseMaps.update(baseMapId, {
