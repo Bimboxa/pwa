@@ -1,4 +1,4 @@
-import { useRef, useSyncExternalStore } from "react";
+import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 
 import { useDispatch, useSelector } from "react-redux";
 
@@ -21,13 +21,17 @@ import {
 import { useTheme } from "@mui/material/styles";
 import ChevronLeftIcon from "@mui/icons-material/ChevronLeft";
 import ChevronRightIcon from "@mui/icons-material/ChevronRight";
-import CloseIcon from "@mui/icons-material/Close";
+import DownloadOutlined from "@mui/icons-material/DownloadOutlined";
+import RotateLeft from "@mui/icons-material/RotateLeft";
+import RotateRight from "@mui/icons-material/RotateRight";
 
 import PanelFooter from "Features/layout/components/PanelFooter";
 import getPanelAutoMaxHeight from "Features/layout/utils/getPanelAutoMaxHeight";
 import usePanelDrag from "Features/layout/hooks/usePanelDrag";
 import usePanelResize from "Features/layout/hooks/usePanelResize";
 import usePhotoImageUrl from "Features/photos/hooks/usePhotoImageUrl";
+import downloadBlob from "Features/files/utils/downloadBlob";
+import { readStoredFile } from "../services/orthophotoPromptServices";
 
 import {
   getHoveredOrthophotoIdsKey,
@@ -145,17 +149,108 @@ function GridSourcePhotos({ orthophotos, selectedOrthophotoId, onSelect }) {
   );
 }
 
+// Original photo of the selected station, fitted in the body of the panel
+// and turned by `rotation` (0 / 90 / 180 / 270, display only). The frame is
+// sized in px from the measured body: a CSS rotation does not change the
+// layout box of the image, so a quarter turn has to swap its sides by hand.
+function ViewSelectedPhoto({ url, imageSize, rotation, fitHeight, alt }) {
+  // state
+
+  const bodyRef = useRef(null);
+  const [bodySize, setBodySize] = useState({ width: 0, height: 0 });
+
+  // effects
+
+  useEffect(() => {
+    const el = bodyRef.current;
+    if (!el) return undefined;
+    const observer = new ResizeObserver(([entry]) => {
+      const { width, height } = entry.contentRect;
+      setBodySize((prev) =>
+        Math.abs(prev.width - width) < 0.5 &&
+        Math.abs(prev.height - height) < 0.5
+          ? prev
+          : { width, height }
+      );
+    });
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, []);
+
+  // helpers
+
+  const isQuarterTurn = rotation % 180 !== 0;
+  const naturalW = imageSize?.width || 4;
+  const naturalH = imageSize?.height || 3;
+  // aspect ratio of the image AS DISPLAYED
+  const ratio = isQuarterTurn ? naturalH / naturalW : naturalW / naturalH;
+  // auto height: full width, the panel grows; fixed height: contained
+  let frameW = bodySize.width;
+  let frameH = frameW / ratio;
+  if (fitHeight && frameH > bodySize.height) {
+    frameH = bodySize.height;
+    frameW = frameH * ratio;
+  }
+
+  // render
+
+  return (
+    <Box
+      ref={bodyRef}
+      sx={{
+        flex: 1,
+        minHeight: 0,
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        overflow: fitHeight ? "hidden" : "auto",
+        bgcolor: "grey.900",
+      }}
+    >
+      {frameW > 0 && (
+        <Box
+          sx={{
+            position: "relative",
+            flexShrink: 0,
+            width: frameW,
+            height: frameH,
+            // a tall frame in an auto-height panel scrolls from its top
+            alignSelf: fitHeight ? "center" : "flex-start",
+          }}
+        >
+          <Box
+            component="img"
+            src={url}
+            alt={alt}
+            draggable={false}
+            sx={{
+              position: "absolute",
+              top: "50%",
+              left: "50%",
+              width: isQuarterTurn ? frameH : frameW,
+              height: isQuarterTurn ? frameW : frameH,
+              transform: `translate(-50%, -50%) rotate(${rotation}deg)`,
+              transition: "transform 0.15s ease",
+            }}
+          />
+        </Box>
+      )}
+    </Box>
+  );
+}
+
 // ---------------------------------------------------------------------------
-// PopperOrthophoto — floating panel of the unit orthophotos. Same shell as
-// PopperComment / PopperImages: draggable header, PanelFooter with "auto" +
-// bottom-left resize handle. A toggle at the top picks the view:
-// - « Sélection »: the ORIGINAL photo of the selected station (its rectified
-//   image is laid over the base map by OrthophotoOverlayLayer), with previous
-//   / next station and, in the footer, the opacity of the rectified image;
+// PopperOrthophoto — floating panel of the unit orthophotos, shown as long as
+// the stations are displayed. Same shell as PopperComment / PopperImages:
+// draggable header, PanelFooter with "auto" + bottom-left resize handle.
+// The header only holds the view toggle:
+// - « Sélection »: a row with the number of the selected station, previous /
+//   next, two quarter-turn buttons (display only, kept while the panel
+//   lives) and the download of the original photo; then that photo (its
+//   rectified image is laid over the base map by OrthophotoOverlayLayer) and,
+//   in the footer, the opacity of the rectified image;
 // - « Source »: the grid of the original photos (GridSourcePhotos), which
-//   follows the cursor over the base map. This view stays open without a
-//   selected station.
-// Close = deselect and back to « Sélection » (the panel leaves the screen).
+//   follows the cursor over the base map.
 // ---------------------------------------------------------------------------
 export default function PopperOrthophoto({ orthophotos }) {
   const dispatch = useDispatch();
@@ -164,13 +259,17 @@ export default function PopperOrthophoto({ orthophotos }) {
 
   const prevS = "Orthophoto précédente";
   const nextS = "Orthophoto suivante";
-  const closeS = "Fermer";
+  const rotateLeftS = "Tourner de 90° vers la gauche (affichage seulement)";
+  const rotateRightS = "Tourner de 90° vers la droite (affichage seulement)";
+  const downloadS = "Télécharger l'image d'origine";
   const selectionS = "Sélection";
   const sourceS = "Source";
   const selectionTitleS = "Image d'origine de la station sélectionnée";
   const sourceTitleS = "Grille des photos d'origine";
   const missingS = "Image d'origine absente";
-  const noSelectionS = "Cliquez sur une station ou sur une photo.";
+  const noSelectionS =
+    "Cliquez sur une station du plan, ou sur une photo de la vue Source.";
+  const noSelectionRowS = "Aucune station sélectionnée";
   const opacityS = "Opacité de l'orthophoto sur le plan";
   const opacityLabelS = "Orthophoto";
 
@@ -198,12 +297,13 @@ export default function PopperOrthophoto({ orthophotos }) {
       : null;
   const stop = (e) => e.stopPropagation();
 
-  const sourceUrl = usePhotoImageUrl(
-    isSource ? null : orthophoto?.sourceImage?.fileName
-  );
+  const sourceFileName = orthophoto?.sourceImage?.fileName;
+  const sourceUrl = usePhotoImageUrl(isSource ? null : sourceFileName);
 
   // state
 
+  // quarter turns of the displayed photo: display only, never stored
+  const [rotation, setRotation] = useState(0);
   const { position, isDragging, handleMouseDown } = usePanelDrag();
   const paperRef = useRef(null);
   const {
@@ -221,20 +321,23 @@ export default function PopperOrthophoto({ orthophotos }) {
 
   // handlers
 
-  function handleClose() {
-    dispatch(setSelectedOrthophotoId(null));
-    dispatch(setOrthophotoPopperMode("SELECTION"));
-  }
-
   function handleSelectFromGrid(target) {
     dispatch(setSelectedOrthophotoId(target.id));
     dispatch(setOrthophotoPopperMode("SELECTION"));
   }
 
-  // render
+  function handleRotate(delta) {
+    setRotation((value) => (value + delta + 360) % 360);
+  }
 
-  // « Sélection » needs a station; « Source » stays open on its own
-  if (!orthophoto && !isSource) return null;
+  async function handleDownload() {
+    const stored = await readStoredFile(sourceFileName);
+    if (stored) {
+      downloadBlob(stored.blob, `${orthophoto.name}.${stored.extension}`);
+    }
+  }
+
+  // render
 
   const hasFixedHeight = Boolean(size) && !isAutoHeight;
 
@@ -276,16 +379,14 @@ export default function PopperOrthophoto({ orthophotos }) {
           : "transform 0.1s ease-out, right 0.15s ease",
       }}
     >
-      {/* Draggable header (whole bar except the controls) */}
+      {/* Draggable header: the view toggle alone */}
       <Box
         onMouseDown={handleMouseDown}
         sx={{
           flexShrink: 0,
           display: "flex",
           alignItems: "center",
-          gap: 1,
-          pl: 1,
-          pr: 0.5,
+          px: 1,
           py: 0.5,
           borderBottom: "1px solid",
           borderColor: "divider",
@@ -318,39 +419,79 @@ export default function PopperOrthophoto({ orthophotos }) {
             {sourceS}
           </ToggleButton>
         </ToggleButtonGroup>
-        <Typography
-          variant="body2"
-          sx={{ flex: 1, minWidth: 0, fontWeight: 700 }}
-          noWrap
+      </Box>
+
+      {/* « Sélection »: number, navigation, rotation, download */}
+      {!isSource && (
+        <Box
+          sx={{
+            flexShrink: 0,
+            display: "flex",
+            alignItems: "center",
+            gap: 0.25,
+            pl: 1.25,
+            pr: 0.5,
+            minHeight: 34,
+            borderBottom: "1px solid",
+            borderColor: "divider",
+          }}
         >
-          {!isSource && orthophoto ? orthophoto.name : ""}
-        </Typography>
-        <Box onMouseDown={stop} sx={{ display: "flex", alignItems: "center" }}>
-          {!isSource && (
-            <>
-              <IconButton
-                size="small"
-                title={prevS}
-                disabled={!prev}
-                onClick={() => dispatch(setSelectedOrthophotoId(prev?.id))}
-              >
-                <ChevronLeftIcon sx={{ fontSize: 18 }} />
-              </IconButton>
-              <IconButton
-                size="small"
-                title={nextS}
-                disabled={!next}
-                onClick={() => dispatch(setSelectedOrthophotoId(next?.id))}
-              >
-                <ChevronRightIcon sx={{ fontSize: 18 }} />
-              </IconButton>
-            </>
-          )}
-          <IconButton size="small" title={closeS} onClick={handleClose}>
-            <CloseIcon sx={{ fontSize: 16 }} />
+          <Typography
+            variant="body2"
+            noWrap
+            sx={{
+              flex: 1,
+              minWidth: 0,
+              fontWeight: orthophoto ? 700 : 400,
+              color: orthophoto ? "text.primary" : "text.secondary",
+            }}
+          >
+            {orthophoto ? orthophoto.name : noSelectionRowS}
+          </Typography>
+          <IconButton
+            size="small"
+            title={prevS}
+            disabled={!prev}
+            onClick={() => dispatch(setSelectedOrthophotoId(prev?.id))}
+          >
+            <ChevronLeftIcon sx={{ fontSize: 18 }} />
+          </IconButton>
+          <IconButton
+            size="small"
+            title={nextS}
+            disabled={!next}
+            onClick={() => dispatch(setSelectedOrthophotoId(next?.id))}
+          >
+            <ChevronRightIcon sx={{ fontSize: 18 }} />
+          </IconButton>
+          <IconButton
+            size="small"
+            title={rotateLeftS}
+            disabled={!sourceUrl}
+            onClick={() => handleRotate(-90)}
+            sx={{ ml: 1 }}
+          >
+            <RotateLeft sx={{ fontSize: 18 }} />
+          </IconButton>
+          <IconButton
+            size="small"
+            title={rotateRightS}
+            disabled={!sourceUrl}
+            onClick={() => handleRotate(90)}
+          >
+            <RotateRight sx={{ fontSize: 18 }} />
+          </IconButton>
+          <IconButton
+            size="small"
+            title={downloadS}
+            disabled={!sourceFileName}
+            onClick={handleDownload}
+            sx={{ ml: 1 }}
+          >
+            <DownloadOutlined sx={{ fontSize: 18 }} />
           </IconButton>
         </Box>
-      </Box>
+      )}
 
       {isSource ? (
         /* Grid of the original photos */
@@ -361,40 +502,32 @@ export default function PopperOrthophoto({ orthophotos }) {
             onSelect={handleSelectFromGrid}
           />
         </Box>
-      ) : (
+      ) : sourceUrl ? (
         /* Original photo of the selected station */
+        <ViewSelectedPhoto
+          url={sourceUrl}
+          imageSize={orthophoto.sourceImage?.imageSize}
+          rotation={rotation}
+          fitHeight={hasFixedHeight}
+          alt={orthophoto.name}
+        />
+      ) : (
         <Box
           sx={{
             flex: 1,
-            minHeight: 0,
+            minHeight: 120,
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
-            overflow: hasFixedHeight ? "hidden" : "auto",
             bgcolor: "grey.900",
           }}
         >
-          {sourceUrl ? (
-            <Box
-              component="img"
-              src={sourceUrl}
-              alt={orthophoto.name}
-              draggable={false}
-              sx={
-                hasFixedHeight
-                  ? { width: 1, height: 1, objectFit: "contain" }
-                  : { width: 1, height: "auto", display: "block" }
-              }
-            />
-          ) : (
-            <Typography variant="caption" sx={{ color: "grey.400", p: 3 }}>
-              {!orthophoto
-                ? noSelectionS
-                : orthophoto.sourceImage?.fileName
-                  ? "…"
-                  : missingS}
-            </Typography>
-          )}
+          <Typography
+            variant="caption"
+            sx={{ color: "grey.400", p: 3, textAlign: "center" }}
+          >
+            {!orthophoto ? noSelectionS : sourceFileName ? "…" : missingS}
+          </Typography>
         </Box>
       )}
 
