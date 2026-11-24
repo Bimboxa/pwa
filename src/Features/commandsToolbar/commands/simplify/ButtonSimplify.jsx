@@ -5,6 +5,7 @@ import { useDispatch, useSelector } from "react-redux";
 import {
   setSimplifyPolynomial,
   setSimplifyOuterContour,
+  setSimplifyRightAngles,
 } from "Features/smartDetect/smartDetectSlice";
 
 import { Box, Popover } from "@mui/material";
@@ -17,13 +18,15 @@ import {
   centerlineToStripEdge,
 } from "Features/annotations/utils/convertStripPolyline";
 
+import fitRightAnglePolygon from "Features/geometry/utils/fitRightAnglePolygon";
+
 import CommandButton from "../../components/CommandButton";
 
 import * as turf from "@turf/turf";
 import db from "App/db/db";
 
 // Toolbar button of « Simplifier la géométrie » (commandsToolbar): popover
-// with the two options + « Appliquer ».
+// with the options + « Appliquer ».
 export default function ButtonSimplify({ command, ctx, state, hotkeyLabel }) {
   // data
 
@@ -35,6 +38,9 @@ export default function ButtonSimplify({ command, ctx, state, hotkeyLabel }) {
   );
   const simplifyOuterContour = useSelector(
     (s) => s.smartDetect.simplifyOuterContour
+  );
+  const simplifyRightAngles = useSelector(
+    (s) => s.smartDetect.simplifyRightAngles
   );
   const projectId = useSelector((s) => s.projects.selectedProjectId);
 
@@ -130,6 +136,15 @@ export default function ButtonSimplify({ command, ctx, state, hotkeyLabel }) {
       newCoords = ring.slice(0, -1);
     } else {
       newCoords = geometry.geometry.coordinates;
+    }
+
+    // Closest polygon with only right angles (no-op when none can be fitted)
+    if (simplifyRightAngles) {
+      const fitted = fitRightAnglePolygon(
+        newCoords.map((c) => ({ x: c[0], y: c[1] })),
+        { closed: isPolygon }
+      );
+      if (fitted) newCoords = fitted.map((p) => [p.x, p.y]);
     }
 
     // Guard against degenerate results
@@ -258,6 +273,12 @@ export default function ButtonSimplify({ command, ctx, state, hotkeyLabel }) {
             value={simplifyOuterContour}
             onChange={(v) => dispatch(setSimplifyOuterContour(v))}
             label="Contour périphérique"
+            options={{ type: "check", showAsInline: true }}
+          />
+          <FieldCheck
+            value={simplifyRightAngles}
+            onChange={(v) => dispatch(setSimplifyRightAngles(v))}
+            label="Angles droits"
             options={{ type: "check", showAsInline: true }}
           />
           <ButtonInPanelV2 label="Appliquer" onClick={handleApply} />

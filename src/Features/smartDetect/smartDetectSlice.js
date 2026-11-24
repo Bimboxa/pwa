@@ -26,6 +26,7 @@ const smartDetectInitialState = {
   //
   simplifyPolynomial: true,
   simplifyOuterContour: false,
+  simplifyRightAngles: false,
   //
   // When true (default), pressing Space to commit detected strips runs
   // cleanSegments on (detected strips + visible 2-point POLYLINEs) before
@@ -70,6 +71,9 @@ export const smartDetectSlice = createSlice({
     setSimplifyOuterContour: (state, action) => {
       state.simplifyOuterContour = action.payload;
     },
+    setSimplifyRightAngles: (state, action) => {
+      state.simplifyRightAngles = action.payload;
+    },
     setCleanOnCommit: (state, action) => {
       state.cleanOnCommit = action.payload;
     },
@@ -88,6 +92,7 @@ export const {
   setVisibleAreaOnly,
   setSimplifyPolynomial,
   setSimplifyOuterContour,
+  setSimplifyRightAngles,
   setCleanOnCommit,
 } = smartDetectSlice.actions;
 
