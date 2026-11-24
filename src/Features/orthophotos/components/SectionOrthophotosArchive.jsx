@@ -4,13 +4,21 @@ import { useDispatch } from "react-redux";
 
 import { setToaster } from "Features/layout/layoutSlice";
 
-import { Box, Button, CircularProgress, Typography } from "@mui/material";
+import {
+  Box,
+  Button,
+  Checkbox,
+  CircularProgress,
+  FormControlLabel,
+  Typography,
+} from "@mui/material";
 import DownloadOutlined from "@mui/icons-material/DownloadOutlined";
 import UploadOutlined from "@mui/icons-material/UploadOutlined";
 
 import WhiteSectionGeneric from "Features/form/components/WhiteSectionGeneric";
 
 import stringifyFileSize from "Features/files/utils/stringifyFileSize";
+import useOrthophotosFileSizes from "../hooks/useOrthophotosFileSizes";
 import {
   buildOrthophotosArchiveZip,
   importOrthophotosArchiveService,
@@ -29,9 +37,12 @@ export default function SectionOrthophotosArchive({ baseMap, orthophotos }) {
 
   const titleS = "Sauvegarde des orthophotos";
   const helpS =
-    "Le Krto n'enregistre que l'image du fond de plan. Les photos d'origine, les orthophotos unitaires et leur calage restent sur cet appareil : sauvegardez-les dans un zip à part, rechargeable ici.";
+    "Le Krto n'enregistre que l'image du fond de plan. Les orthophotos unitaires, leur calage et les photos d'origine restent sur cet appareil : sauvegardez-les dans un zip à part, rechargeable ici.";
   const exportS = "Enregistrer le zip";
   const importS = "Charger un zip";
+  const includeSourcesS = "Inclure les photos d'origine";
+  const totalS = "Taille du zip";
+  const computingS = "calcul…";
 
   // state
 
@@ -39,8 +50,19 @@ export default function SectionOrthophotosArchive({ baseMap, orthophotos }) {
   const [exporting, setExporting] = useState(false);
   const [importing, setImporting] = useState(false);
   const [info, setInfo] = useState(null);
+  const [includeSources, setIncludeSources] = useState(false);
+
+  // data
+
+  const { orthoBytes, sourceBytes, complete } =
+    useOrthophotosFileSizes(orthophotos);
 
   // helpers
+
+  // images are stored as is in the zip: its size is their sum
+  const totalBytes = orthoBytes + (includeSources ? sourceBytes : 0);
+  const sizeLabel = (bytes) =>
+    complete ? stringifyFileSize(bytes) : computingS;
 
   const toast = (message, severity = "info") =>
     dispatch(setToaster({ message, severity }));
@@ -51,7 +73,10 @@ export default function SectionOrthophotosArchive({ baseMap, orthophotos }) {
     if (exporting) return;
     setExporting(true);
     try {
-      const result = await buildOrthophotosArchiveZip({ baseMap });
+      const result = await buildOrthophotosArchiveZip({
+        baseMap,
+        includeSources,
+      });
       if (!result.ok) {
         toast(result.error, "warning");
         return;
@@ -118,6 +143,29 @@ export default function SectionOrthophotosArchive({ baseMap, orthophotos }) {
         sx={{ display: "block", mb: 1 }}
       >
         {helpS}
+      </Typography>
+      <FormControlLabel
+        control={
+          <Checkbox
+            size="small"
+            checked={includeSources}
+            onChange={(e) => setIncludeSources(e.target.checked)}
+            sx={{ py: 0.25 }}
+          />
+        }
+        label={
+          <Typography variant="caption">
+            {`${includeSourcesS} (${sizeLabel(sourceBytes)})`}
+          </Typography>
+        }
+        sx={{ ml: -0.75, mr: 0 }}
+      />
+      <Typography
+        variant="caption"
+        color="text.secondary"
+        sx={{ display: "block", mb: 1 }}
+      >
+        {`${totalS} : ${sizeLabel(totalBytes)}`}
       </Typography>
       <Box sx={{ display: "flex", gap: 1 }}>
         <Button

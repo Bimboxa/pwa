@@ -39,6 +39,7 @@ export async function buildOrthophotoImageAsync({
   return {
     image: {
       fileName,
+      fileSize: file.size ?? null,
       imageSize,
       thumbnail,
       fileUpdatedAt: new Date().toISOString(),

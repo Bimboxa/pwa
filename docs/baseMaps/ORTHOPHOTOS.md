@@ -53,8 +53,13 @@ They are saved apart, from « Sauvegarde des orthophotos » of the tool
 orthophotos.json              kind "ORTHOPHOTOS_ARCHIVE", base map frame,
                               per orthophoto: name, station, corners, files
 unitaires/<nn>_<name>.<ext>   rectified images
-sources/<nn>_<name>.<ext>     original photos
+sources/<nn>_<name>.<ext>     original photos — only with « Inclure les
+                              photos d'origine » (off by default)
 ```
+
+The section shows the size of the original photos and of the zip
+(`image.fileSize`, `hooks/useOrthophotosFileSizes`). Loading an archive made
+without the original photos keeps the ones the device still has.
 
 « Charger un zip » loads such an archive into the selected orthomosaic base
 map: an orthophoto of the archive replaces the one of the same name, the

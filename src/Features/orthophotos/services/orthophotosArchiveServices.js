@@ -30,7 +30,7 @@ import {
 //
 //   orthophotos.json
 //   unitaires/<nn>_<name>.<ext>   rectified images
-//   sources/<nn>_<name>.<ext>     original photos
+//   sources/<nn>_<name>.<ext>     original photos (option, off by default)
 //
 // See docs/baseMaps/ORTHOPHOTOS.md.
 
@@ -42,12 +42,18 @@ const isPoint = (p) => Number.isFinite(p?.x) && Number.isFinite(p?.y);
 
 /**
  * Builds (and downloads) `orthophotos-<base map name>.zip`.
+ * `includeSources` (off by default): also archive the original photos, by
+ * far the heaviest part.
  *
  * @returns {Promise<{ok: true, fileName, sizeBytes, count, missingFiles: number, blob}
  *   | {ok: false, error: string}>} `missingFiles`: images absent from this
  *   device (their row is archived without them)
  */
-export async function buildOrthophotosArchiveZip({ baseMap, download = true }) {
+export async function buildOrthophotosArchiveZip({
+  baseMap,
+  includeSources = false,
+  download = true,
+}) {
   if (!baseMap?.id) return { ok: false, error: "Aucun fond de plan." };
   const orthophotos = await getOrthophotosOfBaseMap(baseMap.id);
   if (orthophotos.length === 0)
@@ -74,7 +80,9 @@ export async function buildOrthophotosArchiveZip({ baseMap, download = true }) {
       station: orthophoto.station ?? null,
       corners: orthophoto.corners ?? null,
       ortho: await addImage(orthophoto.orthoImage, "unitaires"),
-      source: await addImage(orthophoto.sourceImage, "sources"),
+      source: includeSources
+        ? await addImage(orthophoto.sourceImage, "sources")
+        : null,
     });
   }
 
@@ -87,6 +95,8 @@ export async function buildOrthophotosArchiveZip({ baseMap, download = true }) {
         kind: ORTHOPHOTOS_ARCHIVE_KIND,
         version: ARCHIVE_VERSION,
         generatedAt: new Date().toISOString(),
+        // false: the original photos were left out (lighter archive)
+        includesSources: Boolean(includeSources),
         // the frame `station` / `corners` are normalized on
         baseMap: {
           id: baseMap.id,
@@ -191,7 +201,8 @@ export async function readOrthophotosArchiveZip(file) {
 
 /**
  * Loads the orthophotos of an archive into a base map. An orthophoto of the
- * archive REPLACES the one of the same name; the others are kept.
+ * archive REPLACES the one of the same name (keeping its original photo when
+ * the archive has none); the others are kept.
  *
  * @param {Object} params
  * @param {Object} params.baseMap - hydrated BaseMap (target)
@@ -204,6 +215,20 @@ export async function importOrthophotosArchiveService({ baseMap, archive }) {
   const existing = await getOrthophotosOfBaseMap(baseMap.id);
   const names = new Set(archive.items.map((item) => item.name));
   const toReplace = existing.filter((row) => names.has(row.name));
+  // An archive made without the original photos must not cost the ones this
+  // device still has: the replaced orthophoto hands its photo over.
+  const items = archive.items.map((item) => ({ ...item }));
+  for (const row of toReplace) {
+    const item = items.find((i) => i.name === row.name && !i.sourceFile);
+    if (!item || !row.sourceImage?.fileName) continue;
+    const stored = await readStoredFile(row.sourceImage.fileName);
+    if (stored)
+      item.sourceFile = new File(
+        [stored.blob],
+        `${row.name}.${stored.extension}`,
+        { type: stored.blob.type }
+      );
+  }
   for (const row of toReplace) await deleteOrthophotoService(row);
 
   const rows = await addOrthophotosService({
@@ -212,7 +237,7 @@ export async function importOrthophotosArchiveService({ baseMap, archive }) {
       projectId: baseMap.projectId,
       listingId: baseMap.listingId,
     },
-    items: archive.items,
+    items,
   });
 
   const size = baseMap.getImageSize?.();
