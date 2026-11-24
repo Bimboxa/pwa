@@ -4,18 +4,9 @@ import { useDispatch, useSelector } from "react-redux";
 
 import { setSelectedOrthophotoId } from "../orthophotosSlice";
 
-import {
-  Avatar,
-  Box,
-  IconButton,
-  List,
-  ListItemButton,
-  ListItemText,
-  Tooltip,
-  Typography,
-} from "@mui/material";
+import { Box, IconButton, Tooltip, Typography } from "@mui/material";
 import AddIcon from "@mui/icons-material/Add";
-import DeleteOutline from "@mui/icons-material/DeleteOutline";
+import CloseIcon from "@mui/icons-material/Close";
 
 import BoxFlexVStretch from "Features/layout/components/BoxFlexVStretch";
 import DialogDeleteRessource from "Features/layout/components/DialogDeleteRessource";
@@ -31,7 +22,8 @@ import {
 } from "../services/orthophotoServices";
 
 // Orthophotos tool of the right band (Fonds de plan module): the unit
-// orthophotos of the selected orthomosaic base map — list, add, delete, the
+// orthophotos of the selected orthomosaic base map — grid of square
+// thumbnails (click selects, "x" on hover removes), add, the
 // detail of the selected one (name, images, « Recaler ») and « Ajouter des
 // photos » (Prompt IA round trip that builds the mosaic). While the tool
 // is opened the stations are drawn over the plan and can be dragged
@@ -47,7 +39,7 @@ export default function PanelOrthophotos() {
     "Ce fond de plan n'est pas une orthomosaïque. Activez « Orthomosaïque » dans ses propriétés pour gérer ses orthophotos unitaires.";
   const emptyS = "Aucune orthophoto unitaire";
   const addS = "Ajouter une orthophoto";
-  const deleteS = "Supprimer";
+  const removeS = "Retirer";
   const noSourceS = "Sans image d'origine";
   const pendingS = "À assembler";
 
@@ -70,6 +62,21 @@ export default function PanelOrthophotos() {
   // helpers
 
   const selected = orthophotos.find((o) => o.id === selectedOrthophotoId);
+
+  // handlers
+
+  // A photo still waiting to be assembled is removed at once (nothing lies
+  // on the plan yet); an assembled one asks first.
+  async function handleRemove(orthophoto) {
+    if (!isPendingOrthophoto(orthophoto)) {
+      setToDelete(orthophoto);
+      return;
+    }
+    await deleteOrthophotoService(orthophoto);
+    if (orthophoto.id === selectedOrthophotoId) {
+      dispatch(setSelectedOrthophotoId(null));
+    }
+  }
 
   // render
 
@@ -95,92 +102,156 @@ export default function PanelOrthophotos() {
       </Box>
 
       <BoxFlexVStretch sx={{ overflow: "auto" }}>
-        <List dense disablePadding>
-          {orthophotos.length === 0 && (
-            <Typography
-              variant="body2"
-              color="text.secondary"
-              sx={{ px: 2, py: 1 }}
-            >
-              {emptyS}
-            </Typography>
-          )}
-          {orthophotos.map((orthophoto) => (
-            <ListItemButton
-              key={orthophoto.id}
-              selected={orthophoto.id === selectedOrthophotoId}
-              onClick={() =>
-                dispatch(
-                  setSelectedOrthophotoId(
-                    orthophoto.id === selectedOrthophotoId
-                      ? null
-                      : orthophoto.id
-                  )
-                )
-              }
-              sx={{ "&:hover .orthophoto-delete": { opacity: 1 } }}
-            >
-              <Avatar
-                src={
-                  orthophoto.orthoImage?.thumbnail ??
-                  orthophoto.sourceImage?.thumbnail
-                }
-                variant="rounded"
-                sx={{ width: 28, height: 28, mr: 1.5 }}
-              />
-              <ListItemText
-                primary={orthophoto.name}
-                secondary={
-                  isPendingOrthophoto(orthophoto)
-                    ? pendingS
-                    : orthophoto.sourceImage
-                      ? null
-                      : noSourceS
-                }
-                slotProps={{
-                  primary: { variant: "body2", noWrap: true },
-                  secondary: { variant: "caption" },
-                }}
-              />
-              <Tooltip title={deleteS}>
-                <IconButton
-                  size="small"
-                  className="orthophoto-delete"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setToDelete(orthophoto);
-                  }}
-                  sx={{ opacity: 0, transition: "0.2s", p: 0.25 }}
-                >
-                  <DeleteOutline sx={{ fontSize: 16 }} />
-                </IconButton>
-              </Tooltip>
-            </ListItemButton>
-          ))}
-
-          <ListItemButton
-            onClick={() => setOpenAdd(true)}
-            sx={{ gap: 1.5, color: "text.disabled" }}
+        {orthophotos.length === 0 && (
+          <Typography
+            variant="body2"
+            color="text.secondary"
+            sx={{ px: 2, py: 1 }}
           >
+            {emptyS}
+          </Typography>
+        )}
+
+        {/* Square thumbnails: click selects, the hovered one shows a "x" */}
+        <Box
+          sx={{
+            display: "grid",
+            gridTemplateColumns: "repeat(auto-fill, minmax(72px, 1fr))",
+            gap: 0.75,
+            px: 1.5,
+            py: 0.5,
+          }}
+        >
+          {orthophotos.map((orthophoto) => {
+            const isSelected = orthophoto.id === selectedOrthophotoId;
+            const isPending = isPendingOrthophoto(orthophoto);
+            const thumbnail =
+              orthophoto.orthoImage?.thumbnail ??
+              orthophoto.sourceImage?.thumbnail;
+            return (
+              <Tooltip
+                key={orthophoto.id}
+                title={
+                  isPending
+                    ? `${orthophoto.name} — ${pendingS}`
+                    : orthophoto.sourceImage
+                      ? orthophoto.name
+                      : `${orthophoto.name} — ${noSourceS}`
+                }
+                placement="top"
+                disableInteractive
+              >
+                <Box
+                  onClick={() =>
+                    dispatch(
+                      setSelectedOrthophotoId(isSelected ? null : orthophoto.id)
+                    )
+                  }
+                  sx={{
+                    position: "relative",
+                    aspectRatio: "1 / 1",
+                    borderRadius: 1,
+                    overflow: "hidden",
+                    cursor: "pointer",
+                    bgcolor: "grey.300",
+                    backgroundImage: thumbnail ? `url("${thumbnail}")` : "none",
+                    backgroundSize: "cover",
+                    backgroundPosition: "center",
+                    outline: "2px solid",
+                    outlineColor: isSelected ? "primary.main" : "transparent",
+                    outlineOffset: isSelected ? 1 : 0,
+                    "&:hover .orthophoto-remove": { opacity: 1 },
+                  }}
+                >
+                  {/* name, on a dark band for any photo */}
+                  <Typography
+                    variant="caption"
+                    sx={{
+                      position: "absolute",
+                      left: 0,
+                      right: 0,
+                      bottom: 0,
+                      px: 0.5,
+                      py: "1px",
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 0.5,
+                      fontWeight: 700,
+                      lineHeight: 1.4,
+                      color: "common.white",
+                      background:
+                        "linear-gradient(transparent, rgba(0,0,0,0.65))",
+                    }}
+                  >
+                    {isPending && (
+                      <Box
+                        sx={{
+                          width: 6,
+                          height: 6,
+                          flexShrink: 0,
+                          borderRadius: "50%",
+                          bgcolor: "warning.main",
+                        }}
+                      />
+                    )}
+                    <Box
+                      component="span"
+                      sx={{
+                        overflow: "hidden",
+                        textOverflow: "ellipsis",
+                        whiteSpace: "nowrap",
+                      }}
+                    >
+                      {orthophoto.name}
+                    </Box>
+                  </Typography>
+
+                  <IconButton
+                    size="small"
+                    className="orthophoto-remove"
+                    title={removeS}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleRemove(orthophoto);
+                    }}
+                    sx={{
+                      position: "absolute",
+                      top: 2,
+                      right: 2,
+                      p: "2px",
+                      opacity: 0,
+                      transition: "0.15s",
+                      color: "common.white",
+                      bgcolor: "rgba(0,0,0,0.55)",
+                      "&:hover": { bgcolor: "rgba(0,0,0,0.8)" },
+                    }}
+                  >
+                    <CloseIcon sx={{ fontSize: 14 }} />
+                  </IconButton>
+                </Box>
+              </Tooltip>
+            );
+          })}
+
+          <Tooltip title={addS} placement="top" disableInteractive>
             <Box
+              onClick={() => setOpenAdd(true)}
               sx={{
-                width: 28,
-                height: 28,
+                aspectRatio: "1 / 1",
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "center",
                 borderRadius: 1,
                 border: "1.5px dashed",
                 borderColor: "divider",
+                cursor: "pointer",
+                "&:hover": { bgcolor: "action.hover" },
               }}
             >
-              <AddIcon sx={{ fontSize: 16, color: "text.disabled" }} />
+              <AddIcon sx={{ fontSize: 20, color: "text.disabled" }} />
             </Box>
-            <Typography variant="body2" color="text.disabled">
-              {addS}
-            </Typography>
-          </ListItemButton>
-        </List>
+          </Tooltip>
+        </Box>
 
         {selected && (
           <Box sx={{ p: 1.5, pb: 0 }}>
