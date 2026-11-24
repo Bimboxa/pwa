@@ -3,6 +3,8 @@ import { useDispatch, useSelector, useStore } from "react-redux";
 
 import { bumpBaseMapsLoadTick } from "../threedEditorSlice";
 
+import { getScene3dDisplay3d } from "Features/scene3d/constants/scene3dConstants";
+
 import useBaseMaps from "Features/baseMaps/hooks/useBaseMaps";
 import useDisabledBaseMapIds from "Features/baseMaps/hooks/useDisabledBaseMapIds";
 import useMainBaseMap from "Features/mapEditor/hooks/useMainBaseMap";
@@ -33,10 +35,15 @@ export default function useAutoLoadMapsInThreedEditor({
 
   const baseMapsKey = baseMaps.map((b) => b.id).join(",");
 
-  const isExtra = (b, mainId, visibleIds) =>
+  // Image eye on, or a « Scène 3D » model shown on its own (« 3D » chip on —
+  // see useApplyBaseMapVisibilityIn3d).
+  const isExtra = (b, mainId, visibleIds, hiddenScanIds) =>
     b.id !== mainId &&
     !b.isPhoto &&
-    visibleIds.includes(b.id) &&
+    (visibleIds.includes(b.id) ||
+      (Boolean(b.scene3d) &&
+        getScene3dDisplay3d(b) === "MESH" &&
+        !hiddenScanIds.includes(b.id))) &&
     !disabledIdsRef.current.has(b.id) &&
     Boolean(b?.image?.imageUrlClient);
 
@@ -50,8 +57,9 @@ export default function useAutoLoadMapsInThreedEditor({
     if (!threedEditor?.loadMaps || !mainBaseMap?.id) return;
     const state = store.getState().threedEditor;
     const visibleIds = state.visibleBaseMapIdsIn3d || [];
+    const hiddenScanIds = state.hiddenScene3dBaseMapIdsIn3d || [];
     const extras = baseMaps.filter((b) =>
-      isExtra(b, mainBaseMap.id, visibleIds)
+      isExtra(b, mainBaseMap.id, visibleIds, hiddenScanIds)
     );
     // Opacity is owned by ImagesManager (recorded desired state, applied at
     // mesh attach) — nothing to pass here.
@@ -97,8 +105,9 @@ export default function useAutoLoadMapsInThreedEditor({
     if (!mainBaseMap?.id) return;
     const state = store.getState().threedEditor;
     const visibleIds = state.visibleBaseMapIdsIn3d || [];
+    const hiddenScanIds = state.hiddenScene3dBaseMapIdsIn3d || [];
     const extras = baseMaps.filter((b) =>
-      isExtra(b, mainBaseMap.id, visibleIds)
+      isExtra(b, mainBaseMap.id, visibleIds, hiddenScanIds)
     );
     [mainBaseMap, ...extras].forEach((bm) => {
       threedEditor.ensureBaseMapLoaded(bm);

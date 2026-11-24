@@ -4,6 +4,7 @@ import { useDispatch, useSelector } from "react-redux";
 import { bumpSnapIndexEpoch } from "Features/threedEditor/threedEditorSlice";
 
 import { BASE_MAPS_SCAN_MODE } from "Features/baseMaps/constants/baseMapsScanMode";
+import { getScene3dDisplay3d } from "Features/scene3d/constants/scene3dConstants";
 
 import useBaseMaps from "Features/baseMaps/hooks/useBaseMaps";
 import useDisabledBaseMapIds from "Features/baseMaps/hooks/useDisabledBaseMapIds";
@@ -21,7 +22,10 @@ import selectHideBaseMapImagesIn3d from "Features/threedEditor/utils/selectHideB
 //   - the basemap group is loaded + kept visible whenever the basemap
 //     "participates" (its image OR its annotations should show),
 //   - the image (meshWrap) is shown only when the eye is on,
-//   - the scan (scanWrap) is shown when the eye is on AND its "3D" button is,
+//   - the scan (scanWrap) follows its own "3D" button, NOT the image eye: a
+//     base map shows its 3D model while its image is hidden, and takes part
+//     in the scene for that model alone (the "3D" button and the bottom bar
+//     « Scan 3D » mode are the ways to hide it),
 // so a basemap's annotations can render even while its image is hidden.
 //
 // A basemap shown for the first time is lazily created once, then cached so
@@ -123,7 +127,14 @@ export default function useApplyBaseMapVisibilityIn3d({
       const isDisabled = disabledIds.has(bm.id);
       const localScanOn =
         localScansShown && Boolean(bm.localScan) && !hiddenScan.has(bm.id);
-      const shouldParticipate = !isDisabled && (eyeOn || annoOn || localScanOn);
+      // « Scène 3D » model displayed as a mesh, « 3D » chip on.
+      const scene3dOn =
+        Boolean(bm.scene3d) &&
+        getScene3dDisplay3d(bm) === "MESH" &&
+        !hiddenScan.has(bm.id) &&
+        !scansHidden;
+      const shouldParticipate =
+        !isDisabled && (eyeOn || annoOn || localScanOn || scene3dOn);
 
       if (shouldParticipate) {
         if (!imagesManager.hasTexturedImageObject(bm.id)) {
@@ -131,8 +142,9 @@ export default function useApplyBaseMapVisibilityIn3d({
         }
         groupVisibleById[bm.id] = true;
         imageVisibleById[bm.id] = eyeOn && !hideBaseMaps;
-        scanVisibleById[bm.id] =
-          eyeOn && !hideBaseMaps && !hiddenScan.has(bm.id) && !scansHidden;
+        // The 3D model does not follow the image eye — the model alone,
+        // without the image plane under it.
+        scanVisibleById[bm.id] = !hiddenScan.has(bm.id) && !scansHidden;
       } else {
         groupVisibleById[bm.id] = false;
       }
