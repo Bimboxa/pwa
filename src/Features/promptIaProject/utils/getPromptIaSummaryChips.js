@@ -15,6 +15,9 @@ export default function getPromptIaSummaryChips(
     ...(summary.models3d > 0
       ? [plural(summary.models3d, "maillage 3D", "maillages 3D")]
       : []),
+    ...(summary.orthophotos > 0
+      ? [plural(summary.orthophotos, "orthophoto", "orthophotos")]
+      : []),
     plural(summary.listings, "liste", "listes"),
     plural(summary.templates, "modèle", "modèles"),
     plural(summary.annotations, "annotation", "annotations"),

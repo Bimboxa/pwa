@@ -514,3 +514,83 @@ test("rejects an unknown business object listing type", () => {
   json.scopes[0].businessObjectListings[0].type = "ISSUE";
   assert.match(parseDpgf(json).error, /type inconnu : ISSUE/);
 });
+
+test("an orthomosaic base map comes from an image with its unit orthophotos", () => {
+  const json = sample();
+  const corners = [
+    { x: 0.1, y: 0.1 },
+    { x: 0.5, y: 0.12 },
+    { x: 0.48, y: 0.6 },
+    { x: 0.08, y: 0.55 },
+  ];
+  json.baseMaps.push({
+    id: "bm_ortho",
+    name: "Orthomosaïque toiture",
+    orthophoto: {
+      file: "orthophotos/mosaique.png",
+      meterByPx: 0.004,
+      photos: [
+        {
+          name: "P01",
+          source: "orthophotos/sources/P01.jpg",
+          ortho: "orthophotos/unitaires/P01.png",
+          station: { x: 0.3, y: 0.35 },
+          corners,
+        },
+        // no station, original photo missing from the zip: kept, warned
+        { ortho: "P02.png", source: "nowhere.jpg", corners },
+        // unusable: dropped with a warning
+        { name: "P03", ortho: "orthophotos/unitaires/P02.png", corners: [] },
+        { name: "P04", ortho: "absent.png", corners },
+      ],
+    },
+  });
+  const imagePaths = [
+    ...IMAGE_PATHS,
+    "orthophotos/mosaique.png",
+    "orthophotos/sources/P01.jpg",
+    "orthophotos/unitaires/P01.png",
+    "orthophotos/unitaires/P02.png",
+  ];
+  const read = () =>
+    parsePromptIaProjectOutput(json, {
+      pdfPaths: PDF_PATHS,
+      imagePaths,
+      newId: makeIds(),
+    });
+
+  const result = read();
+  assert.equal(result.ok, true, result.error);
+  const ortho = result.data.baseMaps.at(-1);
+  assert.equal(ortho.source, null);
+  assert.equal(ortho.listing, "PLAN");
+  assert.equal(ortho.orthophoto.file, "orthophotos/mosaique.png");
+  assert.equal(ortho.orthophoto.meterByPx, 0.004);
+  assert.equal(ortho.orthophoto.photos.length, 2);
+  const [p1, p2] = ortho.orthophoto.photos;
+  assert.deepEqual(p1, {
+    name: "P01",
+    orthoFile: "orthophotos/unitaires/P01.png",
+    sourceFile: "orthophotos/sources/P01.jpg",
+    station: { x: 0.3, y: 0.35 },
+    corners,
+  });
+  assert.equal(p2.name, "P02");
+  assert.equal(p2.orthoFile, "orthophotos/unitaires/P02.png");
+  assert.equal(p2.sourceFile, null);
+  assert.ok(Math.abs(p2.station.x - 0.29) < 1e-9);
+  assert.equal(result.summary.orthophotos, 2);
+  const warnings = result.data.warnings.join("\n");
+  assert.match(warnings, /P02.*image d'origine absente/);
+  assert.match(warnings, /P03.*4 coins/);
+  assert.match(warnings, /P04.*image rectifiée absente/);
+
+  json.baseMaps.at(-1).orthophoto.meterByPx = -1;
+  assert.match(read().error, /meterByPx/);
+  json.baseMaps.at(-1).orthophoto.meterByPx = null;
+  json.baseMaps.at(-1).orthophoto.file = "missing.png";
+  assert.match(read().error, /orthophoto\.file introuvable/);
+  json.baseMaps.at(-1).orthophoto.file = "mosaique.png";
+  json.baseMaps.at(-1).listing = "ELEVATION";
+  assert.match(read().error, /vue en plan/);
+});

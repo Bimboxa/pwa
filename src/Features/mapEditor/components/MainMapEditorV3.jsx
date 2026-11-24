@@ -2926,6 +2926,9 @@ export default function MainMapEditorV3({ forViewerKey = "MAP" }) {
                     showBgImage={showBgImage}
                     basePose={basePose}
                     baseMapImageUrl={baseMap?.getUrl()}
+                    orthophotoBaseMapId={
+                      baseMap?.isOrthophoto ? baseMap.id : null
+                    }
                     baseMapImageSize={
                       baseMap?.getImageSize?.() || baseMap?.getImageSize?.()
                     }

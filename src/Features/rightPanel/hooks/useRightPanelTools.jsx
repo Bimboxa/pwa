@@ -17,6 +17,7 @@ import {
   SmartToy,
   School,
   ViewInAr,
+  LinkedCamera,
 } from "@mui/icons-material";
 
 import { Badge, Box } from "@mui/material";
@@ -32,6 +33,8 @@ import {
 } from "Features/scopeConfig/utils/scopeConfigSelectors";
 
 import useHasLocalScanBaseMaps from "Features/localScans/hooks/useHasLocalScanBaseMaps";
+import useIsMainBaseMapOrthophoto from "Features/orthophotos/hooks/useIsMainBaseMapOrthophoto";
+import { ORTHOPHOTOS_TOOL_KEY } from "Features/orthophotos/constants/orthophotosTool";
 
 import sortToolsByOrder from "../utils/sortToolsByOrder";
 
@@ -112,6 +115,7 @@ export default function useRightPanelTools() {
   // SCAN_3D edits the base maps projected from a point cloud: shown only
   // while an active folder of the scope holds one.
   const hasLocalScanBaseMaps = useHasLocalScanBaseMaps();
+  const isMainBaseMapOrthophoto = useIsMainBaseMapOrthophoto();
 
   // const - tools without a `viewers` field are available in every viewer
 
@@ -306,6 +310,16 @@ export default function useRightPanelTools() {
         </Box>
       ),
       viewers: ["BASE_MAPS"],
+    },
+    // Unit orthophotos of the selected base map — only while it is an
+    // orthomosaic (baseMap.isOrthophoto, switch of the base map properties).
+    {
+      key: ORTHOPHOTOS_TOOL_KEY,
+      label: "Orthophotos",
+      icon: <LinkedCamera />,
+      viewers: ["BASE_MAPS"],
+      contextual: true,
+      disabled: !isMainBaseMapOrthophoto,
     },
   ];
 

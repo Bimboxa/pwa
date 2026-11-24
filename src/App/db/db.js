@@ -549,6 +549,24 @@ db.version(45).stores({
   comments: "id,projectId,listingId,scopeId",
 });
 
+// Orthophotos (Features/orthophotos): the unit orthophotos of an
+// orthomosaic base map (baseMap.isOrthophoto).
+//   {id, projectId, listingId (the BASE MAP's listing), baseMapId,
+//    name ("P01"), fractionalIndex,
+//    station: {x, y} — camera station, INLINE and normalized [0..1] on the
+//      base map reference image (never a db.points row: the Krto points
+//      filter only keeps points referenced by annotations),
+//    corners: [tl, tr, br, bl] — the 4 corners of the rectified image on
+//      the base map, normalized [0..1] like the station,
+//    orthoImage: {fileName, imageSize, thumbnail, fileUpdatedAt} — the
+//      rectified ("unit orthophoto") image,
+//    sourceImage: same shape — the original photo}
+//   Image files live in db.files WITH the base map listingId so they ship
+//   in the Krto zip. See docs/baseMaps/ORTHOPHOTOS.md.
+db.version(46).stores({
+  orthophotos: "id,projectId,baseMapId,listingId",
+});
+
 // --- AUDIT HOOKS ---
 
 const AUDIT_TABLES = [
@@ -589,6 +607,7 @@ const AUDIT_TABLES = [
   "resources",
   "photos",
   "photoPlans",
+  "orthophotos",
   "scopeConfigs",
   "businessObjects",
   "relsBusinessObjectAnnotation",
@@ -627,6 +646,8 @@ const OWNERSHIP_EXEMPT_TABLES = new Set([
   // PhotoPlans are shared calibration resources: anyone can rename, re-orient
   // or recalibrate a plan photo, not only its creator.
   "photoPlans",
+  // Orthophotos follow their base map: anyone manages them.
+  "orthophotos",
   // Module/tool activation is shared configuration: anyone edits it, not
   // only the scope creator.
   "scopeConfigs",
@@ -900,6 +921,7 @@ const SOFT_DELETE_TABLES = new Set([
   "resources",
   "photos",
   "photoPlans",
+  "orthophotos",
   "businessObjects",
   "relsBusinessObjectAnnotation",
   "relsBusinessObjectResource",

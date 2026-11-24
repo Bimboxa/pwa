@@ -5,6 +5,7 @@
 import { COORDINATE_SPACES } from "../../promptIa/utils/parsePromptIaOutput.js";
 import parsePromptIaBusinessObjects from "../../businessObjects/utils/parsePromptIaBusinessObjects.js";
 import { validateImageImport } from "../../importAnnotations/utils/imageImport.js";
+import computeQuadHomography from "../../orthophotos/utils/computeQuadHomography.js";
 
 export const BASE_MAP_LISTING_KINDS = ["PLAN", "ELEVATION"];
 export const PROJECT_ANNOTATION_TYPES = [
@@ -19,6 +20,8 @@ const VECTOR_ANNOTATION_TYPES = PROJECT_ANNOTATION_TYPES.filter(
   (type) => type !== "IMAGE"
 );
 export const MAX_BASE_MAPS = 200;
+// Unit orthophotos of ONE orthomosaic base map (`baseMaps[].orthophoto`).
+export const MAX_ORTHOPHOTOS = 200;
 export const MAX_SCOPES = 50;
 export const MAX_ANNOTATIONS = 20000;
 export const MAX_DOCUMENTS = 50;
@@ -210,7 +213,89 @@ function parseBbox(bbox) {
   return ok ? { value: { x1, y1, x2, y2 } } : { error: true };
 }
 
-function parseBaseMaps(rawBaseMaps, { pdfPaths, filePaths, newId, warnings }) {
+// Orthomosaic base map (`baseMaps[].orthophoto`): an IMAGE of the zip — no
+// PDF source — assembled from top-down photos, with its unit orthophotos
+// (rectified image + original photo + camera station + the 4 corners of the
+// rectified image, all normalized [0..1] on the mosaic, origin top-left).
+// The mosaic file is required; a unit orthophoto that cannot be used is
+// dropped with a warning.
+function parseOrthophoto(raw, { where, name, imagePaths, warnings }) {
+  if (!isObject(raw)) return { error: `${where}.orthophoto doit être un objet.` };
+  const file = resolveZipPath(raw.file, imagePaths);
+  if (!file)
+    return {
+      error: `${where}.orthophoto.file introuvable dans le zip (image PNG ou JPEG attendue) : ${raw.file ?? "(vide)"}.`,
+    };
+  const meterByPx = raw.meterByPx ?? null;
+  if (meterByPx !== null && !(Number.isFinite(meterByPx) && meterByPx > 0))
+    return {
+      error: `${where}.orthophoto.meterByPx doit être un nombre > 0 (mètres par pixel) ou null.`,
+    };
+  if (raw.photos != null && !Array.isArray(raw.photos))
+    return { error: `${where}.orthophoto.photos doit être un tableau.` };
+  const rawPhotos = raw.photos ?? [];
+  if (rawPhotos.length > MAX_ORTHOPHOTOS)
+    return {
+      error: `${where}.orthophoto.photos : import limité à ${MAX_ORTHOPHOTOS} orthophotos.`,
+    };
+
+  const photos = [];
+  for (const [index, photo] of rawPhotos.entries()) {
+    const label =
+      cleanString(photo?.name) || `P${String(index + 1).padStart(2, "0")}`;
+    const drop = (reason) =>
+      warnings.push(
+        `Orthophoto « ${label} » de « ${name} » ignorée : ${reason}.`
+      );
+    if (!isObject(photo)) {
+      drop("entrée invalide");
+      continue;
+    }
+    const orthoFile = resolveZipPath(photo.ortho, imagePaths);
+    if (!orthoFile) {
+      drop("image rectifiée absente du zip");
+      continue;
+    }
+    const corners = photo.corners;
+    if (
+      !Array.isArray(corners) ||
+      corners.length !== 4 ||
+      !corners.every(isPoint) ||
+      !computeQuadHomography(corners)
+    ) {
+      drop("4 coins attendus (haut-gauche, haut-droit, bas-droit, bas-gauche)");
+      continue;
+    }
+    let sourceFile = null;
+    if (photo.source != null) {
+      sourceFile = resolveZipPath(photo.source, imagePaths);
+      if (!sourceFile)
+        warnings.push(
+          `Orthophoto « ${label} » de « ${name} » : image d'origine absente du zip.`
+        );
+    }
+    const cleanCorners = corners.map(({ x, y }) => ({ x, y }));
+    photos.push({
+      name: label,
+      orthoFile,
+      sourceFile,
+      // no station given: the centre of the rectified image
+      station: isPoint(photo.station)
+        ? { x: photo.station.x, y: photo.station.y }
+        : {
+            x: cleanCorners.reduce((sum, c) => sum + c.x, 0) / 4,
+            y: cleanCorners.reduce((sum, c) => sum + c.y, 0) / 4,
+          },
+      corners: cleanCorners,
+    });
+  }
+  return { value: { file, meterByPx, photos } };
+}
+
+function parseBaseMaps(
+  rawBaseMaps,
+  { pdfPaths, imagePaths, filePaths, newId, warnings }
+) {
   if (rawBaseMaps != null && !Array.isArray(rawBaseMaps))
     return fail("`baseMaps` doit être un tableau.");
   const list = rawBaseMaps ?? [];
@@ -233,6 +318,33 @@ function parseBaseMaps(rawBaseMaps, { pdfPaths, filePaths, newId, warnings }) {
       return fail(
         `${where}.listing inconnu : ${listing} (attendu ${BASE_MAP_LISTING_KINDS.join(" ou ")}).`
       );
+
+    // Orthomosaic: an image of the zip, no PDF source.
+    if (bm.orthophoto != null) {
+      const name = cleanString(bm.name) || `Fond de plan ${index + 1}`;
+      const orthophoto = parseOrthophoto(bm.orthophoto, {
+        where,
+        name,
+        imagePaths,
+        warnings,
+      });
+      if (orthophoto.error) return fail(orthophoto.error);
+      if (listing !== "PLAN")
+        return fail(`${where}.orthophoto : vue en plan (listing PLAN) requise.`);
+      const id = newId();
+      idMap.set(authorId, id);
+      baseMaps.push({
+        id,
+        name,
+        listing,
+        source: null,
+        orthophoto: orthophoto.value,
+        blueprintScale: null,
+        isDetail: false,
+        placement: parsePlacement(bm.placement, name, warnings),
+      });
+      continue;
+    }
 
     const source = bm.source;
     if (!isObject(source)) return fail(`${where}.source manquant.`);
@@ -672,6 +784,7 @@ export default function parsePromptIaProjectOutput(
 
   const parsedBaseMaps = parseBaseMaps(json.baseMaps, {
     pdfPaths,
+    imagePaths,
     filePaths,
     newId,
     warnings,
@@ -712,10 +825,15 @@ export default function parsePromptIaProjectOutput(
     (s) => s.businessObjectListings
   );
   const models3d = baseMaps.filter((baseMap) => baseMap.scene3d).length;
+  const orthophotos = baseMaps.reduce(
+    (n, baseMap) => n + (baseMap.orthophoto?.photos.length ?? 0),
+    0
+  );
   const summary = {
     scopes: scopes.length,
     baseMaps: baseMaps.length,
     ...(models3d > 0 && { models3d }),
+    ...(orthophotos > 0 && { orthophotos }),
     listings: listings.length,
     templates: listings.reduce((n, l) => n + l.annotationTemplates.length, 0),
     annotations: listings.reduce((n, l) => n + l.annotations.length, 0),

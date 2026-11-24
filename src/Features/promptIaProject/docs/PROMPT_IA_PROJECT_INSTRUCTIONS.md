@@ -27,6 +27,9 @@ Un **fichier zip** à télécharger, contenant :
 projet.json
 pdfs/<nom>.pdf
 modeles/<nom>.glb
+orthophotos/<mosaique>.png
+orthophotos/unitaires/<nom>.png
+orthophotos/sources/<nom>.jpg
 satellite/site.png
 documents/<nom>.pdf
 ```
@@ -42,13 +45,17 @@ documents/<nom>.pdf
   ce dossier.
 - `modeles/` — les maillages GLB autonomes qui accompagnent un fond de plan.
   Si aucun maillage n'est demandé, omets ce dossier.
+- `orthophotos/` — la mosaïque, les orthophotos unitaires et les photos
+  d'origine d'un fond de plan assemblé à partir de photos vues de dessus
+  (section « Orthomosaïque à partir de photos »). Sinon, n'ajoute pas ce
+  dossier.
 - `documents/` — les pièces écrites auxquelles les ouvrages ou les points
   d'attention renvoient (CCTP, notice…), recopiées **sans modification**
   (section « Documents »). Sinon, n'ajoute pas ce dossier.
 - `projet.json` — la description du projet (schéma plus bas).
 
 Si tu ne peux pas produire de zip, dis-le clairement plutôt que de renvoyer le
-JSON seul : l'application a besoin des PDF.
+JSON seul : l'application a besoin des PDF et des images.
 
 ## Démarche
 
@@ -58,6 +65,9 @@ JSON seul : l'application a besoin des PDF.
    plan, sauf si la page porte plusieurs dessins distincts (deux niveaux, un
    plan et une coupe) : découpe-la alors en plusieurs fonds avec
    `bboxInRatio`.
+   Si les données contiennent des **photos vues de dessus** d'un même
+   ouvrage (toiture, dalle, façade prise de face), assemble-les en un fond
+   de plan orthomosaïque (section « Orthomosaïque à partir de photos »).
 3. Crée les scopes décrits dans `scopesDescription`. N'en invente pas
    d'autres. Si la description est ambiguë, fais le choix le plus simple et
    signale-le dans `note`.
@@ -81,6 +91,9 @@ Clé racine `baseMaps`, un élément par fond de plan.
 - `name` : lisible, en français (« RDC », « R+1 », « Coupe AA »).
 - `listing` : `"PLAN"` pour une vue en plan, `"ELEVATION"` pour une coupe,
   une élévation ou une façade.
+- `orthophoto` : à la place de `source`, pour un fond de plan assemblé à
+  partir de photos vues de dessus (section « Orthomosaïque à partir de
+  photos »).
 - `source.file` : chemin du PDF **dans ton zip** (`pdfs/plans.pdf`).
 - `source.pageNumber` : numéro de page, à partir de 1.
 - `source.rotation` : rotation d'affichage de la page, `0`, `90`, `180` ou
@@ -114,6 +127,115 @@ Clé racine `baseMaps`, un élément par fond de plan.
 Pour mesurer une zone : rends la page affichée en image (par exemple PyMuPDF
 `page.set_rotation(r)` puis `page.get_pixmap()`), relève le cadre en pixels,
 puis divise par la largeur et la hauteur de cette image.
+
+## Orthomosaïque à partir de photos
+
+Quand l'utilisateur fournit plusieurs **photos vues de dessus** (perche,
+drone, nacelle) d'une même surface plane — typiquement une toiture-terrasse —
+tu les assembles en **un fond de plan image**, l'orthomosaïque, et tu
+conserves chaque photo pour que l'utilisateur puisse y revenir depuis le
+plan. Ce fond de plan n'a **pas** de clé `source` : il porte une clé
+`orthophoto`.
+
+Ne produis une orthomosaïque que si les photos se recouvrent assez pour être
+recalées entre elles. Une photo isolée, ou des photos sans recouvrement, ne
+font pas une mosaïque : signale-le dans `note`.
+
+### Démarche
+
+1. **Rectifie chaque photo** sur le plan de la surface (homographie) : dans
+   l'image obtenue, l'« orthophoto unitaire », les lignes parallèles de la
+   surface sont parallèles et les angles droits sont droits. Appuie-toi sur
+   les éléments plans de la surface (lés d'étanchéité, joints, relevés,
+   dallage) et sur les points communs entre photos. Ce qui dépasse du plan
+   (édicules, souches, personnes, perche) reste déformé : c'est normal.
+2. **Recale les orthophotos unitaires entre elles** dans un repère commun, à
+   la même échelle, à partir de leurs zones de recouvrement.
+3. **Assemble la mosaïque** : une seule image couvrant toute la surface,
+   nord ou façade principale en haut si tu peux le déterminer. Là où
+   plusieurs photos se recouvrent, garde la plus nette et la plus proche de
+   la verticale. Laisse les zones non photographiées transparentes ou
+   blanches, sans les inventer.
+4. **Décris chaque photo** dans `orthophoto.photos` : son image d'origine,
+   son orthophoto unitaire, sa station et ses 4 coins sur la mosaïque.
+
+### Fichiers
+
+- `orthophotos/<mosaique>.png` — la mosaïque. PNG (ou JPEG), 8 000 px au
+  plus sur le grand côté.
+- `orthophotos/unitaires/<nom>.png` — une orthophoto unitaire par photo :
+  l'image **rectifiée, non recadrée sur la mosaïque**, en PNG avec
+  transparence hors de la zone photographiée, 4 000 px au plus sur le grand
+  côté.
+- `orthophotos/sources/<nom>.jpg` — la photo d'origine, recopiée **sans
+  modification** (convertis seulement en JPEG un format que les navigateurs
+  n'affichent pas, comme HEIC).
+
+Noms courts, sans espace ni accent (`P01.png`, `P02.png`…).
+
+### Clé `orthophoto` du fond de plan
+
+- `file` : chemin de la mosaïque **dans ton zip**.
+- `meterByPx` : taille d'un pixel de la mosaïque en **mètres**, uniquement
+  si une dimension réelle est connue sur la surface (mire, cote relevée,
+  largeur d'un lé annoncée par l'utilisateur, plan coté de la même
+  toiture). Sinon `null` : n'invente pas d'échelle, l'utilisateur la
+  calibrera.
+- `photos` : un élément par photo assemblée.
+  - `name` : nom court de la station, dans l'ordre de prise de vue (`P01`,
+    `P02`…).
+  - `source` : chemin de la photo d'origine dans ton zip.
+  - `ortho` : chemin de l'orthophoto unitaire dans ton zip.
+  - `station` : `{x, y}`, l'aplomb de l'appareil photo sur la mosaïque (le
+    point de la surface situé à la verticale de l'objectif ; à défaut, le
+    centre de la photo rectifiée).
+  - `corners` : les 4 coins de l'**image** de l'orthophoto unitaire (fichier
+    entier, marges transparentes comprises) posés sur la mosaïque, dans cet
+    ordre : haut gauche, haut droit, bas droit, bas gauche. L'application
+    étire l'image sur ces 4 points : ils doivent la superposer exactement à
+    la mosaïque.
+
+`station` et `corners` sont **toujours** en coordonnées normalisées dans
+l'image de la mosaïque : origine en haut à gauche, `x` vers la droite, `y`
+vers le bas, `(1, 1)` = coin bas droit. Un coin peut sortir de `[0, 1]` si la
+marge transparente de l'orthophoto dépasse de la mosaïque.
+
+Le fond porte aussi `id`, `name` et `listing: "PLAN"`. Les clés `source`,
+`blueprintScale`, `isDetail` et `scene3d` ne s'appliquent pas. `placement`
+reste possible (section « Localisation des fonds de plan »).
+
+```json
+{
+  "id": "bm_toiture",
+  "name": "Orthomosaïque toiture-terrasse",
+  "listing": "PLAN",
+  "orthophoto": {
+    "file": "orthophotos/toiture.png",
+    "meterByPx": 0.004,
+    "photos": [
+      {
+        "name": "P01",
+        "source": "orthophotos/sources/P01.jpg",
+        "ortho": "orthophotos/unitaires/P01.png",
+        "station": { "x": 0.31, "y": 0.42 },
+        "corners": [ { "x": 0.18, "y": 0.27 }, { "x": 0.46, "y": 0.28 }, { "x": 0.45, "y": 0.58 }, { "x": 0.17, "y": 0.57 } ]
+      }
+    ]
+  }
+}
+```
+
+### Annotations sur une orthomosaïque
+
+Les annotations dessinées sur ce fond sont **toujours** en coordonnées
+normalisées dans l'image de la mosaïque, même quand le fichier utilise
+`coordinateSpace: "pdf_user_space"` pour les autres fonds. Une épaisseur en
+centimètres n'y a de sens que si `meterByPx` est renseigné.
+
+- **N'invente jamais un calage** : une photo que tu n'as pas pu recaler
+  n'entre ni dans la mosaïque ni dans `photos` ; cite-la dans `note` et crée
+  un point d'attention.
+- Limite : 200 photos par orthomosaïque.
 
 ## Localisation des fonds de plan
 
@@ -550,10 +672,15 @@ Si tu disposes d'un environnement d'exécution, génère `projet.json` par code
 et vérifie par code :
 
 - chaque `source.file` existe dans le zip et `pageNumber` ne dépasse pas le
-  nombre de pages du PDF ;
+  nombre de pages du PDF (un fond `orthophoto` n'a pas de `source`) ;
 - chaque `baseMapId` existe dans `baseMaps`, chaque `annotationTemplateId`
   existe dans la liste de l'annotation, et les types concordent ;
 - en espace `image`, toutes les coordonnées sont dans `[0, 1]` ;
+- pour chaque orthomosaïque : `orthophoto.file`, chaque `ortho` et chaque
+  `source` existent dans le zip ; chaque photo a 4 `corners` dans l'ordre
+  haut gauche, haut droit, bas droit, bas gauche ; l'orthophoto unitaire
+  étirée sur ses 4 coins se superpose à la mosaïque (contrôle sur quelques
+  points communs) ; `station` tombe dans le quadrilatère des coins ;
 - les `id` sont uniques ;
 - chaque `documents[].file` existe dans le zip ; chaque `documentId` existe
   dans `documents` et chaque `title` se retrouve mot pour mot dans le texte
@@ -573,7 +700,8 @@ et vérifie par code :
 ## Forme de la réponse
 
 1. Le fichier zip à télécharger (`projet.zip`).
-2. Un court résumé (5 lignes maximum) : fonds de plan créés, scopes, nombre
+2. Un court résumé (5 lignes maximum) : fonds de plan créés (dont les
+   orthomosaïques et leur nombre de photos), scopes, nombre
    de modèles et d'annotations par scope, échelles retenues, référence du
    site et fonds localisés, ouvrages créés et reliés, nombre de points
    d'attention.

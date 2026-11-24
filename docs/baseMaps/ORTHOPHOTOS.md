@@ -1,0 +1,96 @@
+# Orthophotos (orthomosaic base maps)
+
+An **orthomosaic** base map is a regular image base map assembled from
+several top-down photos, flagged `baseMap.isOrthophoto`. Each photo keeps a
+row in `db.orthophotos`: its original image, its rectified image (the "unit
+orthophoto"), its camera station and the placement of the rectified image on
+the mosaic.
+
+Feature folder: `src/Features/orthophotos/`.
+
+## Storage
+
+`baseMaps.isOrthophoto` (boolean) — switch « Orthomosaïque » of the base map
+properties panel (`FieldBaseMapIsOrthophoto`), set by the Prompt IA import.
+It only gates the UI: switching it off keeps the rows.
+
+`db.orthophotos` (`"id,projectId,baseMapId,listingId"`, Dexie v46):
+
+| Field | Content |
+|---|---|
+| `baseMapId` | the orthomosaic base map |
+| `listingId` | the **base map's** listing (ships the row and its files in the Krto zip) |
+| `name` | station name, `P01`… |
+| `fractionalIndex` | order in the list |
+| `station` | `{x, y}` camera station |
+| `corners` | `[tl, tr, br, bl]`, the 4 corners of the rectified image |
+| `orthoImage` | `{fileName, imageSize, thumbnail, fileUpdatedAt}` rectified image |
+| `sourceImage` | same shape, original photo (may be null) |
+
+- `station` and `corners` are **inline** and **normalized `[0..1]`** on the
+  base map reference image (`baseMap.getImageSize()`), origin top-left. They
+  are not `db.points` rows: the Krto points filter only keeps the points
+  referenced by annotations.
+- Image files live in `db.files` with the base map `listingId`.
+- The table is audited, soft-deleted, ownership-exempt (anyone manages the
+  orthophotos of a base map) and **not** undoable.
+- Deleting the base map soft-deletes its orthophotos (`useDeleteBaseMap`).
+
+## Placement: 4 corners
+
+The rectified image is stretched onto its 4 corners
+(`utils/getOrthophotoPlacement.js`):
+
+- corners forming a parallelogram (within 0.5 base map px) → `AFFINE`: the
+  original file is drawn under an SVG `matrix(...)`;
+- otherwise → `PROJECTIVE`: the image is warped once on a canvas
+  (`utils/bakeOrthophotoWarp.js`, homography from
+  `utils/computeQuadHomography.js`).
+
+## Display
+
+- `LayerOrthophotos` (mounted in `SectionViewer`, over the editors area): the
+  stations as a DOM layer over the displayed 2D editor
+  (`LayerOrthophotoStations`, same technique as the comment pins) and the
+  floating panel of the selected one (`PopperOrthophoto`: original photo,
+  draggable / resizable). Shown while the bottom bar toggle
+  (`SectionOrthophotosBottomBarControls`, `orthophotos.showStations`,
+  per-device) is on, or while the Orthophotos tool is opened.
+- `OrthophotoOverlayLayer` (rendered by `StaticMapContent` inside the base
+  map group): the rectified image of the selected orthophoto, above the
+  mosaic and under the annotations.
+- 2D only: nothing in the 3D editor nor in the captures.
+
+## Orthophotos tool
+
+Right band of the Fonds de plan module, only while the selected base map is
+an orthomosaic (`ORTHOPHOTOS` in `useRightPanelTools`): list, add
+(`DialogAddOrthophoto`), delete, rename, replace the images, and « Recaler ».
+While the tool is opened a station can be dragged on the plan. « Recaler »
+shows the outline of the rectified image with its handles: centre = move,
+corner = rotate + scale about the opposite corner, Alt + corner = that corner
+alone (the placement becomes projective). One db write per gesture.
+
+## Prompt IA
+
+Project / Krto flow (`projet.json`): a base map carrying `orthophoto` instead
+of `source` — see « Orthomosaïque à partir de photos » in
+`src/Features/promptIaProject/docs/PROMPT_IA_PROJECT_INSTRUCTIONS.md`.
+
+```json
+{ "id": "bm_toiture", "name": "Orthomosaïque", "listing": "PLAN",
+  "orthophoto": { "file": "orthophotos/toiture.png", "meterByPx": 0.004,
+    "photos": [ { "name": "P01", "source": "orthophotos/sources/P01.jpg",
+      "ortho": "orthophotos/unitaires/P01.png", "station": {"x": 0.31, "y": 0.42},
+      "corners": [ {"x":0.18,"y":0.27}, {"x":0.46,"y":0.28}, {"x":0.45,"y":0.58}, {"x":0.17,"y":0.57} ] } ] } }
+```
+
+Parsed by `parsePromptIaProjectOutput` (`parseOrthophoto`), files extracted
+by `readPromptIaProjectOutputZip` (`orthophotoFilesByPath`), created by
+`createOrthophotoBaseMapsFromPromptIaService`. The annotations of an
+orthomosaic are always normalized on its image, whatever `coordinateSpace`.
+
+## Not covered yet
+
+3D display and captures, single base map share (`baseMapShare`), remap of the
+stations / corners when a base map is re-framed, per-listing Prompt IA.

@@ -505,8 +505,13 @@ export default function useCreateScopeFromPreset({ projectId }) {
     // maps listing in the project (and a vertical one for ELEVATION views).
     let promptIaReport = null;
     if (isPromptIa) {
-      const { data, pdfFilesByPath, referenceImageFile, documentFilesByPath } =
-        promptIa.output;
+      const {
+        data,
+        pdfFilesByPath,
+        orthophotoFilesByPath,
+        referenceImageFile,
+        documentFilesByPath,
+      } = promptIa.output;
       const existingListings = baseMapsListings ?? [];
       const missingListings = [];
       let planListing = existingListings.find((l) => !l.verticalBaseMaps);
@@ -567,6 +572,7 @@ export default function useCreateScopeFromPreset({ projectId }) {
           projectId,
           data,
           pdfFilesByPath,
+          orthophotoFilesByPath,
           referenceImageFile,
           documentFilesByPath,
           tick,
