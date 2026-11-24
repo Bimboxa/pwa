@@ -128,6 +128,11 @@ des photos » of the Orthophotos tool (`SectionOrthophotoAddPhotos`,
    - the mosaic becomes a new **active version** of the base map; the white
      page version is dropped, a former mosaic stays as an inactive (hidden)
      version; `refWidth` / `refHeight` follow the mosaic;
+   - heavy images are re-encoded at the same pixel size
+     (`utils/compressImageFile.js`): the mosaic as a JPEG (it is the base
+     map image, read at every page load and shipped in the Krto zip;
+     transparent areas turn white), the rectified images as WebP (alpha
+     kept);
    - `meterByPx` comes from the result; without it, the scale of the record
      only survives an unchanged frame;
    - each returned photo gets its rectified image, station and corners; the

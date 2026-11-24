@@ -14,6 +14,7 @@ import { testIsWhitePageImage } from "Features/baseMaps/utils/createWhitePageIma
 
 import instructionsBody from "../docs/PROMPT_IA_ORTHOPHOTO_INSTRUCTIONS.md?raw";
 import parseOrthophotoPromptOutput from "../utils/parseOrthophotoPromptOutput";
+import compressImageFile from "../utils/compressImageFile";
 import {
   addOrthophotosService,
   buildOrthophotoImageAsync,
@@ -412,7 +413,12 @@ export async function applyOrthophotoResultService({
   const { projectId, listingId } = record;
 
   // 1. mosaic
-  const mosaicFile = filesByPath.get(data.file);
+  // The mosaic is the base map image: read at every page load and shipped
+  // in the Krto zip. The PNG an AI returns weighs tens of MB — stored as a
+  // JPEG (transparent areas in white), at the same pixel size.
+  const mosaicFile = await compressImageFile(filesByPath.get(data.file), {
+    type: "image/jpeg",
+  });
   const versionId = nanoid();
   // unique per import: a replaced version must not reuse its file name
   const mosaicFileName = `version_${versionId}_${baseMapId}.${getExtension(mosaicFile.name) || "png"}`;
@@ -496,8 +502,12 @@ export async function applyOrthophotoResultService({
     obsoleteFileNames.push(replacedVersion.image.fileName);
   for (const photo of data.photos) {
     const row = rowByName.get(photo.name);
-    const orthoFile = filesByPath.get(photo.orthoFile);
-    if (!row || !orthoFile) continue;
+    const rawOrthoFile = filesByPath.get(photo.orthoFile);
+    if (!row || !rawOrthoFile) continue;
+    // rectified images keep their transparency: WebP rather than PNG
+    const orthoFile = await compressImageFile(rawOrthoFile, {
+      type: "image/webp",
+    });
     const ortho = await buildOrthophotoImageAsync({
       file: orthoFile,
       role: "ortho",
