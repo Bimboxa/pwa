@@ -13,6 +13,7 @@ import DialogDeleteRessource from "Features/layout/components/DialogDeleteRessou
 import DialogAddOrthophoto from "./DialogAddOrthophoto";
 import SectionOrthophotoDetail from "./SectionOrthophotoDetail";
 import SectionOrthophotoAddPhotos from "./SectionOrthophotoAddPhotos";
+import SectionOrthophotosArchive from "./SectionOrthophotosArchive";
 
 import useMainBaseMap from "Features/mapEditor/hooks/useMainBaseMap";
 import useOrthophotos from "../hooks/useOrthophotos";
@@ -261,6 +262,13 @@ export default function PanelOrthophotos() {
 
         <Box sx={{ p: 1.5 }}>
           <SectionOrthophotoAddPhotos
+            baseMap={baseMap}
+            orthophotos={orthophotos}
+          />
+        </Box>
+
+        <Box sx={{ p: 1.5, pt: 0 }}>
+          <SectionOrthophotosArchive
             baseMap={baseMap}
             orthophotos={orthophotos}
           />

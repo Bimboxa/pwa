@@ -17,8 +17,8 @@ function sanitizeFileName(name) {
 }
 
 // {image descriptor stored on the row, db.files record} of one image file.
-// `role`: "ortho" | "source". The file carries the BASE MAP listingId: that
-// is what ships it in the Krto zip.
+// `role`: "ortho" | "source". The file carries the BASE MAP listingId, but
+// createKrtoZip leaves the orthophoto files out (local data, saved apart).
 export async function buildOrthophotoImageAsync({
   file,
   role,

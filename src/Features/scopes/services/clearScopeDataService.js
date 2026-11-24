@@ -95,7 +95,8 @@ export default async function clearScopeDataService(scopeId) {
             await db.annotations.where("listingId").anyOf(listingIds).delete();
             await db.annotationTemplates.where("listingId").anyOf(listingIds).delete();
             await db.photoPlans.where("listingId").anyOf(listingIds).delete();
-            await db.orthophotos.where("listingId").anyOf(listingIds).delete();
+            // db.orthophotos is left alone: the unit orthophotos are not
+            // in the Krto zip, so a restore must not wipe the local ones.
             await db.meshPaints.where("listingId").anyOf(listingIds).delete();
         }
 
