@@ -85,6 +85,17 @@ peut-être déjà dessinées sur la mosaïque actuelle. Dans ce cas :
 - renvoie **toutes** les photos assemblées dans `photos`, anciennes et
   nouvelles, avec leur calage dans le cadre final.
 
+**Photos écartées.** La mosaïque que tu renvoies ne contient **que** les
+photos listées dans `contexte.json`. Quand `baseMap.removedPhotoNames` cite
+des photos, elles figurent encore dans la mosaïque actuelle mais
+l'utilisateur les a écartées : ne recopie pas la mosaïque actuelle,
+**recompose-la** à partir des seules photos listées (les `PLACED` avec leur
+calage, puis les `NEW`). La mosaïque actuelle ne sert alors que de référence
+de cadre et de calage. Une zone que seule une photo écartée couvrait est
+reprise d'une autre photo listée si l'une d'elles la voit, sinon laissée
+blanche. Les photos écartées n'apparaissent pas dans `photos` ; indique dans
+`note` celles que tu as retirées.
+
 ## Clé `orthophoto`
 
 - `file` : chemin de la mosaïque **dans ton zip**.
@@ -155,6 +166,8 @@ Clés racine autorisées : `version`, `orthophoto`, `note`.
 - `station` tombe dans le quadrilatère des coins ;
 - si le fond avait déjà une mosaïque, le cadre est conservé ou son
   changement est signalé dans `note` ;
+- si `baseMap.removedPhotoNames` cite des photos, aucune n'apparaît dans la
+  mosaïque ni dans `photos` ;
 - le JSON est complet et se relit sans erreur.
 
 ## Forme de la réponse
