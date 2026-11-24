@@ -12,11 +12,21 @@ import db from "App/db/db";
 // with the baseMap following getBaseMapContainerDefaultLayout (print zone =
 // full page with the zone as viewBox, else fitted to the content area), the
 // same rule as PortfolioPageSvg.handleSelectBaseMap.
+// `title` overrides the page title; `phaseId` pins the container on one phase
+// of a phasing (« Journal des phases »: only the annotations present in that
+// phase are shown, see Features/phasing).
 export default function useCreateBaseMapPage() {
   const createPage = useCreatePortfolioPage();
   const pageFrame = usePortfolioPageFrame();
 
-  const create = async ({ listing, projectId, baseMapId, afterSortIndex }) => {
+  const create = async ({
+    listing,
+    projectId,
+    baseMapId,
+    afterSortIndex,
+    title,
+    phaseId,
+  }) => {
     const baseMap = await db.baseMaps.get(baseMapId);
     // Reference frame (annotations + print zone) first, legacy image size
     // otherwise.
@@ -28,7 +38,7 @@ export default function useCreateBaseMapPage() {
     const page = await createPage({
       listing,
       projectId,
-      title: baseMap?.name || "Plan",
+      title: title || baseMap?.name || "Plan",
       afterSortIndex,
       ...(zone && { format: zone.format, orientation: zone.orientation }),
     });
@@ -53,6 +63,7 @@ export default function useCreateBaseMapPage() {
     });
     await db.portfolioBaseMapContainers.update(container.id, {
       baseMapId,
+      ...(phaseId && { phaseId }),
       ...(layout && {
         x: layout.x,
         y: layout.y,

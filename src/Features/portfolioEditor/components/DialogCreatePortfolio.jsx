@@ -27,6 +27,8 @@ import useBaseMaps from "Features/baseMaps/hooks/useBaseMaps";
 import useProjectBaseMapListings from "Features/baseMaps/hooks/useProjectBaseMapListings";
 import useTitleBlockManifest from "Features/titleBlocks/hooks/useTitleBlockManifest";
 import useDataMapping from "Features/appConfig/hooks/useDataMapping";
+import usePhasingListing from "Features/phasing/hooks/usePhasingListing";
+import usePhases from "Features/phasing/hooks/usePhases";
 import getTitleBlockPrefillValues from "Features/titleBlocks/utils/getTitleBlockPrefillValues";
 import getTitleBlockPlaceholders from "Features/titleBlocks/utils/getTitleBlockPlaceholders";
 
@@ -58,6 +60,7 @@ export default function DialogCreatePortfolio({ open, onClose, onCreate }) {
   const labelS = "Nom";
   const createS = "Créer";
   const detailsPortfolioS = "Carnet de détails";
+  const phasesJournalS = "Journal des phases";
   const noFolioS = "Aucun folio";
   const noDetailsS = "Aucun détail dans le scope";
   const detailS = "Détail";
@@ -75,6 +78,7 @@ export default function DialogCreatePortfolio({ open, onClose, onCreate }) {
   const [name, setName] = useState("");
   const [loading, setLoading] = useState(false);
   const [isDetailsPortfolio, setIsDetailsPortfolio] = useState(false);
+  const [isPhasesJournal, setIsPhasesJournal] = useState(false);
   const [selectedIds, setSelectedIds] = useState(new Set());
   const [selectedBaseMapIds, setSelectedBaseMapIds] = useState(new Set());
   const [titleBlockValues, setTitleBlockValues] = useState({});
@@ -82,6 +86,11 @@ export default function DialogCreatePortfolio({ open, onClose, onCreate }) {
   // data
 
   const titleBlockManifest = useTitleBlockManifest(null);
+  // « Journal des phases »: one page per phase of the scope's phasing — the
+  // option only shows once phases exist
+  const { listing: phasingListing } = usePhasingListing();
+  const phases = usePhases(open ? (phasingListing?.id ?? null) : null);
+  const hasPhases = phases.length > 0;
   const { object: dataMapping } = useDataMapping();
 
   // Same content filters as useAnnotationsCountByBaseMapId, minus the hidden
@@ -266,9 +275,14 @@ export default function DialogCreatePortfolio({ open, onClose, onCreate }) {
       selectedBaseMapIds: orderedSelectedBaseMapIds,
       selectedDetails,
       titleBlock: { key: titleBlockManifest.key, values: titleBlockValues },
+      phases:
+        isPhasesJournal && !isDetailsPortfolio && hasPhases
+          ? phases.map((phase) => ({ id: phase.id, label: phase.label }))
+          : [],
     });
     setName("");
     setIsDetailsPortfolio(false);
+    setIsPhasesJournal(false);
     setLoading(false);
     onClose();
   }
@@ -321,6 +335,16 @@ export default function DialogCreatePortfolio({ open, onClose, onCreate }) {
           label={detailsPortfolioS}
           options={{ showAsInline: true }}
         />
+        {hasPhases && !isDetailsPortfolio && (
+          <FieldCheck
+            value={isPhasesJournal}
+            onChange={setIsPhasesJournal}
+            label={`${phasesJournalS} (${phases.length} ${
+              phases.length > 1 ? "phases" : "phase"
+            })`}
+            options={{ showAsInline: true }}
+          />
+        )}
 
         <Box sx={{ maxHeight: "40vh", overflow: "auto", px: 1 }}>
           <Typography

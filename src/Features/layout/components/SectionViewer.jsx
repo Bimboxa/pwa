@@ -116,6 +116,9 @@ export default function SectionViewer() {
     showCommandsToolbar &&
     (commandsToolbarDock === "TOP" || commandsToolbarDock === "LEFT");
   const toolbarAfter = showCommandsToolbar && commandsToolbarDock === "BOTTOM";
+  // Toolbar docked at the top: the phases strip goes above it (first row).
+  const phasesStripAboveToolbar =
+    showCommandsToolbar && commandsToolbarDock === "TOP";
   const toolbarFloating =
     showCommandsToolbar && commandsToolbarDock === "FLOATING";
   const showAdmin = viewerKey === "ADMIN";
@@ -223,6 +226,11 @@ export default function SectionViewer() {
           flexDirection: commandsToolbarDock === "LEFT" ? "row" : "column",
         }}
       >
+        {/* Phases strip (Features/phasing): in flow above the editors, the
+        editors shrink. With the commands toolbar docked at the top, the strip
+        is the first row and the toolbar sits under it. Null without a PHASING
+        listing in the scope. */}
+        {phasesStripAboveToolbar && <StripPhases />}
         {toolbarBefore && (
           <CommandsToolbar
             dock={commandsToolbarDock}
@@ -230,9 +238,6 @@ export default function SectionViewer() {
             smallScreen={compactLayout}
           />
         )}
-        {/* Phases strip (Features/phasing): in flow above the editors — under
-        the commands toolbar when it is docked at the top —, the editors
-        shrink. Null without a PHASING listing in the scope. */}
         <Box
           sx={{
             flex: 1,
@@ -242,7 +247,7 @@ export default function SectionViewer() {
             flexDirection: "column",
           }}
         >
-        <StripPhases />
+        {!phasesStripAboveToolbar && <StripPhases />}
         <Box
           ref={editorsAreaRef}
           sx={{ flex: 1, minWidth: 0, minHeight: 0, position: "relative" }}
