@@ -7,8 +7,8 @@ import { useOverlayAnnotationsBaseMapIds } from "Features/baseMapOverlays/hooks/
 
 // ---------------------------------------------------------------------------
 // useDisplayedAnnotationsBaseMapIds — base maps whose annotations the
-// displayed editor shows (title of the « X annotations sur N fonds de plan »
-// section, SectionPopperBaseMaps): the main one under its own eye, plus the
+// displayed editor shows (N of the « X annotations sur N fonds de plan »
+// band, BandAnnotationsSummary): the main one under its own eye, plus the
 // 2D overlays with their badge on (`isDessin2d`) or the 3D base maps with a
 // display mode. Shared by the Dessin popper (PopperMapListings) and the
 // docked Dessin panel (PanelDrawing).

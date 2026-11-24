@@ -8,7 +8,8 @@ import OpenInNew from "@mui/icons-material/OpenInNew";
 
 // ---------------------------------------------------------------------------
 // IconButtonToggleDetached — detach / attach icon of the base maps list, small
-// and light grey, in the bottom band (PanelFooter) of the poppers: the list
+// and light grey, at the right of the « N fonds de plan » band
+// (BandBaseMapsSummary) on top of the base maps list: the list
 // leaves the "Fonds de plan" side of the annotations popper for its own
 // popper (PopperBaseMapsList) and back. `tooltipPlacement` is "bottom" in the
 // footers (room below the panel), "top" elsewhere. (The former "TOOLS" target is gone:
