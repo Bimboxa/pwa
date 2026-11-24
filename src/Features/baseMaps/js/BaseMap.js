@@ -22,6 +22,47 @@ function getImageCacheKey(image) {
   return base;
 }
 
+// Loads the stored image of a record / a version from db.files.
+// → ImageObject, or null when the file is not on this device.
+//
+// Shared between the concurrent hydrations: at page load dozens of hooks
+// (useMainBaseMap, useBaseMaps…) hydrate the same base map before the first
+// one has filled editor.baseMapsCache. Without this, each of them read the
+// whole blob from IndexedDB and decoded the image on its own — seconds of
+// load and several copies in memory for a large image (an orthomosaic).
+const pendingStoredImageLoads = new Map();
+
+function loadStoredImage(image) {
+  const key = getImageCacheKey(image);
+  const pending = pendingStoredImageLoads.get(key);
+  if (pending) return pending;
+
+  const load = (async () => {
+    const fileRecord = await db.files.get(image.fileName);
+    if (!fileRecord) return null;
+    const { fileArrayBuffer, fileMime, fileName } = fileRecord;
+    const file = new File([fileArrayBuffer], fileName, { type: fileMime });
+    return ImageObject.create({
+      imageFile: file,
+      thumbnail: image.thumbnail,
+    });
+  })().finally(() => pendingStoredImageLoads.delete(key));
+
+  pendingStoredImageLoads.set(key, load);
+  return load;
+}
+
+// Image to draw for a stored image: the file, else its preview-only stand-in.
+// A caller served by a load started by ANOTHER live query never read
+// db.files itself: when the file is missing it runs a key-only count, so its
+// own live query is still re-run when the file is attached again.
+async function loadStoredImageOrPreview(image) {
+  const loaded = await loadStoredImage(image);
+  if (loaded) return loaded;
+  await db.files.where("fileName").equals(image.fileName).count();
+  return createPreviewOnlyImage(image);
+}
+
 // Stand-in image when the db.files row is missing on this device (the
 // folder was hidden in the scope when the Krto was saved, so the zip shipped
 // the row without its file — createKrtoZip): the inline low-res preview is
@@ -252,19 +293,7 @@ export default class BaseMap {
             if (!loadedImage && whitePageArgs) {
               loadedImage = createWhitePageImage(whitePageArgs);
             } else if (!loadedImage && v.image?.fileName) {
-              const fileRecord = await db.files.get(v.image.fileName);
-              if (fileRecord) {
-                const { fileArrayBuffer, fileMime, fileName } = fileRecord;
-                const file = new File([fileArrayBuffer], fileName, {
-                  type: fileMime,
-                });
-                loadedImage = await ImageObject.create({
-                  imageFile: file,
-                  thumbnail: v.image.thumbnail,
-                });
-              } else {
-                loadedImage = createPreviewOnlyImage(v.image);
-              }
+              loadedImage = await loadStoredImageOrPreview(v.image);
             }
 
             // A preview-only image is not cached: the next live-query pass
@@ -311,19 +340,7 @@ export default class BaseMap {
       if (!bmImage && whitePageArgs) {
         bmImage = createWhitePageImage(whitePageArgs);
       } else if (!bmImage && record?.image?.fileName) {
-        const fileRecord = await db.files.get(record.image.fileName);
-        if (fileRecord) {
-          const { fileArrayBuffer, fileMime, fileName } = fileRecord;
-          const file = new File([fileArrayBuffer], fileName, {
-            type: fileMime,
-          });
-          bmImage = await ImageObject.create({
-            imageFile: file,
-            thumbnail: record.image.thumbnail,
-          });
-        } else {
-          bmImage = createPreviewOnlyImage(record.image);
-        }
+        bmImage = await loadStoredImageOrPreview(record.image);
       }
 
       if (!bmImageEnhanced && record?.imageEnhanced?.fileName) {
