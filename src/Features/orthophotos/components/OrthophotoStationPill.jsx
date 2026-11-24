@@ -9,8 +9,6 @@ export default function OrthophotoStationPill({
   name,
   active = false,
   draggable = false,
-  // photo excluded in the tool (no longer taken into account)
-  muted = false,
 }) {
   // render
 
@@ -18,7 +16,6 @@ export default function OrthophotoStationPill({
     <Box
       sx={{
         transform: "translate(-50%, -50%)",
-        opacity: muted && !active ? 0.45 : 1,
         px: 0.75,
         height: 22,
         minWidth: 34,
