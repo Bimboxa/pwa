@@ -22,12 +22,14 @@ export default memo(function OrthophotoOverlayLayer({
   const selectedOrthophotoId = useSelector(
     (s) => s.orthophotos.selectedOrthophotoId
   );
+  // count chip of the bottom bar: off, nothing of the orthophotos is drawn
+  const showStations = useSelector((s) => s.orthophotos.showStations);
   const opacity = useSelector((s) => s.orthophotos.overlayOpacity);
   const orthophoto = useLiveQuery(async () => {
-    if (!baseMapId || !selectedOrthophotoId) return null;
+    if (!baseMapId || !selectedOrthophotoId || !showStations) return null;
     const row = await db.orthophotos.get(selectedOrthophotoId);
     return row && !row.deletedAt && row.baseMapId === baseMapId ? row : null;
-  }, [baseMapId, selectedOrthophotoId]);
+  }, [baseMapId, selectedOrthophotoId, showStations]);
 
   const image = useOrthophotoOverlayImage({
     orthophoto,
