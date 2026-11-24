@@ -156,6 +156,9 @@ export default function SectionBaseMapsList({
   hideAutoVisibility = false,
   forceAutoVisibility = false,
   disableDrag = false,
+  // Optional band rendered at the top of the list (empty list included):
+  // `renderHeader(baseMapsCount)`, the count being the base maps listed.
+  renderHeader,
 }) {
   const dispatch = useDispatch();
 
@@ -701,20 +704,27 @@ export default function SectionBaseMapsList({
 
   // render
 
+  const header = renderHeader
+    ? renderHeader(groups.reduce((n, g) => n + (g.baseMaps?.length ?? 0), 0))
+    : null;
+
   if (groups.length === 0) {
     return (
-      <Typography
-        variant="caption"
-        sx={{
-          display: "block",
-          px: 2,
-          py: 1.5,
-          color: "panel.textMuted",
-          fontStyle: "italic",
-        }}
-      >
-        {emptyS}
-      </Typography>
+      <>
+        {header}
+        <Typography
+          variant="caption"
+          sx={{
+            display: "block",
+            px: 2,
+            py: 1.5,
+            color: "panel.textMuted",
+            fontStyle: "italic",
+          }}
+        >
+          {emptyS}
+        </Typography>
+      </>
     );
   }
 
@@ -746,6 +756,7 @@ export default function SectionBaseMapsList({
 
   return (
     <Box>
+      {header}
       <DndContext
         sensors={sensors}
         collisionDetection={listCollisionDetection}

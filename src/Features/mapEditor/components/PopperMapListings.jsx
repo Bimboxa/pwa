@@ -87,7 +87,10 @@ import SwitchGeneric from "Features/layout/components/SwitchGeneric";
 import ToggleContentMode from "Features/popperMapListings/components/ToggleContentMode";
 import ToggleButtonCompact from "Features/popperMapListings/components/ToggleButtonCompact";
 import SectionPopperScopeContent from "Features/popperMapListings/components/SectionPopperScopeContent";
-import SectionPopperBaseMaps from "Features/popperMapListings/components/SectionPopperBaseMaps";
+import BandAnnotationsSummary from "Features/popperMapListings/components/BandAnnotationsSummary";
+import BandBaseMapsSummary from "Features/popperMapListings/components/BandBaseMapsSummary";
+import IconButtonToggleCollapsed from "Features/layout/components/IconButtonToggleCollapsed";
+import usePopperBaseMapsCounts from "Features/popperMapListings/hooks/usePopperBaseMapsCounts";
 import useScopeListing from "Features/listingViewer/hooks/useScopeListing";
 import useScopeGridAnnotationsFilter from "Features/listingViewer/hooks/useScopeGridAnnotationsFilter";
 import { selectBaseMapsGridScopeOpen } from "Features/baseMapsGrid/utils/selectBaseMapsGridPinned";
@@ -307,10 +310,9 @@ function AnnotationTemplateRow({
   const isHidden = annotationTemplate?.hidden;
   const ActiveToolIcon = activeTool?.Icon;
   // POLYLINE: thickness of the next drawn stroke, shown under the icon line.
-  const strokeWidthLabel =
-    isPolylineLikeShape(drawingShape)
-      ? getStrokeWidthLabel(nextDraftProps)
-      : null;
+  const strokeWidthLabel = isPolylineLikeShape(drawingShape)
+    ? getStrokeWidthLabel(nextDraftProps)
+    : null;
 
   // handlers
 
@@ -2105,11 +2107,8 @@ export default function PopperMapListings() {
   // Header toggle "Annotations | Fonds de plan" (ToggleContentMode) — plus a
   // "Photos" side in the Viewer module when the project has photos, which
   // swaps the body for the photo albums (2-column grids, click = select the
-  // photo). The "Fonds de plan" side swaps the body for the base maps list —
-  // legend poppers only: the poppers showing the listings block carry the
-  // list in their own collapsible "Fonds de plan" section instead
-  // (SectionPopperBaseMaps, above the listings), and the Dessin popper then
-  // has no toggle at all (plain "Annotations" title).
+  // photo). The "Fonds de plan" side swaps the body for the base maps list,
+  // in every popper (Dessin included).
   // Locate-business-object mode keeps the object's label as a plain title.
   const projectId = useSelector((s) => s.projects.selectedProjectId);
   const projectPhotos = useProjectPhotos({
@@ -2127,9 +2126,11 @@ export default function PopperMapListings() {
   const baseMapsListDetached = useSelector(
     (s) => s.popperMapListings.baseMapsListDetached
   );
-  // "Fonds de plan" section above the listings block — same gate as the
-  // block itself (not in the legend poppers, not in locate mode).
-  const showBaseMapsSection = !isLegendPopper && !isLocateBusinessObjectMode;
+  // « X annotations sur N fonds de plan » band under the header, on the
+  // annotations side (BandAnnotationsSummary) — same gate as the listings
+  // block (not in the legend poppers, not in locate mode). It carries the
+  // "Compact" toggle and the properties button, which leave the header.
+  const hasAnnotationsBand = !isLegendPopper && !isLocateBusinessObjectMode;
   const showPhotosToggle = isViewerModule && projectPhotos.length > 0;
   // "Objets" side (business-objects modules, far left of the toggle,
   // labelled after the module): the module's listings and objects tree.
@@ -2149,7 +2150,7 @@ export default function PopperMapListings() {
   const showContentToggle =
     !isLocateBusinessObjectMode &&
     !isBaseMapsListOnly &&
-    ((!baseMapsListDetached && !showBaseMapsSection) ||
+    (!baseMapsListDetached ||
       showPhotosToggle ||
       showObjectsToggle ||
       showMeshesToggle ||
@@ -2165,7 +2166,6 @@ export default function PopperMapListings() {
     isBaseMapsListOnly ||
     (showContentToggle &&
       !baseMapsListDetached &&
-      !showBaseMapsSection &&
       popperContentMode === "BASE_MAPS");
   // Annotations side (the standard body): no other side displayed.
   const showStandardBody =
@@ -2434,6 +2434,21 @@ export default function PopperMapListings() {
     : scopeFilterListing
       ? [scopeFilterListing]
       : scopedListings;
+  // Counts of the annotations band and of the "Fonds de plan" side rows,
+  // aligned on the listing counters. Compact: displayedListings is narrowed
+  // to the selected base map's listings — the per-base-map counts keep every
+  // listing of the scope.
+  const {
+    countByBaseMapId: bandCountByBaseMapId,
+    displayedAnnotationsCount,
+    displayedBaseMapsCount,
+  } = usePopperBaseMapsCounts({
+    listingIds: (isCompact ? visibleListings : displayedListings)?.map(
+      (l) => l.id
+    ),
+    displayedBaseMapIds: displayedAnnotationsBaseMapIds,
+    enabled: hasAnnotationsBand,
+  });
   // No listing yet → the "+ Liste" chip becomes the main CTA (contained, orange).
   const hasNoListing = !displayedListings?.length;
   const canAddListing = !isBaseMapsViewer && !isThreedViewer;
@@ -2571,6 +2586,45 @@ export default function PopperMapListings() {
   // (explicit width / height, reset on a double-click of the handle).
   const defaultMaxHeight = "calc(100% - 130px)";
 
+  // "Compact" toggle (Dessin popper): legend of the selected base map, left
+  // of the properties button. In the annotations band, or in the header of
+  // the poppers without band.
+  const compactButton = isDessinPopper &&
+    !isLocateBusinessObjectMode &&
+    !hasActiveObjectHeader && <ToggleButtonCompact />;
+
+  // Properties of the popper (annotations side). Hidden in the Viewer
+  // module and the BaseMaps module (read-only legends, no popper properties
+  // there). On the objects side the button is kept in the layout, invisible,
+  // so the header does not jump between sides.
+  const propertiesButton = showSideProperties && !hasActiveObjectHeader && (
+    <Tooltip title={propertiesS} arrow placement="top">
+      <IconButton
+        size="small"
+        onMouseDown={(e) => e.stopPropagation()}
+        onClick={(e) => {
+          e.stopPropagation();
+          dispatch(
+            setSelectedItem({
+              id: selectedScopeId,
+              type: "POPPER_MAP_LISTINGS",
+            })
+          );
+          dispatch(setSelectedMenuItemKey("SELECTION_PROPERTIES"));
+        }}
+        sx={{
+          color: "panel.textLight",
+          p: 0.25,
+          cursor: "pointer",
+          visibility: showObjectsBody ? "hidden" : "visible",
+          pointerEvents: showObjectsBody ? "none" : "auto",
+        }}
+      >
+        <Tune sx={{ fontSize: 16 }} />
+      </IconButton>
+    </Tooltip>
+  );
+
   return (
     <Paper
       ref={paperRef}
@@ -2635,7 +2689,7 @@ export default function PopperMapListings() {
             objectsLabel={objectsLabel}
             showContent={isScopeModule}
             showPhotos={showPhotosToggle}
-            showBaseMaps={!baseMapsListDetached && !showBaseMapsSection}
+            showBaseMaps={!baseMapsListDetached}
             annotationsLabel="Annotations"
           />
         ) : (
@@ -2647,10 +2701,6 @@ export default function PopperMapListings() {
           </Typography>
         )}
 
-        {/* Properties of the popper (annotations side). Hidden in the Viewer
-            module and the BaseMaps module (read-only legends, no popper
-            properties there). On the objects side the button is kept in the
-            layout, invisible, so the header does not jump between sides. */}
         {hasActiveObjectHeader && (
           <Tooltip title={leaveActiveObjectS} arrow placement="top">
             <IconButton
@@ -2668,45 +2718,36 @@ export default function PopperMapListings() {
           </Tooltip>
         )}
 
-        {/* "Compact" toggle (Dessin popper): legend of the selected base
-            map, left of the properties button. */}
-        {isDessinPopper &&
-          !isLocateBusinessObjectMode &&
-          !hasActiveObjectHeader && <ToggleButtonCompact />}
-
-        {showSideProperties && !hasActiveObjectHeader && (
-          <Tooltip title={propertiesS} arrow placement="top">
-            <IconButton
-              size="small"
-              onMouseDown={(e) => e.stopPropagation()}
-              onClick={(e) => {
-                e.stopPropagation();
-                dispatch(
-                  setSelectedItem({
-                    id: selectedScopeId,
-                    type: "POPPER_MAP_LISTINGS",
-                  })
-                );
-                dispatch(setSelectedMenuItemKey("SELECTION_PROPERTIES"));
-              }}
-              sx={{
-                color: "panel.textLight",
-                p: 0.25,
-                cursor: "pointer",
-                visibility: showObjectsBody ? "hidden" : "visible",
-                pointerEvents: showObjectsBody ? "none" : "auto",
-              }}
-            >
-              <Tune sx={{ fontSize: 16 }} />
-            </IconButton>
-          </Tooltip>
-        )}
+        {/* "Compact" toggle and properties button: in the header of the
+            legend poppers only — the others carry them in the annotations
+            band below. */}
+        {!hasAnnotationsBand && compactButton}
+        {!hasAnnotationsBand && propertiesButton}
 
         {/* BaseMaps module, "Fonds de plan" side: new folder. */}
         {isBaseMapsViewer && showBaseMapsBody && (
           <IconButtonCreateBaseMapListing />
         )}
+
+        {/* Collapse / expand of the popper, far right on every side. */}
+        <IconButtonToggleCollapsed
+          collapsed={collapsed}
+          onToggle={() => dispatch(setCollapsed(!collapsed))}
+        />
       </Box>
+
+      {/* Annotations side: « X annotations sur N fonds de plan » band right
+          under the header, with the "Compact" toggle and the properties
+          button on the right. */}
+      {showStandardBody && hasAnnotationsBand && (
+        <BandAnnotationsSummary
+          annotationsCount={displayedAnnotationsCount}
+          baseMapsCount={displayedBaseMapsCount}
+        >
+          {compactButton}
+          {propertiesButton}
+        </BandAnnotationsSummary>
+      )}
 
       {/* BaseMaps module: "Afficher les annotations" switch (same state as
           the left panel's), right under the header on both sides. Turning it
@@ -2803,12 +2844,30 @@ export default function PopperMapListings() {
         </Box>
       )}
 
-      {/* "Fonds de plan" side (legend poppers): the base maps list replaces
-          the whole body. */}
+      {/* "Fonds de plan" side: the base maps list replaces the whole body,
+          under its « N fonds de plan » band carrying the detach icon of the
+          list (not in the list-only popper of the BaseMaps module, attached
+          whatever the detach flag).
+          Poppers with the annotations band (Dessin…): counts aligned on the
+          band, no "Visibilité auto" row — selecting a base map there always
+          hides the others' image and annotations. */}
       {!collapsed && showBaseMapsBody && (
         <Box sx={{ overflow: "auto", flex: 1 }}>
           <SectionBaseMapsList
-            countByBaseMapIdOverride={scopeCountByBaseMapId}
+            countByBaseMapIdOverride={
+              hasAnnotationsBand ? bandCountByBaseMapId : scopeCountByBaseMapId
+            }
+            hideAutoVisibility={hasAnnotationsBand}
+            forceAutoVisibility={hasAnnotationsBand}
+            renderHeader={
+              isBaseMapsListOnly
+                ? undefined
+                : (baseMapsCount) => (
+                    <BandBaseMapsSummary baseMapsCount={baseMapsCount}>
+                      <IconButtonToggleDetached />
+                    </BandBaseMapsSummary>
+                  )
+            }
           />
         </Box>
       )}
@@ -3136,26 +3195,6 @@ export default function PopperMapListings() {
                     )}
             </>
           </Box>
-
-          {/* « Annotations sur les autres fonds de plan » section — pinned
-              at the very bottom: the
-              header ("..." menu, detach, expand / collapse) and, expanded,
-              the base maps list capped in height. Replaces the "Fonds de
-              plan" tab of the header toggle in these poppers. */}
-          {showBaseMapsSection && (
-            <Box sx={{ flexShrink: 0 }}>
-              <SectionPopperBaseMaps
-                // Compact: displayedListings is narrowed to the selected
-                // base map's listings — the per-base-map counts keep every
-                // listing of the scope.
-                listingIds={(isCompact
-                  ? visibleListings
-                  : displayedListings
-                )?.map((l) => l.id)}
-                displayedBaseMapIds={displayedAnnotationsBaseMapIds}
-              />
-            </Box>
-          )}
         </>
       )}
 
@@ -3197,22 +3236,17 @@ export default function PopperMapListings() {
           </Box>
         )}
 
-      {/* Bottom band (collapsed included): the Dessin "Fond de plan
-          sélectionné seul" switch at the far left, "auto" height, detach icon
-          of the base maps / commandes sides, collapse / expand toggle, resize
-          handle in its reserved right margin. */}
-      <PanelFooter
-        onResizeMouseDown={handleResizeMouseDown}
-        onResetSize={resetSize}
-        onFitContent={fitContent}
-        isAutoHeight={isAutoHeight}
-        collapsed={collapsed}
-        onToggleCollapsed={() => dispatch(setCollapsed(!collapsed))}
-      >
-        {showBaseMapsBody && !isBaseMapsListOnly && (
-          <IconButtonToggleDetached tooltipPlacement="bottom" />
-        )}
-      </PanelFooter>
+      {/* Bottom band: "auto" height and the resize handle in its reserved
+          right margin. Gone while collapsed (the collapse / expand toggle
+          lives in the header). */}
+      {!collapsed && (
+        <PanelFooter
+          onResizeMouseDown={handleResizeMouseDown}
+          onResetSize={resetSize}
+          onFitContent={fitContent}
+          isAutoHeight={isAutoHeight}
+        />
+      )}
     </Paper>
   );
 }

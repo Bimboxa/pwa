@@ -7,6 +7,8 @@ import DragIndicatorIcon from "@mui/icons-material/DragIndicator";
 import SectionBaseMapsList from "Features/baseMaps/components/SectionBaseMapsList";
 import IconButtonCreateBaseMapListing from "Features/baseMapEditor/components/IconButtonCreateBaseMapListing";
 import IconButtonToggleDetached from "./IconButtonToggleDetached";
+import BandBaseMapsSummary from "./BandBaseMapsSummary";
+import IconButtonToggleCollapsed from "Features/layout/components/IconButtonToggleCollapsed";
 import PanelFooter from "Features/layout/components/PanelFooter";
 import getPanelAutoMaxHeight from "Features/layout/utils/getPanelAutoMaxHeight";
 
@@ -153,24 +155,40 @@ export default function PopperBaseMapsList() {
         </Typography>
 
         {isBaseMapsModule && <IconButtonCreateBaseMapListing />}
+
+        {/* Collapse / expand of the popper, far right (same place as the
+            annotations popper). */}
+        <IconButtonToggleCollapsed
+          collapsed={collapsed}
+          onToggle={() => setCollapsed((c) => !c)}
+        />
       </Box>
 
+      {/* Base maps list under its « N fonds de plan » band, which carries
+          the attach icon — same layout as the "Fonds de plan" side of the
+          annotations popper. */}
       {!collapsed && (
         <Box sx={{ overflow: "auto", flex: 1 }}>
-          <SectionBaseMapsList hideAutoVisibility forceAutoVisibility />
+          <SectionBaseMapsList
+            hideAutoVisibility
+            forceAutoVisibility
+            renderHeader={(baseMapsCount) => (
+              <BandBaseMapsSummary baseMapsCount={baseMapsCount}>
+                <IconButtonToggleDetached />
+              </BandBaseMapsSummary>
+            )}
+          />
         </Box>
       )}
 
-      <PanelFooter
-        onResizeMouseDown={handleResizeMouseDown}
-        onResetSize={resetSize}
-        onFitContent={fitContent}
-        isAutoHeight={isAutoHeight}
-        collapsed={collapsed}
-        onToggleCollapsed={() => setCollapsed((c) => !c)}
-      >
-        <IconButtonToggleDetached tooltipPlacement="bottom" />
-      </PanelFooter>
+      {!collapsed && (
+        <PanelFooter
+          onResizeMouseDown={handleResizeMouseDown}
+          onResetSize={resetSize}
+          onFitContent={fitContent}
+          isAutoHeight={isAutoHeight}
+        />
+      )}
     </Paper>
   );
 }

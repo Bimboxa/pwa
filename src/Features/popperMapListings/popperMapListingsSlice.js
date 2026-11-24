@@ -7,7 +7,8 @@ import { isBusinessObjectsModuleKey } from "Features/businessObjects/utils/busin
 // Maillage module with the mailles drawer closed, popper only) | "OBJECTS"
 // (the objects and listings of a business-objects module, popper only) |
 // "CONTENT" (scope content, SCOPE module only) | "ANNOTATIONS" | "PHOTOS"
-// (Viewer module with photos) | "BASE_MAPS" (base maps list). The drawing commands live in the
+// (Viewer module with photos) | "BASE_MAPS" (base maps list, every popper
+// and the docked Dessin panel). The drawing commands live in the
 // unified commands toolbar (Features/commandsToolbar). The annotation
 // listings of the Dessin module are managed from the expandable panel under
 // the active listing band (BandActiveListing), not from a toggle side.
@@ -32,10 +33,6 @@ const popperMapListingsSlice = createSlice({
     // "Calques" header of the annotations popper (SectionLayers): the layers
     // list is expanded under the header. In redux for the same reason.
     layersPanelExpanded: true,
-    // "Fonds de plan" header of the Dessin popper (SectionPopperBaseMaps,
-    // above the listings block): the base maps list is expanded under the
-    // header. Collapsed by default; in redux for the same reason.
-    baseMapsPanelExpanded: false,
     showLayers: false,
     // null | "DRAW" | "EDIT" | "SELECT" — null = "no mode" (default): the
     // popper behaves like DRAW, and the selected annotation gets EDIT-like
@@ -60,7 +57,8 @@ const popperMapListingsSlice = createSlice({
     // as main hides the image / annotations of every other base map in the
     // displayed editor (useHideOtherBaseMaps).
     autoBaseMapVisibility: false,
-    // "Détacher la liste" (icon of the "Fonds de plan" title row): the base
+    // "Détacher la liste" (icon of the « N fonds de plan » band on top of
+    // the base maps list, BandBaseMapsSummary): the base
     // maps list lives in its own popper (PopperBaseMapsList) instead of the
     // "Fonds de plan" side of the annotations popper, which then has no such
     // side.
@@ -99,9 +97,7 @@ const popperMapListingsSlice = createSlice({
         : "ANNOTATIONS";
     },
     // Detach: the annotations popper falls back to its annotations side.
-    // Attach: the legend poppers land on their "Fonds de plan" side, where
-    // the list returns; the Dessin popper (no such side) expands its
-    // "Fonds de plan" section instead.
+    // Attach: it lands on its "Fonds de plan" side, where the list returns.
     setBaseMapsListDetached(state, action) {
       const detached = Boolean(action.payload);
       state.baseMapsListDetached = detached;
@@ -109,7 +105,6 @@ const popperMapListingsSlice = createSlice({
         state.viewerContentMode = "ANNOTATIONS";
       } else if (!detached) {
         state.viewerContentMode = "BASE_MAPS";
-        state.baseMapsPanelExpanded = true;
       }
     },
     setHideEmptyBaseMapsInList(state, action) {
@@ -123,9 +118,6 @@ const popperMapListingsSlice = createSlice({
     },
     setLayersPanelExpanded(state, action) {
       state.layersPanelExpanded = Boolean(action.payload);
-    },
-    setBaseMapsPanelExpanded(state, action) {
-      state.baseMapsPanelExpanded = Boolean(action.payload);
     },
   },
   extraReducers: (builder) => {
@@ -159,7 +151,6 @@ export const {
   setViewerContentMode,
   setListingsPanelExpanded,
   setLayersPanelExpanded,
-  setBaseMapsPanelExpanded,
   setHideEmptyBaseMapsInList,
   setAutoBaseMapVisibility,
   setBaseMapsListDetached,

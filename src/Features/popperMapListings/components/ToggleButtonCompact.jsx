@@ -35,7 +35,7 @@ export default function ToggleButtonCompact() {
   // render
 
   return (
-    <Tooltip title={tooltipS} arrow placement="top">
+    <Tooltip title={tooltipS} arrow placement="left">
       <ToggleButton
         value="compact"
         selected={compact}

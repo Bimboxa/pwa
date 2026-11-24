@@ -8,9 +8,12 @@ Floating draggable panel that displays listings (annotation template groups) for
 PopperMapListings (Paper, elevation 4)
 ├── Header
 │   ├── DragIndicatorIcon (drag handle — grab cursor)
-│   ├── Title ("Repérages" or "Dessins sur fond de plan")
-│   ├── Properties button (on hover, Tune icon → opens PanelPropertiesPopperMapListings)
-│   └── "+ Liste" button (create new listing)
+│   ├── ToggleContentMode ("Annotations | Fonds de plan", plus module sides) or plain title
+│   └── IconButtonToggleCollapsed ("Replier" / "Déplier", far right on every side)
+├── BandAnnotationsSummary (Dessin popper, annotations side)
+│   ├── "X annotations sur N fonds de plan"
+│   ├── ToggleButtonCompact
+│   └── Properties button (Tune icon → opens PanelPropertiesPopperMapListings)
 ├── Content (scrollable)
 │   ├── SectionLayers (MAP viewer only, togglable via properties panel)
 │   ├── ListingRow[] (expandable, with visibility toggle)
@@ -20,6 +23,17 @@ PopperMapListings (Paper, elevation 4)
 │   └── Tools section ("Outils de découpe": CUT, SPLIT_LINE, SPLIT_SURFACE, TECHNICAL_RETURN)
 └── Dialogs (create listing, calibration, merge compare)
 ```
+
+## Sides (header toggle)
+
+The header toggle (`ToggleContentMode`, state `popperMapListings.viewerContentMode`) swaps the whole body:
+
+- **Annotations**: the standard body (listings, templates). In the Dessin popper, the `BandAnnotationsSummary` band sits right under the header: "X annotations sur N fonds de plan" (counts from `usePopperBaseMapsCounts`), then the "Compact" toggle and the properties button.
+- **Fonds de plan**: the base maps list (`SectionBaseMapsList`) under its `BandBaseMapsSummary` band: "N fonds de plan" on the left, the "Détacher la liste" icon on the right. Detached, the list moves to its own popper (`PopperBaseMapsList`, state `baseMapsListDetached`, same band with the "Attacher aux annotations" icon) and the annotations popper loses its "Fonds de plan" side until the list is re-attached.
+
+The collapse / expand icon button sits at the far right of the header of both poppers; the footer (`PanelFooter`) only keeps "auto" and the resize handle, and is gone while collapsed.
+
+The legend poppers (Viewer, Scope, Maillage, BaseMaps modules) keep their properties button in the header. The docked Dessin panel (`PanelDrawing`) has the same toggle and bands, without detach / compact / properties.
 
 ## Viewer Modes
 
