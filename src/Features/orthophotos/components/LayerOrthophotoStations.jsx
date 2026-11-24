@@ -36,6 +36,8 @@ import {
 // frame of their station label, one variation of the theme secondary colour
 // per orthophoto (utils/orthophotoHoverStyle).
 const HOVER_CLASS = "orthophoto-under-cursor";
+// ... and the labels of the others, greyed out meanwhile
+const DIMMED_CLASS = "orthophoto-not-under-cursor";
 const HOVER_COLOR_VAR = "--orthophoto-hover-color";
 const HOVER_BORDER_STYLE_VAR = "--orthophoto-hover-border-style";
 
@@ -73,11 +75,14 @@ const DRAG_THRESHOLD_PX = 3;
 // - handles of the adjusted orthophoto: centre = move, corner = rotate +
 //   scale about the opposite corner, Alt + corner = that corner alone
 //   (deforms the image). One db write on release;
+// - Tab / Shift + Tab: next / previous label of the stack of overlapping
+//   labels the selected one belongs to;
 // - hovering the base map: the outline of every rectified image holding the
 //   hovered point, and the frame of its station label, are drawn with a thin
 //   line — one variation of the secondary colour per orthophoto, solid /
 //   tight dashes / spaced dashes as the cursor gets away from the station
-//   (which photos rebuild this spot of the mosaic).
+//   (which photos rebuild this spot of the mosaic); the labels of the other
+//   photos turn light grey meanwhile.
 export default function LayerOrthophotoStations({
   orthophotos,
   mainBaseMap,
@@ -120,7 +125,13 @@ export default function LayerOrthophotoStations({
   // last pointer position, and whether it is over the editor
   const pointerRef = useRef({ x: 0, y: 0, over: false });
   const latestRef = useRef({});
-  latestRef.current = { orthophotos, mainBaseMap, moduleKey, edited };
+  latestRef.current = {
+    orthophotos,
+    mainBaseMap,
+    moduleKey,
+    edited,
+    selectedOrthophotoId,
+  };
 
   // effects
 
@@ -157,6 +168,63 @@ export default function LayerOrthophotoStations({
       document.removeEventListener("pointerleave", handleLeave);
     };
   }, []);
+
+  // Tab (Shift + Tab: backwards) hands the selection to the next station
+  // label of the stack the selected one belongs to — the labels overlapping
+  // it on screen, directly or through another label — so a label hidden
+  // under the selected one can be reached without zooming in. Left to the
+  // browser while typing, and when the selected label overlaps none.
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if (e.key !== "Tab" || e.ctrlKey || e.metaKey || e.altKey) return;
+      const target = e.target;
+      if (
+        target instanceof HTMLElement &&
+        (target.isContentEditable ||
+          ["INPUT", "TEXTAREA", "SELECT"].includes(target.tagName))
+      ) {
+        return;
+      }
+      const { orthophotos, selectedOrthophotoId } = latestRef.current;
+      if (!selectedOrthophotoId) return;
+
+      const rectById = new Map();
+      for (const orthophoto of orthophotos) {
+        const el = pillElsRef.current.get(orthophoto.id);
+        if (!el || el.style.visibility === "hidden") continue;
+        const rect = (el.firstElementChild ?? el).getBoundingClientRect();
+        if (rect.width > 0) rectById.set(orthophoto.id, rect);
+      }
+      if (!rectById.has(selectedOrthophotoId)) return;
+      const overlap = (a, b) =>
+        a.left < b.right &&
+        b.left < a.right &&
+        a.top < b.bottom &&
+        b.top < a.bottom;
+      // stack of the selected label (transitive overlap)
+      const stack = new Set([selectedOrthophotoId]);
+      const queue = [selectedOrthophotoId];
+      while (queue.length > 0) {
+        const rect = rectById.get(queue.pop());
+        for (const [id, other] of rectById) {
+          if (stack.has(id) || !overlap(rect, other)) continue;
+          stack.add(id);
+          queue.push(id);
+        }
+      }
+      if (stack.size < 2) return;
+
+      const ids = orthophotos.map((o) => o.id).filter((id) => stack.has(id));
+      const index = ids.indexOf(selectedOrthophotoId);
+      const nextId =
+        ids[(index + (e.shiftKey ? -1 : 1) + ids.length) % ids.length];
+      e.preventDefault();
+      e.stopPropagation();
+      dispatch(setSelectedOrthophotoId(nextId));
+    };
+    window.addEventListener("keydown", handleKeyDown, true);
+    return () => window.removeEventListener("keydown", handleKeyDown, true);
+  }, [dispatch]);
 
   const active = orthophotos.length > 0;
   useEffect(() => {
@@ -283,6 +351,16 @@ export default function LayerOrthophotoStations({
             );
           }
         }
+      }
+
+      // while some orthophotos are under the cursor, the labels of the
+      // others are greyed out
+      const someHovered = hoveredIds.length > 0;
+      for (const [id, pillEl] of pillElsRef.current) {
+        pillEl.classList.toggle(
+          DIMMED_CLASS,
+          someHovered && !hoveredIds.includes(id)
+        );
       }
 
       // shared with the floating panel (grid of the original photos)
@@ -594,6 +672,17 @@ export default function LayerOrthophotoStations({
               touchAction: "none",
               // above the handles of the adjusted orthophoto
               zIndex: orthophoto.id === selectedOrthophotoId ? 2 : 1,
+              // its photo takes no part in the hovered spot: light grey label
+              // (the selected one keeps its look)
+              [`&.${DIMMED_CLASS} > div`]:
+                orthophoto.id === selectedOrthophotoId
+                  ? {}
+                  : {
+                      color: "grey.400",
+                      bgcolor: "grey.100",
+                      borderColor: "grey.300",
+                      boxShadow: "none",
+                    },
               // its rectified image is under the cursor: thin frame, in the
               // colour and the line style of its outline
               [`&.${HOVER_CLASS} > div::after`]: {
