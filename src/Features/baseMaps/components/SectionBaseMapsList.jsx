@@ -678,7 +678,12 @@ export default function SectionBaseMapsList({
       await db.baseMaps.update(map.id, { name: tempTitle });
       dispatch(triggerEntitiesTableUpdate("baseMaps"));
     } else {
-      await updateEntity(map.id, { name: tempTitle }, { listing });
+      // `baseMaps` table forced: a folder with no `table` would write nowhere.
+      await updateEntity(
+        map.id,
+        { name: tempTitle },
+        { listing: { ...listing, table: "baseMaps" } }
+      );
     }
     setEditingItemId(null);
   }
