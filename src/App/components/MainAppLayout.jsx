@@ -14,7 +14,6 @@ import useAutoSelectEnabledBaseMapOnScopeOpen from "Features/mapEditor/hooks/use
 import useAutoLayoutOnboarding from "Features/onboarding/hooks/useAutoLayoutOnboarding";
 import useAutoLayout from "Features/layout/hooks/useAutoLayout";
 import useAutoSelectEntityId from "Features/entities/hooks/useAutoSelectEntityId";
-import useAutoSelectScopeId from "Features/scopes/hooks/useAutoSelectScopeId";
 import useApplyUrlParams from "Features/urlParams/hooks/useApplyUrlParams";
 
 import { Box } from "@mui/material";
@@ -23,6 +22,7 @@ import { DndContext } from "@dnd-kit/core";
 
 import LayoutDesktop from "Features/layout/components/LayoutDesktop";
 import LayoutMobile from "Features/layout/components/LayoutMobile";
+import ScopeGate from "Features/scopes/components/ScopeGate";
 
 import DialogAutoRemoteContainerConnexion from "Features/sync/components/DialogAutoRemoteContainerConnexion";
 import PageLanding from "Features/init/components/PageLanding";
@@ -54,7 +54,6 @@ export default function MainAppLayout() {
   //useAutoLayoutOnboarding();
   useAutoLayout();
   useAutoSelectEntityId();
-  useAutoSelectScopeId();
   useApplyUrlParams();
 
   // data
@@ -119,8 +118,10 @@ export default function MainAppLayout() {
           display: "flex",
         }}
       >
-        {deviceType === "DESKTOP" && <LayoutDesktop />}
-        {deviceType === "MOBILE" && <LayoutMobile />}
+        <ScopeGate>
+          {deviceType === "DESKTOP" && <LayoutDesktop />}
+          {deviceType === "MOBILE" && <LayoutMobile />}
+        </ScopeGate>
       </Box>
       <Toaster />
       <PageLanding />

@@ -799,7 +799,7 @@ function assertScopeSelected(tableName, obj) {
   if (_skipOwnershipGuard) return;
   if (tableName !== "annotations") return;
   if (obj?.isBaseMapAnnotation || obj?.isScaleSegment) return;
-  if (getCurrentScopeId()) return;
+  if (hasValidCurrentScope()) return;
   throw new NoScopeSelectedError(
     getSelectScopeRequiredMessage(store.getState()?.appConfig?.value)
   );
@@ -920,6 +920,25 @@ db.relAnnotationMappingCategory.hook("deleting", function (primKey, obj) {
 
 function getCurrentScopeId() {
   return store.getState()?.scopes?.selectedScopeId ?? null;
+}
+
+// Whether the selected scope can receive content: an id is selected and, when
+// its record is known, it belongs to the selected project (a scope left over
+// from another project is not a valid target). A scope missing from
+// scopesById is accepted: a freshly created one is not live-synced yet.
+function hasValidCurrentScope() {
+  const state = store.getState();
+  const scopeId = state?.scopes?.selectedScopeId;
+  if (!scopeId) return false;
+  const scope = state?.scopes?.scopesById?.[scopeId];
+  const projectId = state?.projects?.selectedProjectId;
+  if (
+    scope &&
+    projectId != null &&
+    String(scope.projectId) !== String(projectId)
+  )
+    return false;
+  return true;
 }
 
 db.points.hook("creating", function (primKey, obj) {

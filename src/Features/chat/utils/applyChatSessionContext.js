@@ -9,7 +9,9 @@ import {
 export default function applyChatSessionContext(dispatch, context) {
   if (!context) return;
   dispatch(setSelectedProjectId(context.projectId));
-  dispatch(setSelectedScopeId(context.scopeId));
+  // A context without a scope keeps the current one: useEnsureSelectedScope
+  // re-selects a scope of the project if it does not belong to it.
+  if (context.scopeId) dispatch(setSelectedScopeId(context.scopeId));
   dispatch(setSelectedBaseMapsListingId(context.baseMapListingId ?? null));
   dispatch(setSelectedMainBaseMapId(context.baseMapId));
 }

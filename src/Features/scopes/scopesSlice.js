@@ -50,8 +50,8 @@ export const scopesSlice = createSlice({
     },
     //
     setSelectedScopeId: (state, action) => {
-      state.selectedScopeId = action.payload;
-      setInitScopeId(action.payload);
+      state.selectedScopeId = action.payload ?? null;
+      setInitScopeId(state.selectedScopeId);
     },
     setScopeOpeningSource: (state, action) => {
       state.openingSource = action.payload ?? null;
