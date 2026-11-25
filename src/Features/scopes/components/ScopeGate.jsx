@@ -11,11 +11,11 @@ import ScreenNoScope from "./ScreenNoScope";
 export default function ScopeGate({ children }) {
   // data
 
-  const { status } = useEnsureSelectedScope();
+  const { status, keepMounted } = useEnsureSelectedScope();
 
   // render
 
-  if (status === SCOPE_STATUS.READY) return children;
+  if (status === SCOPE_STATUS.READY || keepMounted) return children;
 
   if (status === SCOPE_STATUS.NO_SCOPE) return <ScreenNoScope />;
 
