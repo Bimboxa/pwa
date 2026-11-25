@@ -17,7 +17,8 @@ import {
 
 import attachScene3dGlbToBaseMapGroup from "./attachScene3dGlbToBaseMapGroup";
 
-// The scan is a "decor": never raycast (click, hover, snap, camera pivot).
+// The scan is a "decor": never raycast (click, hover, snap). The camera pivot
+// and the drawing tools reach it through intersectScene3d instead.
 const noRaycast = () => {};
 
 function markDecor(object) {
