@@ -54,7 +54,7 @@
  *   wall around stays where it was drawn). Then, unless `shape` is
  *   "RECTANGLE", a corner closed by walls is carved out (L room) and the
  *   extensions of step 2 apply.
- * @param {number} [params.rectangleSnapM=0.5]
+ * @param {number} [params.rectangleSnapM=0.3]
  * @returns {{points:Array<{x,y}>, rects:Array}|{points:null, reason:string}}
  *   `points` in source-image px.
  */
@@ -83,7 +83,7 @@ export default function detectRoomAtPoint({
   maxDepth = 2,
   maxRects = 12,
   baseRectangle = null,
-  rectangleSnapM = 0.5,
+  rectangleSnapM = 0.3,
 }) {
   if (!masks || (!seed && !baseRectangle)) {
     return { points: null, reason: "NO_INPUT" };
@@ -216,6 +216,7 @@ function createContext(masks, options) {
     minLeg: toCells(options.minLegM),
     cornerTolerance: toCells(options.cornerToleranceM),
     minRoom: toCells(options.minRoomM),
+    maxWallThickness: toCells(0.6),
     doorLeafMaxLength: toCells(options.doorLeafMaxLengthM),
     doorLeafClearance: toCells(options.doorLeafClearanceM),
     count,
@@ -438,7 +439,7 @@ function getFace(ctx, side, pos, a, b, skipped = null) {
 /**
  * Rectangle drawn by the user (p1 = clicked corner, p2 = cursor). The two
  * sides meeting at the clicked corner are kept as drawn; the two others are
- * snapped to the wall found within `snapM` (the innermost one). A side without wall
+ * snapped to the wall nearest to them within `snapM`. A side without wall
  * around keeps its drawn position (and gets no `lines` entry: no extension
  * through it). Returns null when the rectangle is too small.
  */
@@ -474,16 +475,31 @@ function snapRectangle(ctx, masks, { p1, p2 }, snapM) {
       const { axis, dir } = side;
       const [a, b] = getSpan(rect, side);
       const target = dir > 0 ? drawn[side.key] : drawn[side.key] - 1;
-      // from inside the rectangle outwards: the first wall met is seen from
-      // the room, so the side lands on its inner face
+      // the wall nearest to the drawn side: the cursor points at it (at
+      // equal distance, the one inside the rectangle). Nothing further in is
+      // looked at — a fixture or a piece of furniture standing in the room
+      // must not catch the side.
       let found = null;
-      for (let d = -snap; d <= snap && !found; d++) {
-        const pos = target + dir * d;
-        if (pos < 0 || pos >= ctx.limit(axis)) continue;
-        if (!isWallLine(ctx, axis, pos, a, b)) continue;
-        const face = getFace(ctx, side, pos, a, b);
-        if (face === null || isDoorLeaf(ctx, side, face, a, b)) continue;
-        found = { edge: dir > 0 ? face : face + 1, line: pos };
+      for (let d = 0; d <= snap && !found; d++) {
+        for (const pos of d === 0
+          ? [target]
+          : [target - dir * d, target + dir * d]) {
+          if (pos < 0 || pos >= ctx.limit(axis)) continue;
+          if (!isWallLine(ctx, axis, pos, a, b)) continue;
+          let face = getFace(ctx, side, pos, a, b);
+          if (face === null || isDoorLeaf(ctx, side, face, a, b)) continue;
+          // reached from outside a solid (filled) wall: cross it back to its
+          // inner face
+          const minCount = Math.max(1, 0.2 * ctx.count(axis, face, a, b));
+          for (let k = 0; k < ctx.maxWallThickness; k++) {
+            const inner = face - dir;
+            if (inner < 0 || inner >= ctx.limit(axis)) break;
+            if (ctx.count(axis, inner, a, b) < minCount) break;
+            face = inner;
+          }
+          found = { edge: dir > 0 ? face : face + 1, line: pos };
+          break;
+        }
       }
       rect[side.key] = found ? found.edge : drawn[side.key];
       if (found) rect.lines[side.key] = found.line;
