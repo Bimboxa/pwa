@@ -13,6 +13,7 @@ import {
   setRevolutionOnCommit,
 } from "../mapEditorSlice";
 import { setNewAnnotation } from "Features/annotations/annotationsSlice";
+import { cycleRoomShape } from "Features/smartDetect/smartDetectSlice";
 import { selectPdfEditorOpen } from "Features/pdfEditor/pdfEditorSlice";
 import { selectDrawingToolsEditor } from "Features/meshPaint/utils/meshBrushSelectors";
 
@@ -127,6 +128,14 @@ export default function useDrawingToolHotkeys() {
       if (selectPdfEditorOpen(s)) return;
       const mode = s.mapEditor.enabledDrawingMode;
       if (!mode) return;
+
+      // « Pièce » tool: F cycles the room shape (Auto / Rectangulaire / L).
+      if (mode === "ROOM_CLICK" && e.key.toLowerCase() === "f") {
+        dispatch(cycleRoomShape());
+        e.preventDefault();
+        e.stopImmediatePropagation();
+        return;
+      }
 
       const hasFirstPoint =
         s.mapEditor.drawingPolylinePoints.length > 0 ||

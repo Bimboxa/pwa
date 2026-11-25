@@ -3,6 +3,7 @@ import {
   Rectangle,
   RadioButtonUnchecked,
   WaterDrop,
+  MeetingRoom,
   MyLocation as Target,
   Brush,
   FormatPaint as RollerIcon,
@@ -194,6 +195,16 @@ const DRAWING_TOOLS = [
     Icon: WaterDrop,
     annotationType: "POLYGON",
     behavior: "SURFACE_DROP",
+  },
+  // « Pièce »: one click inside a room of the base map image creates its
+  // polygon (deterministic wall detection, see smartDetect/detectRoomAtPoint).
+  {
+    key: "ROOM_CLICK",
+    label: "Pièce",
+    Icon: MeetingRoom,
+    annotationType: "POLYGON",
+    behavior: "ROOM_CLICK",
+    editor: "2D",
   },
   {
     key: "BRUSH",

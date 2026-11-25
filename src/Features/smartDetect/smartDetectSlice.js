@@ -2,6 +2,10 @@ import { createSlice } from "@reduxjs/toolkit";
 
 import { grey } from "@mui/material/colors";
 
+// Shapes of the room detected by the « Pièce » tool (ROOM_CLICK), in the
+// order the F key cycles them.
+export const ROOM_SHAPES = ["AUTO", "RECTANGLE", "L"];
+
 const smartDetectInitialState = {
   //
   centerColor: grey[500],
@@ -22,6 +26,14 @@ const smartDetectInitialState = {
   // contours formed by the surrounding annotations — same algorithm as the
   // POLYGON_CLICK hover smart-detect (S key).
   useOutlines: false,
+  // « Pièce » tool (ROOM_CLICK, see utils/detectRoomAtPoint.js):
+  //   - roomShape: "AUTO" (rectangle + extensions through the openings wider
+  //     than a door), "RECTANGLE" (no extension) or "L" (one extension, even
+  //     through an opening no wider than a door — corridor).
+  //   - roomIgnoreColoredLines: coloured strokes (axes, networks…) are not
+  //     read as walls.
+  roomShape: "AUTO",
+  roomIgnoreColoredLines: true,
   visibleAreaOnly: true,
   //
   simplifyPolynomial: true,
@@ -62,6 +74,16 @@ export const smartDetectSlice = createSlice({
     setUseOutlines: (state, action) => {
       state.useOutlines = action.payload;
     },
+    setRoomShape: (state, action) => {
+      state.roomShape = action.payload;
+    },
+    cycleRoomShape: (state) => {
+      const index = ROOM_SHAPES.indexOf(state.roomShape);
+      state.roomShape = ROOM_SHAPES[(index + 1) % ROOM_SHAPES.length];
+    },
+    setRoomIgnoreColoredLines: (state, action) => {
+      state.roomIgnoreColoredLines = action.payload;
+    },
     setVisibleAreaOnly: (state, action) => {
       state.visibleAreaOnly = action.payload;
     },
@@ -89,6 +111,9 @@ export const {
   setIgnoreBaseMap,
   setColorTolerance,
   setUseOutlines,
+  setRoomShape,
+  cycleRoomShape,
+  setRoomIgnoreColoredLines,
   setVisibleAreaOnly,
   setSimplifyPolynomial,
   setSimplifyOuterContour,
