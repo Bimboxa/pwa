@@ -449,3 +449,23 @@ test("wall line cut by the walls it meets: not a dashed line", () => {
   assert.equal(result.points?.length, 4);
   assert.deepEqual(getBbox(result.points), ROOM_BBOX);
 });
+
+test("drawn rectangle: a fixture inside the room does not catch the sides", () => {
+  // fixture standing in the top-right corner: its front edge (y = 90, 1.3 m
+  // long, attached to the right wall) reads as a wall line 0.45 m under the
+  // top wall
+  const rects = [
+    LEFT,
+    RIGHT,
+    TOP,
+    BOTTOM,
+    [120, 88, 250, 90],
+    [120, 44, 122, 90],
+  ];
+  // click on the bottom-left corner, cursor next to the top-right one
+  const result = detect(plan({ rects }), null, {
+    baseRectangle: { p1: { x: 54, y: 200 }, p2: { x: 245, y: 50 } },
+    shape: "RECTANGLE",
+  });
+  assert.deepEqual(getBbox(result.points), ROOM_BBOX);
+});
