@@ -101,17 +101,15 @@ const DEFAULT_SECTIONS = [
     key: "LINES_WALLS",
     label: "Ligne / bande / Murs",
     entries: [
-      // « Inverser le sens » stands alone, always visible next to the group
+      // « Basculer ligne ↔ bande » and « Inverser le sens » stand alone,
+      // always visible on each side of the group (never behind its last-used
+      // primary slot)
+      "TOGGLE_STRIP_TYPE",
       {
         type: "group",
         key: "LINE_EDIT",
         label: "Ligne / bande",
-        commandKeys: [
-          "TOGGLE_STRIP_TYPE",
-          "TOGGLE_CLOSE_LINE",
-          "ANCHOR",
-          "DETECT_SIMILAR_STRIPS",
-        ],
+        commandKeys: ["TOGGLE_CLOSE_LINE", "ANCHOR", "DETECT_SIMILAR_STRIPS"],
       },
       "FLIP_STRIP",
       // « Contours » stands alone, always visible next to the walls group

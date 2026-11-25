@@ -8,6 +8,7 @@ import useReflowOpeningsForHosts from "Features/mapEditor/hooks/useReflowOpening
 import useUpdateAnnotation from "./useUpdateAnnotation";
 
 import { offsetPolyline } from "Features/geometry/utils/offsetPolylineAsPolygon";
+import offsetClosedRing from "Features/geometry/utils/offsetClosedRing";
 import {
   SEGMENT_FLAG_FIELDS,
   segmentIdxToPointIds,
@@ -24,7 +25,11 @@ import {
  *   - STRIP side A -> STRIP side B: edge = offset(edge, +W),  orientation -1
  *   - STRIP side B -> POLYLINE:    center = offset(edge, -W/2)
  *
- * Open polylines only (caller hides the action when closeLine is true).
+ * Open and closed lines. A closed line (closeLine) is offset as a ring
+ * (offsetClosedRing): positive = outward, the sign convention of the closed
+ * STRIP renderer (offsetPolygon in getStripePolygons), so the same three
+ * distances apply. The toggle is a no-op when the inward offset does not fit
+ * in the ring.
  */
 export default function useToggleAnnotationStripType() {
   const baseMap = useMainBaseMap();
@@ -37,8 +42,8 @@ export default function useToggleAnnotationStripType() {
 
     const { type, points = [], closeLine } = annotation;
     if (!["POLYLINE", "STRIP"].includes(type)) return;
-    if (closeLine) return; // open polylines only
-    if (points.length < 2) return;
+    const closed = closeLine === true;
+    if (points.length < (closed ? 3 : 2)) return;
 
     const meterByPx = baseMap?.meterByPx ?? baseMap?.getMeterByPx?.();
     const imageSize = baseMap?.getImageSize?.() || baseMap?.image?.imageSize;
@@ -55,6 +60,7 @@ export default function useToggleAnnotationStripType() {
     // annotation.points are already resolved to pixel space.
     const pts = points.map((p) => ({ x: p.x, y: p.y }));
     const orientation = annotation.stripOrientation ?? 1;
+    const offset = closed ? offsetClosedRing : offsetPolyline;
 
     let newPixelPoints;
     let fields;
@@ -62,16 +68,16 @@ export default function useToggleAnnotationStripType() {
 
     if (type === "POLYLINE") {
       // -> STRIP side A
-      newPixelPoints = offsetPolyline(pts, -Wpx / 2);
+      newPixelPoints = offset(pts, -Wpx / 2);
       fields = { type: "STRIP", stripOrientation: 1 };
     } else if (orientation >= 0) {
       // STRIP side A -> STRIP side B
-      newPixelPoints = offsetPolyline(pts, Wpx);
+      newPixelPoints = offset(pts, Wpx);
       fields = { type: "STRIP", stripOrientation: -1 };
     } else {
       // STRIP side B -> POLYLINE: the band openings (hidden segments) don't
       // apply to a plain stroke — reset them.
-      newPixelPoints = offsetPolyline(pts, -Wpx / 2);
+      newPixelPoints = offset(pts, -Wpx / 2);
       fields = {
         type: "POLYLINE",
         stripOrientation: undefined,
@@ -80,7 +86,8 @@ export default function useToggleAnnotationStripType() {
       resetHidden = true;
     }
 
-    if (!newPixelPoints || newPixelPoints.length < 2) return;
+    // offsetClosedRing returns null when the inward offset does not fit.
+    if (!newPixelPoints || newPixelPoints.length < (closed ? 3 : 2)) return;
 
     // New normalized point records (fresh ids — never mutate shared points).
     const newRecords = newPixelPoints.map((p) => ({
@@ -103,7 +110,7 @@ export default function useToggleAnnotationStripType() {
       flagFields[idxField] = undefined;
       flagFields[idField] =
         !skip && Array.isArray(idx) && idx.length > 0
-          ? segmentIdxToPointIds(idx, refs, { closed: false })
+          ? segmentIdxToPointIds(idx, refs, { closed })
           : undefined;
     }
 
