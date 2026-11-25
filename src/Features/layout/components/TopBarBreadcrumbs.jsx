@@ -71,12 +71,7 @@ export default function TopBarBreadcrumbs() {
   const Project = () => (
     <Box sx={{ maxWidth: 200, display: "flex" }}>
       <Tooltip title={selectedProject?.name}>
-        <ButtonGeneric
-          label={selectedProject?.name}
-          onClick={
-            viewerMode ? undefined : () => dispatch(setSelectedScopeId(null))
-          }
-        />
+        <ButtonGeneric label={selectedProject?.name} />
       </Tooltip>
     </Box>
   );
