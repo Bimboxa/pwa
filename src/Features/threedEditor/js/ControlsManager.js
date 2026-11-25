@@ -16,6 +16,7 @@ import CameraControls from "camera-controls";
 
 import { loadNavigationPreset } from "Features/threedEditor/services/navigationPresetLocalStorage";
 import { isObjectChainVisible } from "Features/threedEditor/js/utilsAnnotationsManager/visibilityPick";
+import intersectScene3d from "Features/scene3d/services/intersectScene3d";
 
 import resolveNavigationMouseActions from "Features/threedEditor/utils/resolveNavigationMouseActions";
 
@@ -1297,7 +1298,8 @@ export default class ControlsManager {
 
   // Resolve the world point under the cursor, in priority order:
   //   (a) the nearest opaque mesh hit (see-through meshes are ignored so a
-  //       dimmed annotation never captures the pivot),
+  //       dimmed annotation never captures the pivot) or the nearest point
+  //       of a scan base map mesh, whichever is closer,
   //   (b) the nearest basemap plane (infinite — robust even if the basemap
   //       image isn't drawn or is too small),
   //   (c) the ground plane y=0.
@@ -1314,6 +1316,7 @@ export default class ControlsManager {
 
     // (a) Meshes first.
     const scene = this.sceneManager.scene;
+    let meshHit = null;
     if (scene) {
       const intersects = ray.intersectObjects(scene.children, true);
       for (const i of intersects) {
@@ -1325,11 +1328,35 @@ export default class ControlsManager {
           isObjectChainVisible(i.object) &&
           !isMaterialSeeThrough(i.object.material)
         ) {
-          this._pivotSource = "mesh";
-          return this._pivotBest.copy(i.point);
+          meshHit = i;
+          break;
         }
       }
     }
+
+    // (a') Scan base maps (« Scène 3D » shown as a mesh): their meshes never
+    // answer a raycast (decor, no CPU geometry), the hit comes from the
+    // scan picker. Its data is built on demand: the first gesture over a
+    // scan starts the build and, until it is ready, keeps the current orbit
+    // point rather than the base map plane lying under / behind the scan.
+    const scanHit = intersectScene3d(
+      { sceneManager: this.sceneManager },
+      null,
+      null,
+      { ray: ray.ray }
+    );
+    if (
+      scanHit?.position &&
+      !(meshHit && meshHit.distance <= scanHit.distance)
+    ) {
+      this._pivotSource = "mesh";
+      return this._pivotBest.copy(scanHit.position);
+    }
+    if (meshHit) {
+      this._pivotSource = "mesh";
+      return this._pivotBest.copy(meshHit.point);
+    }
+    if (scanHit?.isPending) return null;
 
     // (b) Basemap planes (infinite), keep the nearest hit in front of the ray.
     const imagesMap = this.sceneManager.imagesManager?.imagesMap;
