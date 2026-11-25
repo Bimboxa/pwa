@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { useLiveQuery } from "dexie-react-hooks";
 
@@ -34,6 +34,11 @@ export default function useEnsureSelectedScope() {
     (s) => s.projects.initSelectProjectDone
   );
 
+  // state
+
+  // Project for which a valid scope has already been reached.
+  const [readyProjectId, setReadyProjectId] = useState(null);
+
   // The result is tagged with the project it was computed for: useLiveQuery
   // keeps returning the previous project's scopes while the new query runs,
   // and acting on that stale list would re-select a scope of the old project.
@@ -64,6 +69,17 @@ export default function useEnsureSelectedScope() {
       status = SCOPE_STATUS.NO_SCOPE;
   }
 
+  // A scope created (or duplicated) from a module is selected a few ms
+  // before the live query lists it: the status goes back to RESOLVING for
+  // that instant. Unmounting the modules then would reset every one of them
+  // (3D editor included) for nothing, so they stay mounted as long as a scope
+  // is selected in a project that was already READY.
+  const keepMounted =
+    status === SCOPE_STATUS.RESOLVING &&
+    Boolean(selectedScopeId) &&
+    Boolean(selectedProjectId) &&
+    readyProjectId === selectedProjectId;
+
   // effect - fix an invalid selection
 
   useEffect(() => {
@@ -71,6 +87,7 @@ export default function useEnsureSelectedScope() {
 
     if (isValid) {
       setLastScopeIdForProject(selectedProjectId, selectedScopeId);
+      setReadyProjectId(selectedProjectId);
       return;
     }
 
@@ -103,5 +120,5 @@ export default function useEnsureSelectedScope() {
 
   // return
 
-  return { status };
+  return { status, keepMounted };
 }
