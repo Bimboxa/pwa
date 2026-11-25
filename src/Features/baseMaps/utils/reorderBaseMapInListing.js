@@ -40,5 +40,10 @@ export default async function reorderBaseMapInListing({
     newSortIndex = generateKeyBetween(b, a);
   }
 
-  await updateEntity(baseMap.id, { sortIndex: newSortIndex }, { listing });
+  // `baseMaps` table forced: a folder with no `table` would write nowhere.
+  await updateEntity(
+    baseMap.id,
+    { sortIndex: newSortIndex },
+    { listing: { ...listing, table: "baseMaps" } }
+  );
 }
