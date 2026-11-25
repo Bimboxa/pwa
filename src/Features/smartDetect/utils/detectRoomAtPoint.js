@@ -28,7 +28,8 @@
  *          is either wider than a door or flush with a corner of the
  *          rectangle (corridor mouth: no wider than a door, but no jamb).
  *
- *   3. The union of the rectangles is traced as one rectilinear polygon.
+ *   3. The union of the rectangles (minus the corner notches of a drawn
+ *      rectangle, see carveNotches) is traced as one rectilinear polygon.
  *
  * Sides sit on the INNER face of the walls (first wall cell).
  *
@@ -47,9 +48,11 @@
  * @param {number} [params.maxDepth=2] Levels of child rectangles ("AUTO").
  * @param {number} [params.maxRects=12]
  * @param {{p1:{x,y},p2:{x,y}}} [params.baseRectangle] Rectangle drawn by the
- *   user (two opposite corners, source-image px), used INSTEAD of the seed:
- *   each of its sides is snapped to the nearest wall within `rectangleSnapM`
- *   (a side with no wall around stays where it was drawn), then the
+ *   user (p1 = clicked corner, p2 = cursor, source-image px), used INSTEAD
+ *   of the seed. The room goes through the clicked corner; the two other
+ *   sides are snapped to the wall within `rectangleSnapM` (a side with no
+ *   wall around stays where it was drawn). Then, unless `shape` is
+ *   "RECTANGLE", a corner closed by walls is carved out (L room) and the
  *   extensions of step 2 apply.
  * @param {number} [params.rectangleSnapM=0.5]
  * @returns {{points:Array<{x,y}>, rects:Array}|{points:null, reason:string}}
@@ -132,7 +135,15 @@ export default function detectRoomAtPoint({
     return child;
   };
 
-  if (shape === "L") {
+  // a drawn rectangle may hold another room in a corner: carve it (L shape)
+  const notches =
+    baseRectangle && shape !== "RECTANGLE"
+      ? carveNotches(ctx, root, shape)
+      : [];
+
+  if (shape === "L" && notches.length) {
+    // the L is the rectangle minus its corner notch: no leg on top of it
+  } else if (shape === "L") {
     // the largest leg through a wide or corner-flush opening
     let best = null;
     for (const side of SIDES) {
@@ -169,7 +180,7 @@ export default function detectRoomAtPoint({
     }
   }
 
-  const loop = traceUnion(rects);
+  const loop = traceUnion(rects, notches);
   if (!loop || loop.length < 4) return { points: null, reason: "NO_OUTLINE" };
 
   return { points: loop.map(masks.toImagePx), rects };
@@ -221,18 +232,25 @@ function createContext(masks, options) {
 // Length of the wall run starting at one end of [a, b) on the line `pos`
 // (the longest of the two ends), holes of 2 cells tolerated.
 function getAttachedRun(ctx, axis, pos, a, b) {
-  const walk = (from, step) => {
-    let run = 0;
-    let gap = 0;
-    for (let t = from; t >= a && t < b; t += step) {
-      if (ctx.isWallAt(axis, pos, t)) {
-        run += gap + 1;
-        gap = 0;
-      } else if (++gap > 2) break;
-    }
-    return run;
-  };
-  return Math.max(walk(a, 1), walk(b - 1, -1));
+  return Math.max(
+    getRunFromEnd(ctx, axis, pos, a, b, true),
+    getRunFromEnd(ctx, axis, pos, a, b, false)
+  );
+}
+
+// Length of the wall run of the line `pos` starting at the start (or the
+// end) of [a, b), holes of 2 cells tolerated.
+function getRunFromEnd(ctx, axis, pos, a, b, fromStart) {
+  const step = fromStart ? 1 : -1;
+  let run = 0;
+  let gap = 0;
+  for (let t = fromStart ? a : b - 1; t >= a && t < b; t += step) {
+    if (ctx.isWallAt(axis, pos, t)) {
+      run += gap + 1;
+      gap = 0;
+    } else if (++gap > 2) break;
+  }
+  return run;
 }
 
 // Is the line `pos` a wall for a side spanning [a, b)?
@@ -368,8 +386,9 @@ function findEdge(ctx, side, seed, a, b) {
  * Move the sides of `rect` off the anti-aliased fringe of their wall: a
  * raster line is edged by grey pixels, dark enough to be read as ink, which
  * would leave a white sliver between the room and the wall. While the line
- * under a side is less than half as dark as the next one, the side steps
- * onto the next one (2 steps at most). `skipKey`: side left untouched (the
+ * under a side is less than half as dark as one of the next two, the side
+ * steps forward (3 steps at most). A thin grey line followed by blank is a
+ * wall face of its own and is kept. `skipKey`: side left untouched (the
  * pinned side of a child).
  */
 function refineEdges(ctx, masks, rect, skipKey) {
@@ -389,9 +408,13 @@ function refineEdges(ctx, masks, rect, skipKey) {
       }
       return sum;
     };
-    for (let step = 0; step < 2; step++) {
+    for (let step = 0; step < 3; step++) {
       const face = dir > 0 ? rect[side.key] : rect[side.key] - 1;
-      if (getLineDarkness(face) >= 0.5 * getLineDarkness(face + dir)) break;
+      const next = Math.max(
+        getLineDarkness(face + dir),
+        getLineDarkness(face + 2 * dir)
+      );
+      if (getLineDarkness(face) >= 0.5 * next) break;
       rect[side.key] += dir;
     }
   }
@@ -413,8 +436,9 @@ function getFace(ctx, side, pos, a, b, skipped = null) {
 }
 
 /**
- * Rectangle drawn by the user, each side snapped to the wall found within
- * `snapM` of it (the innermost one). A side without wall
+ * Rectangle drawn by the user (p1 = clicked corner, p2 = cursor). The two
+ * sides meeting at the clicked corner are kept as drawn; the two others are
+ * snapped to the wall found within `snapM` (the innermost one). A side without wall
  * around keeps its drawn position (and gets no `lines` entry: no extension
  * through it). Returns null when the rectangle is too small.
  */
@@ -433,11 +457,20 @@ function snapRectangle(ctx, masks, { p1, p2 }, snapM) {
     r.right - r.left >= ctx.minRoom && r.bottom - r.top >= ctx.minRoom;
   if (!isBigEnough(rect)) return null;
 
+  // the two sides meeting at the clicked corner (p1) stay where they were
+  // drawn: the room goes through the click
+  const pinned = [
+    g1.x >= g2.x ? "right" : "left",
+    g1.y >= g2.y ? "bottom" : "top",
+  ];
+  rect.pinnedCorner = pinned;
+
   const drawn = { ...rect };
   const snap = Math.max(1, Math.round(snapM / masks.meterByCell));
   // two passes: the spans of the second one are the snapped ones
   for (let pass = 0; pass < 2; pass++) {
     for (const side of SIDES) {
+      if (pinned.includes(side.key)) continue;
       const { axis, dir } = side;
       const [a, b] = getSpan(rect, side);
       const target = dir > 0 ? drawn[side.key] : drawn[side.key] - 1;
@@ -456,9 +489,89 @@ function snapRectangle(ctx, masks, { p1, p2 }, snapM) {
       if (found) rect.lines[side.key] = found.line;
       else delete rect.lines[side.key];
     }
-    if (!isBigEnough(rect)) return { ...drawn, lines: {} };
+    if (!isBigEnough(rect))
+      return { ...drawn, lines: {}, pinnedCorner: pinned };
   }
   return rect;
+}
+
+/**
+ * Corner notches of a drawn rectangle: a corner of the rectangle closed by
+ * two walls — a vertical one attached to its horizontal side and a
+ * horizontal one attached to its vertical side — is another room (or a
+ * shaft, a column…): the room is the rectangle minus that corner (L shape).
+ * Both walls must cover at least `coverageRatio` of the notch side they
+ * carry (a door is allowed). The largest closed notch is kept per corner;
+ * the clicked corner is never carved. Returns notch rectangles
+ * { left, right, top, bottom }: "L" keeps the largest one only.
+ */
+function carveNotches(ctx, rect, shape) {
+  const notches = [];
+  const [pinnedH, pinnedV] = rect.pinnedCorner ?? [];
+  for (const hKey of ["left", "right"]) {
+    for (const vKey of ["top", "bottom"]) {
+      if (hKey === pinnedH && vKey === pinnedV) continue;
+      const notch = findCornerNotch(ctx, rect, hKey, vKey);
+      if (notch) notches.push(notch);
+    }
+  }
+  notches.sort((p, q) => getRectArea(q) - getRectArea(p));
+  return shape === "L" ? notches.slice(0, 1) : notches;
+}
+
+function findCornerNotch(ctx, rect, hKey, vKey) {
+  const { left, right, top, bottom } = rect;
+  const isRight = hKey === "right";
+  const isBottom = vKey === "bottom";
+
+  // vertical lines carrying a wall attached to the horizontal side `vKey`,
+  // horizontal lines carrying a wall attached to the vertical side `hKey`
+  const xs = [];
+  for (let x = left + ctx.minLeg; x < right - ctx.minLeg; x++) {
+    if (ctx.countWide("v", x, top, bottom) < ctx.minAttached) continue;
+    if (getRunFromEnd(ctx, "v", x, top, bottom, !isBottom) >= ctx.minAttached) {
+      xs.push(x);
+    }
+  }
+  if (!xs.length) return null;
+  const ys = [];
+  for (let y = top + ctx.minLeg; y < bottom - ctx.minLeg; y++) {
+    if (ctx.countWide("h", y, left, right) < ctx.minAttached) continue;
+    if (getRunFromEnd(ctx, "h", y, left, right, !isRight) >= ctx.minAttached) {
+      ys.push(y);
+    }
+  }
+
+  // largest corner closed by a pair of them
+  let best = null;
+  for (const x of xs) {
+    const [ha, hb] = isRight ? [x, right] : [left, x + 1];
+    for (const y of ys) {
+      const [va, vb] = isBottom ? [y, bottom] : [top, y + 1];
+      const area = (hb - ha) * (vb - va);
+      if (best && area <= best.area) continue;
+      if (ctx.countWide("v", x, va, vb) < ctx.coverageRatio * (vb - va))
+        continue;
+      if (ctx.countWide("h", y, ha, hb) < ctx.coverageRatio * (hb - ha))
+        continue;
+      best = { x, y, ha, hb, va, vb, area };
+    }
+  }
+  if (!best) return null;
+
+  // faces of the two walls seen from the room
+  const sideV = { axis: "v", dir: isRight ? 1 : -1 };
+  const sideH = { axis: "h", dir: isBottom ? 1 : -1 };
+  const faceX = getFace(ctx, sideV, best.x, best.va, best.vb) ?? best.x;
+  const faceY = getFace(ctx, sideH, best.y, best.ha, best.hb) ?? best.y;
+  const edgeX = isRight ? faceX : faceX + 1;
+  const edgeY = isBottom ? faceY : faceY + 1;
+  return {
+    left: isRight ? edgeX : left,
+    right: isRight ? right : edgeX,
+    top: isBottom ? edgeY : top,
+    bottom: isBottom ? bottom : edgeY,
+  };
 }
 
 /**
@@ -613,10 +726,13 @@ function getOpenings(ctx, rect, side) {
 // union of rectangles -> outer rectilinear loop
 // ---------------------------------------------------------------------------
 
-function traceUnion(rects) {
+function traceUnion(rects, notches = []) {
   const uniq = (values) => [...new Set(values)].sort((p, q) => p - q);
-  const xs = uniq(rects.flatMap((r) => [r.left, r.right]));
-  const ys = uniq(rects.flatMap((r) => [r.top, r.bottom]));
+  const all = [...rects, ...notches];
+  const xs = uniq(all.flatMap((r) => [r.left, r.right]));
+  const ys = uniq(all.flatMap((r) => [r.top, r.bottom]));
+  const isIn = (r, cx, cy) =>
+    cx > r.left && cx < r.right && cy > r.top && cy < r.bottom;
   const nx = xs.length - 1;
   const ny = ys.length - 1;
   if (nx < 1 || ny < 1) return null;
@@ -627,9 +743,8 @@ function traceUnion(rects) {
       const cx = (xs[i] + xs[i + 1]) / 2;
       const cy = (ys[j] + ys[j + 1]) / 2;
       if (
-        rects.some(
-          (r) => cx > r.left && cx < r.right && cy > r.top && cy < r.bottom
-        )
+        rects.some((r) => isIn(r, cx, cy)) &&
+        !notches.some((r) => isIn(r, cx, cy))
       ) {
         filled[j * nx + i] = 1;
       }

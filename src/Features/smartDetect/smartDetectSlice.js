@@ -6,6 +6,11 @@ import { grey } from "@mui/material/colors";
 // order the F key cycles them.
 export const ROOM_SHAPES = ["AUTO", "RECTANGLE", "L"];
 
+// Side of the computation window of the « Pièce » tool, metres.
+export const ROOM_WINDOW_MIN_M = 2;
+export const ROOM_WINDOW_MAX_M = 60;
+const ROOM_WINDOW_STEP = 1.25;
+
 const smartDetectInitialState = {
   //
   centerColor: grey[500],
@@ -34,6 +39,10 @@ const smartDetectInitialState = {
   //     read as walls.
   roomShape: "AUTO",
   roomIgnoreColoredLines: true,
+  //   - roomWindowSizeM: side (metres) of the square around the cursor the
+  //     detection is limited to (Z enlarges, W shrinks). A room must fit in
+  //     it; the smaller, the faster.
+  roomWindowSizeM: 10,
   visibleAreaOnly: true,
   //
   simplifyPolynomial: true,
@@ -84,6 +93,16 @@ export const smartDetectSlice = createSlice({
     setRoomIgnoreColoredLines: (state, action) => {
       state.roomIgnoreColoredLines = action.payload;
     },
+    // payload: +1 (larger) / -1 (smaller)
+    stepRoomWindowSize: (state, action) => {
+      const factor =
+        action.payload > 0 ? ROOM_WINDOW_STEP : 1 / ROOM_WINDOW_STEP;
+      const size = Math.round(state.roomWindowSizeM * factor * 10) / 10;
+      state.roomWindowSizeM = Math.max(
+        ROOM_WINDOW_MIN_M,
+        Math.min(ROOM_WINDOW_MAX_M, size)
+      );
+    },
     setVisibleAreaOnly: (state, action) => {
       state.visibleAreaOnly = action.payload;
     },
@@ -114,6 +133,7 @@ export const {
   setRoomShape,
   cycleRoomShape,
   setRoomIgnoreColoredLines,
+  stepRoomWindowSize,
   setVisibleAreaOnly,
   setSimplifyPolynomial,
   setSimplifyOuterContour,
