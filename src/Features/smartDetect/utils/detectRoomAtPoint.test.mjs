@@ -292,20 +292,42 @@ test("existing annotations are a mask: the room stops at their outline", () => {
   assert.equal(inside.reason, "SEED_ON_ANNOTATION");
 });
 
-test("drawn rectangle: sides snap to the walls around, free sides stay", () => {
+test("drawn rectangle: goes through the click, the other sides snap", () => {
   const imageData = plan({ rects: [LEFT, RIGHT, TOP, BOTTOM] });
-  // roughly the room: every side within 0.5 m of its wall
+  // click (p1) inside the room, cursor (p2) roughly on the opposite corner
   const rough = detect(imageData, null, {
-    baseRectangle: { p1: { x: 70, y: 30 }, p2: { x: 230, y: 215 } },
+    baseRectangle: { p1: { x: 230, y: 180 }, p2: { x: 70, y: 30 } },
   });
-  assert.deepEqual(getBbox(rough.points), ROOM_BBOX);
+  assert.deepEqual(getBbox(rough.points), [54, 44, 230, 180]);
 
-  // right side drawn in the middle of the room, far from any wall
-  const partial = detect(imageData, null, {
-    baseRectangle: { p1: { x: 60, y: 50 }, p2: { x: 150, y: 190 } },
-    shape: "RECTANGLE",
+  // cursor in the middle of the room, far from any wall: sides stay
+  const free = detect(imageData, null, {
+    baseRectangle: { p1: { x: 60, y: 50 }, p2: { x: 150, y: 120 } },
   });
-  assert.deepEqual(getBbox(partial.points), [54, 44, 150, 200]);
+  assert.deepEqual(getBbox(free.points), [60, 50, 150, 120]);
+});
+
+test("drawn rectangle around a room with a closed corner: L shape", () => {
+  // another room in the top-right corner: x 180..250, y 44..110, with a door
+  // in its left wall
+  const rects = [
+    LEFT,
+    RIGHT,
+    TOP,
+    BOTTOM,
+    [176, 40, 180, 80], // corner room, left wall (door 80..110)
+    [176, 106, 254, 110], // corner room, bottom wall
+  ];
+  const imageData = plan({ rects });
+  const baseRectangle = { p1: { x: 250, y: 200 }, p2: { x: 60, y: 50 } };
+
+  const carved = detect(imageData, null, { baseRectangle });
+  assert.equal(carved.points?.length, 6);
+  assert.deepEqual(getBbox(carved.points), ROOM_BBOX);
+  assert.equal(getArea(carved.points), 196 * 156 - (250 - 176) * (110 - 44));
+
+  const plain = detect(imageData, null, { baseRectangle, shape: "RECTANGLE" });
+  assert.equal(plain.points?.length, 4);
 });
 
 test("anti-aliased wall: the side skips the grey fringe", () => {
@@ -320,6 +342,110 @@ test("anti-aliased wall: the side skips the grey fringe", () => {
   // the fringe is the nearest ink (x = 54, y = 199): without the refinement
   // the room would stop 1 px short of both walls
   const result = detect(imageData, { x: 150, y: 120 });
+  assert.equal(result.points?.length, 4);
+  assert.deepEqual(getBbox(result.points), ROOM_BBOX);
+});
+
+test("computation window: same room inside it, no room when it is too small", () => {
+  const imageData = plan({ rects: [LEFT, RIGHT, TOP, BOTTOM] });
+  const seed = { x: 150, y: 120 };
+  const windowed = (size, angleDeg = 0) =>
+    detect(imageData, seed, {
+      angleDeg,
+      frameWindow: { center: seed, width: size, height: size },
+    });
+  assert.deepEqual(getBbox(windowed(260).points), ROOM_BBOX);
+  // the walls are out of a 1 m window: nothing closes
+  assert.equal(windowed(100).points, null);
+});
+
+// Dashed swing arc of a door: quarter circle of `radius` centred on the hinge,
+// in the quadrant given by the signs (sx, sy).
+const swingArc = (hx, hy, radius, sx, sy) => (u, v) => {
+  const dx = (u - hx) * sx;
+  const dy = (v - hy) * sy;
+  if (dx < 0 || dy < 0) return false;
+  const r = Math.hypot(dx, dy);
+  if (r < radius - 1 || r >= radius + 1) return false;
+  return Math.floor(Math.atan2(dy, dx) * 12) % 2 === 0;
+};
+
+test("door flush with a corner: closed by its swing arc, even in L mode", () => {
+  // right wall: 44..120, then a 0.8 m door down to the corner; behind it,
+  // another closed space
+  const rects = [
+    LEFT,
+    TOP,
+    BOTTOM,
+    [250, 40, 254, 120],
+    [250, 40, 384, 44],
+    [250, 200, 384, 204],
+    [380, 40, 384, 204],
+  ];
+  // hinge on the upper jamb, leaf opening into the room
+  const inks = [swingArc(252, 120, 80, -1, 1)];
+  const seed = { x: 100, y: 100 };
+
+  const leaking = detect(plan({ rects, inks }), seed, {
+    shape: "L",
+    detectDoors: false,
+  });
+  // through the door, into the space behind
+  assert.deepEqual(getBbox(leaking.points), [54, 44, 380, 200]);
+
+  const closed = detect(plan({ rects, inks }), seed, { shape: "L" });
+  assert.equal(closed.points?.length, 4);
+  assert.deepEqual(getBbox(closed.points), ROOM_BBOX);
+});
+
+test("door with its open leaf: the leaf is not a wall", () => {
+  // door in the top wall (100..180), hinged at 180, leaf open into the room
+  // 0.7 m in front of the right wall: too far for the leaf-against-wall rule
+  const rects = [
+    LEFT,
+    RIGHT,
+    BOTTOM,
+    [50, 40, 100, 44],
+    [180, 40, 254, 44],
+    [178, 44, 180, 124], // leaf
+  ];
+  const inks = [swingArc(180, 44, 80, -1, 1)];
+  const result = detect(plan({ rects, inks }), { x: 120, y: 150 });
+  assert.equal(result.points?.length, 4);
+  assert.deepEqual(getBbox(result.points), ROOM_BBOX);
+});
+
+test("gap without swing arc: still an opening", () => {
+  const rects = [
+    LEFT,
+    TOP,
+    BOTTOM,
+    [250, 40, 254, 120],
+    [250, 40, 384, 44],
+    [250, 200, 384, 204],
+    [380, 40, 384, 204],
+  ];
+  const result = detect(plan({ rects }), { x: 100, y: 100 }, { shape: "L" });
+  assert.deepEqual(getBbox(result.points), [54, 44, 380, 200]);
+});
+
+test("wall line cut by the walls it meets: not a dashed line", () => {
+  // the inner top line of the room runs on in the neighbouring rooms, cut by
+  // each partition: 4 segments with 10 cm gaps on the same row
+  const rects = [
+    LEFT,
+    RIGHT,
+    BOTTOM,
+    [10, 28, 420, 30], // outer face of the top wall
+    [54, 42, 250, 44], // inner face, this room
+    [38, 20, 40, 204], // neighbours: partition faces and inner top lines
+    [10, 42, 38, 44],
+    [264, 20, 266, 204],
+    [266, 42, 400, 44],
+    [410, 20, 412, 204],
+    [412, 42, 420, 44],
+  ];
+  const result = detect(plan({ rects }), { x: 150, y: 120 });
   assert.equal(result.points?.length, 4);
   assert.deepEqual(getBbox(result.points), ROOM_BBOX);
 });

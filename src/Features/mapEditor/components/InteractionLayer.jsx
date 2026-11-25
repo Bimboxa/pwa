@@ -151,6 +151,7 @@ import SmartDetectLayer from 'Features/mapEditorGeneric/components/SmartDetectLa
 import TransientOrthoPathsLayer from 'Features/mapEditorGeneric/components/TransientOrthoPathsLayer';
 import TransientDetectedStripsLayer from 'Features/mapEditorGeneric/components/TransientDetectedStripsLayer';
 import TransientDetectedPolygonLayer from 'Features/mapEditorGeneric/components/TransientDetectedPolygonLayer';
+import TransientRoomWindowLayer from 'Features/mapEditorGeneric/components/TransientRoomWindowLayer';
 import TransientDetectedPatternLayer from 'Features/mapEditorGeneric/components/TransientDetectedPatternLayer';
 import getConcernedAnnotationIds from 'Features/localizedRepair/utils/getConcernedAnnotationIds';
 import buildRepairProposal from 'Features/localizedRepair/utils/buildRepairProposal';
@@ -1528,148 +1529,174 @@ const InteractionLayer = forwardRef(({
     };
   }, [enabledDrawingMode, smartDetectEnabled, sourceImageEl, annotationsUpdatedAt]);
 
-  // ROOM_CLICK (« Pièce » tool): wall-line masks of the base map image, built
-  // once when the tool activates (and again when the ortho frame or the scale
-  // changes), cleared otherwise. Heavy work deferred like the caches above.
-  // { masks } or { reason } — see buildWallLineMasks / detectRoomAtPoint.
-  const roomDetectionRef = useRef(null);
+  // ROOM_CLICK (« Pièce » tool) — see buildWallLineMasks / detectRoomAtPoint.
+  // The wall masks are NOT built for the whole image: each detection builds
+  // them for the computation window around the cursor (a square of
+  // `roomWindowSizeM` metres in the ortho frame), which is fast enough to
+  // follow the mouse and needs no rebuild after a commit — the annotations
+  // footprint (mask) is rasterized for the window at each detection too.
   const roomShape = useSelector((s) => s.smartDetect.roomShape);
   const roomIgnoreColoredLines = useSelector(
     (s) => s.smartDetect.roomIgnoreColoredLines
   );
-  // Signature of the displayed annotations (ids + geometry) while the
-  // « Pièce » tool is armed: the wall masks embed the annotations footprint,
-  // so they must be rebuilt as soon as the list really changes — including
-  // right after each room created in the same drawing session, whatever the
-  // commit path (annotationsUpdatedAt is not bumped by all of them).
-  const roomAnnotationsKey = useMemo(() => {
-    if (enabledDrawingMode !== "ROOM_CLICK") return null;
-    let hash = 0;
-    for (const annotation of annotations || []) {
-      const id = String(annotation.id ?? "");
-      for (let i = 0; i < id.length; i++) {
-        hash = (hash * 31 + id.charCodeAt(i)) | 0;
-      }
-      for (const point of annotation.points || []) {
-        hash =
-          (hash * 31 + Math.round(point.x * 10) + 7 * Math.round(point.y * 10)) |
-          0;
-      }
-    }
-    return `${annotations?.length ?? 0}:${hash}`;
-  }, [annotations, enabledDrawingMode]);
-
-  // Source-image ImageData of the « Pièce » tool, read once per image:
-  // { sourceImageEl, imageData }.
+  const roomWindowSizeM = useSelector((s) => s.smartDetect.roomWindowSizeM);
+  // Latest masks ({ masks }), kept for the frame conversions of the manual
+  // rectangle.
+  const roomDetectionRef = useRef(null);
+  // Source-image ImageData, read once per image: { sourceImageEl, imageData }.
   const roomImageDataRef = useRef(null);
+  // Draft: first corner of the rectangle being drawn (local coords, null
+  // before the first click), current candidate — { points } in local coords
+  // or { points: null, reason } — committed with Space, last cursor position.
+  const roomFirstPointRef = useRef(null);
+  const roomCandidateRef = useRef(null);
+  const roomLastLocalPosRef = useRef(null);
+  const transientRoomWindowRef = useRef(null);
+
   useEffect(() => {
     if (enabledDrawingMode !== "ROOM_CLICK") {
       roomDetectionRef.current = null;
       roomImageDataRef.current = null;
+      roomLastLocalPosRef.current = null;
       return;
     }
-    if (!sourceImageEl || testIsWhitePageUrl(baseMapImageUrl)) {
-      roomDetectionRef.current = null;
-      return;
-    }
-    // every detection tolerance is in metres: the base map needs a scale
-    // (metres per source-image pixel)
-    const meterByImagePx =
-      (baseMapMeterByPx ?? 0) * Math.abs(baseMapImageScale || 1);
-    if (!(meterByImagePx > 0)) {
-      roomDetectionRef.current = { reason: "NO_SCALE" };
-      return;
-    }
-    // (the previous masks stay in use until the new ones are built)
+    if (!sourceImageEl || testIsWhitePageUrl(baseMapImageUrl)) return;
+    if (roomImageDataRef.current?.sourceImageEl === sourceImageEl) return;
 
     let cancelled = false;
-    const buildMasks = () => {
+    const readImage = () => {
       if (cancelled) return;
       try {
         const w = sourceImageEl.naturalWidth || sourceImageEl.width;
         const h = sourceImageEl.naturalHeight || sourceImageEl.height;
         if (!w || !h) return;
-        if (roomImageDataRef.current?.sourceImageEl !== sourceImageEl) {
-          const canvas = document.createElement("canvas");
-          canvas.width = w;
-          canvas.height = h;
-          const ctx = canvas.getContext("2d", { willReadFrequently: true });
-          ctx.drawImage(sourceImageEl, 0, 0);
-          roomImageDataRef.current = {
-            sourceImageEl,
-            imageData: ctx.getImageData(0, 0, w, h),
-          };
-        }
-
-        // existing annotations are a mask: a room never spreads under them
-        // (rebuilt whenever they change, see roomAnnotationsKey)
-        const exclusionMask = buildExclusionMask(
-          annotationsRef.current || [],
-          { width: w, height: h },
-          baseMapImageScaleRef.current,
-          baseMapImageOffsetRef.current,
-          meterByPxRef.current ?? 0,
-          null,
-        );
-
-        const masks = buildWallLineMasks({
-          imageData: roomImageDataRef.current.imageData,
-          meterByImagePx,
-          // same sign convention as the strip detection frame (Y down)
-          angleRad: (-(orthoSnapAngleOffset || 0) * Math.PI) / 180,
-          ignoreColoredLines: roomIgnoreColoredLines,
-          exclusionMask,
-        });
-        if (!cancelled) roomDetectionRef.current = { masks };
+        const canvas = document.createElement("canvas");
+        canvas.width = w;
+        canvas.height = h;
+        const ctx = canvas.getContext("2d", { willReadFrequently: true });
+        ctx.drawImage(sourceImageEl, 0, 0);
+        roomImageDataRef.current = {
+          sourceImageEl,
+          imageData: ctx.getImageData(0, 0, w, h),
+        };
       } catch (err) {
-        console.error("[ROOM_CLICK] failed to build wall masks:", err);
+        console.error("[ROOM_CLICK] failed to read the base map image:", err);
       }
     };
-    const id = setTimeout(buildMasks, 0);
+    const id = setTimeout(readImage, 0);
     return () => {
       cancelled = true;
       clearTimeout(id);
-      resetRoomDraft();
     };
-  }, [
-    enabledDrawingMode,
-    sourceImageEl,
-    baseMapImageUrl,
-    baseMapMeterByPx,
-    baseMapImageScale,
-    orthoSnapAngleOffset,
-    roomIgnoreColoredLines,
-    annotationsUpdatedAt,
-    roomAnnotationsKey,
-  ]);
+  }, [enabledDrawingMode, sourceImageEl, baseMapImageUrl]);
 
-  // « Pièce » tool draft: first corner of the rectangle being drawn (local
-  // coords, null before the first click), and the current detected candidate
-  // — { points } in local coords or { points: null, reason } — committed
-  // with Space.
-  const roomFirstPointRef = useRef(null);
-  const roomCandidateRef = useRef(null);
+  // Computation window around `localPos` (enlarged to hold the rectangle
+  // being drawn): { center, width, height } in source-image px, in the ortho
+  // frame of angle `angleRad`. null without scale.
+  const getRoomWindow = (localPos, firstLocalPos = null) => {
+    const scale = baseMapImageScaleRef.current || 1;
+    const offset = baseMapImageOffsetRef.current || { x: 0, y: 0 };
+    const meterByImagePx = (meterByPxRef.current ?? 0) * Math.abs(scale);
+    if (!(meterByImagePx > 0)) return null;
+    const toImagePx = (p) => ({
+      x: (p.x - offset.x) / scale,
+      y: (p.y - offset.y) / scale,
+    });
+    // same sign convention as the strip detection frame (Y down)
+    const angleRad = (-(orthoSnapAngleOffsetRef.current || 0) * Math.PI) / 180;
+    const center = toImagePx(localPos);
+    const size = roomWindowSizeM / meterByImagePx;
+    let width = size;
+    let height = size;
+    if (firstLocalPos) {
+      const first = toImagePx(firstLocalPos);
+      const dx = first.x - center.x;
+      const dy = first.y - center.y;
+      const cos = Math.cos(angleRad);
+      const sin = Math.sin(angleRad);
+      const margin = 1 / meterByImagePx; // 1 m around the drawn rectangle
+      width = Math.max(size, 2 * (Math.abs(dx * cos + dy * sin) + margin));
+      height = Math.max(size, 2 * (Math.abs(-dx * sin + dy * cos) + margin));
+    }
+    return { center, width, height, angleRad, meterByImagePx, toImagePx };
+  };
+
+  // Corners of the computation window, local coords.
+  const getRoomWindowCorners = (roomWindow) => {
+    const scale = baseMapImageScaleRef.current || 1;
+    const offset = baseMapImageOffsetRef.current || { x: 0, y: 0 };
+    const { center, width, height, angleRad } = roomWindow;
+    const cos = Math.cos(angleRad);
+    const sin = Math.sin(angleRad);
+    return [
+      [-1, -1],
+      [1, -1],
+      [1, 1],
+      [-1, 1],
+    ].map(([sx, sy]) => {
+      const u = (sx * width) / 2;
+      const v = (sy * height) / 2;
+      return {
+        x: (center.x + u * cos - v * sin) * scale + offset.x,
+        y: (center.y + u * sin + v * cos) * scale + offset.y,
+      };
+    });
+  };
 
   // Room candidate (local coords): around `localPos`, or — once a first
   // corner is placed — from the rectangle firstPoint → localPos.
   // { points } or { points: null, reason }.
   const detectRoomAtLocalPos = (localPos, firstLocalPos = null) => {
-    const cache = roomDetectionRef.current;
-    if (!cache?.masks) {
-      return { points: null, reason: cache?.reason ?? "NOT_READY" };
-    }
+    const imageData = roomImageDataRef.current?.imageData;
+    if (!imageData) return { points: null, reason: "NOT_READY" };
+    const roomWindow = getRoomWindow(localPos, firstLocalPos);
+    if (!roomWindow) return { points: null, reason: "NO_SCALE" };
+    const { center, width, height, angleRad, meterByImagePx, toImagePx } =
+      roomWindow;
     const scale = baseMapImageScaleRef.current || 1;
     const offset = baseMapImageOffsetRef.current || { x: 0, y: 0 };
-    const toImagePx = (p) => ({
-      x: (p.x - offset.x) / scale,
-      y: (p.y - offset.y) / scale,
+
+    // existing annotations are a mask: a room never spreads under them.
+    // Rasterized for the bounding box of the window only.
+    const half =
+      (Math.abs(width * Math.cos(angleRad)) +
+        Math.abs(height * Math.sin(angleRad)) +
+        Math.abs(width * Math.sin(angleRad)) +
+        Math.abs(height * Math.cos(angleRad))) /
+      2;
+    const x0 = Math.max(0, Math.floor(center.x - half));
+    const y0 = Math.max(0, Math.floor(center.y - half));
+    const x1 = Math.min(imageData.width, Math.ceil(center.x + half));
+    const y1 = Math.min(imageData.height, Math.ceil(center.y + half));
+    if (x1 <= x0 || y1 <= y0) return { points: null, reason: "OUT_OF_IMAGE" };
+    const exclusionRect = { x: x0, y: y0, width: x1 - x0, height: y1 - y0 };
+    const exclusionMask = buildExclusionMask(
+      annotationsRef.current || [],
+      { width: exclusionRect.width, height: exclusionRect.height },
+      scale,
+      // image px of the rectangle origin, expressed as a local-coords offset
+      { x: offset.x + x0 * scale, y: offset.y + y0 * scale },
+      meterByPxRef.current ?? 0,
+      null,
+    );
+
+    const masks = buildWallLineMasks({
+      imageData,
+      meterByImagePx,
+      angleRad,
+      frameWindow: { center, width, height },
+      ignoreColoredLines: roomIgnoreColoredLines,
+      exclusionMask,
+      exclusionRect,
     });
+    roomDetectionRef.current = { masks };
+
     const result = detectRoomAtPoint({
-      masks: cache.masks,
+      masks,
       shape: roomShape,
-      seed: toImagePx(localPos),
+      seed: center,
       baseRectangle: firstLocalPos
-        ? { p1: toImagePx(firstLocalPos), p2: toImagePx(localPos) }
+        ? { p1: toImagePx(firstLocalPos), p2: center }
         : null,
     });
     if (!result.points) return result;
@@ -1707,6 +1734,8 @@ const InteractionLayer = forwardRef(({
       toImagePx(localPos)
     ).map((p) => ({ x: p.x * scale + offset.x, y: p.y * scale + offset.y }));
   };
+  const getRoomManualRectangleRef = useRef(getRoomManualRectangle);
+  getRoomManualRectangleRef.current = getRoomManualRectangle;
 
   const resetRoomDraft = () => {
     roomFirstPointRef.current = null;
@@ -1714,6 +1743,19 @@ const InteractionLayer = forwardRef(({
     transientDetectedPolygonRef.current?.clear();
     transientDetectedShapeLayerRef.current?.updateShape(null);
   };
+
+  // Dashed outline of the computation window: follows the cursor at every
+  // mouse move (the detection itself is throttled).
+  const updateRoomWindowOutline = (localPos) => {
+    const roomWindow = getRoomWindow(localPos, roomFirstPointRef.current);
+    if (roomWindow) {
+      transientRoomWindowRef.current?.update(getRoomWindowCorners(roomWindow));
+    } else {
+      transientRoomWindowRef.current?.clear();
+    }
+  };
+  const updateRoomWindowOutlineRef = useRef(updateRoomWindowOutline);
+  updateRoomWindowOutlineRef.current = updateRoomWindowOutline;
 
   // throttled preview: the candidate room (green), plus the rectangle being
   // drawn once the first corner is placed
@@ -1730,13 +1772,41 @@ const InteractionLayer = forwardRef(({
       transientDetectedPolygonRef.current?.clear();
     }
     if (firstPoint) {
-      const corners = getRoomManualRectangle(firstPoint, localPos);
+      const corners = getRoomManualRectangleRef.current(firstPoint, localPos);
       transientDetectedShapeLayerRef.current?.updateShape({
         type: "POLYLINE",
         points: [...corners, corners[0]],
       });
     }
   }, 120), []);
+
+  // Leaving the tool: drop the draft and the previews.
+  useEffect(() => {
+    if (enabledDrawingMode !== "ROOM_CLICK") return;
+    return () => {
+      resetRoomDraft();
+      transientRoomWindowRef.current?.clear();
+    };
+  }, [enabledDrawingMode]);
+
+  // Keep the candidate in sync without waiting for a mouse move: when the
+  // annotations change (a room was just created — it now masks the plan) or
+  // an option changes (shape, colours, window size, ortho frame).
+  useEffect(() => {
+    if (enabledDrawingMode !== "ROOM_CLICK") return;
+    const localPos = roomLastLocalPosRef.current;
+    if (!localPos) return;
+    updateRoomWindowOutlineRef.current(localPos);
+    runRoomDetection(localPos);
+  }, [
+    enabledDrawingMode,
+    annotations,
+    roomShape,
+    roomIgnoreColoredLines,
+    roomWindowSizeM,
+    orthoSnapAngleOffset,
+    runRoomDetection,
+  ]);
 
   // Copy/paste pattern detection: build the full source-image ImageData once
   // when a paste detection sub-mode is active (cleared otherwise). Same lazy
@@ -8449,7 +8519,10 @@ const InteractionLayer = forwardRef(({
 
     // --- ROOM DETECTION PREVIEW (« Pièce » tool) ---
     if (enabledDrawingModeRef.current === "ROOM_CLICK") {
-      runRoomDetection(toLocalCoords(worldPos));
+      const roomLocalPos = toLocalCoords(worldPos);
+      roomLastLocalPosRef.current = roomLocalPos;
+      updateRoomWindowOutline(roomLocalPos);
+      runRoomDetection(roomLocalPos);
     }
 
     // --- LOGIQUE BRUSH ---
@@ -9980,6 +10053,7 @@ const InteractionLayer = forwardRef(({
           <TransientOrthoPathsLayer ref={transientOrthoPathsRef} />
           <TransientDetectedStripsLayer ref={transientDetectedStripsRef} />
           <TransientDetectedPolygonLayer ref={transientDetectedPolygonRef} />
+          <TransientRoomWindowLayer ref={transientRoomWindowRef} />
           <TransientDetectedPatternLayer
             ref={transientDetectedPatternRef}
             containerK={targetPose.k}

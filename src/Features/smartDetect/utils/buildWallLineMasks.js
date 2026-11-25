@@ -8,9 +8,10 @@
  *   - maskV: same, vertical
  * Text, door arcs, hatching and symbols are made of short runs and vanish.
  * Dashed and dash-dot lines (axes, hidden edges) are dropped whatever the
- * length of their dashes: a run with a small gap (<= `dashGapM`) to a
- * neighbour on both sides is a dash. Coloured strokes (axes, networks…) are
- * dropped too when `ignoreColoredLines` is set.
+ * length of their dashes: a run with a small BLANK gap (<= `dashGapM`, no
+ * stroke crossing the line there) to a neighbour on both sides is a dash. Coloured strokes (axes, networks…) are
+ * dropped too when `ignoreColoredLines` is set. Doors (a gap in a wall with
+ * the swing arc of its leaf) are closed: the wall is continuous there.
  *
  * The masks are returned as prefix sums, so that the coverage of any ortho
  * segment by wall cells is an O(1) lookup:
@@ -28,22 +29,35 @@
  * @param {number} params.meterByImagePx Metres per source-image pixel.
  * @param {{x:number,y:number,width:number,height:number}} [params.roi]
  *   Region to analyse, image px (default: the whole image).
+ * @param {{center:{x:number,y:number},width:number,height:number}} [params.frameWindow]
+ *   Computation window: a rectangle of the ortho frame (centre and sizes in
+ *   image px). Only this part of the plan is analysed — everything outside
+ *   reads as blank — which keeps the build fast enough to follow the cursor.
  * @param {number} [params.angleRad=0] Direction of the frame X axis in the
  *   image (walls are expected along / across it).
  * @param {number} [params.minRunM=0.3] Minimum stroke length kept.
  * @param {number} [params.bridgeGapM=0.02] Holes bridged inside a stroke.
  * @param {number} [params.dashGapM=0.4] Largest gap between two dashes.
+ * @param {number} [params.crossingProbeM=0.05] Distance beside a line where
+ *   a crossing stroke is looked for: a gap with ink around it is a wall
+ *   intersection, not a dash gap.
  * @param {number} [params.lineToleranceM=0.05] Half-width of a "wide" line.
  * @param {boolean} [params.ignoreColoredLines=false]
+ * @param {boolean} [params.detectDoors=true] Close the wall gaps that carry a
+ *   door swing arc (closeDoorGaps.js): a room stops at its doors.
  * @param {Uint8Array} [params.exclusionMask] One byte per source-image pixel,
  *   > 0 where an existing annotation covers the plan (buildExclusionMask):
  *   those areas are read as solid, so a room never spreads under them.
+ * @param {{x:number,y:number,width:number,height:number}} [params.exclusionRect]
+ *   Image rectangle (integer px) the exclusion mask covers (default: the
+ *   whole image).
  * @param {number} [params.darknessThreshold=160] Luminance (0..255) below = ink.
  * @param {number} [params.saturationThreshold=60] Channel spread (0..255)
  *   above = coloured.
  * @param {number} [params.maxCells=6e6] Grid size cap (drives `scale`).
  */
 
+import closeDoorGaps from "./closeDoorGaps.js";
 import { getBrightness } from "./stripDetectionHelpers.js";
 
 // A chain of runs separated by small gaps is a dashed line from this count.
@@ -53,13 +67,17 @@ export default function buildWallLineMasks({
   imageData,
   meterByImagePx,
   roi,
+  frameWindow = null,
   angleRad = 0,
   minRunM = 0.3,
   bridgeGapM = 0.02,
   dashGapM = 0.4,
+  crossingProbeM = 0.05,
   lineToleranceM = 0.05,
   ignoreColoredLines = false,
+  detectDoors = true,
   exclusionMask = null,
+  exclusionRect = null,
   darknessThreshold = 160,
   saturationThreshold = 60,
   maxCells = 6e6,
@@ -73,17 +91,22 @@ export default function buildWallLineMasks({
   const cos = Math.cos(angleRad);
   const sin = Math.sin(angleRad);
 
-  // frame extents: bbox of the ROI rotated by -angle around its centre
-  const frameW = Math.abs(area.width * cos) + Math.abs(area.height * sin);
-  const frameH = Math.abs(area.width * sin) + Math.abs(area.height * cos);
+  // frame extents: the given window, else the bbox of the ROI rotated by
+  // -angle around its centre
+  const frameW =
+    frameWindow?.width ??
+    Math.abs(area.width * cos) + Math.abs(area.height * sin);
+  const frameH =
+    frameWindow?.height ??
+    Math.abs(area.width * sin) + Math.abs(area.height * cos);
   const scale = Math.max(1, Math.ceil(Math.sqrt((frameW * frameH) / maxCells)));
   const width = Math.max(1, Math.ceil(frameW / scale));
   const height = Math.max(1, Math.ceil(frameH / scale));
   const meterByCell = meterByImagePx * scale;
   const toCells = (meters) => Math.round(meters / meterByCell);
 
-  const cx = area.x + area.width / 2;
-  const cy = area.y + area.height / 2;
+  const cx = frameWindow?.center.x ?? area.x + area.width / 2;
+  const cy = frameWindow?.center.y ?? area.y + area.height / 2;
   const gx = (width * scale) / 2;
   const gy = (height * scale) / 2;
 
@@ -109,8 +132,22 @@ export default function buildWallLineMasks({
   const x1 = Math.min(imageData.width, Math.ceil(area.x + area.width));
   const y1 = Math.min(imageData.height, Math.ceil(area.y + area.height));
   const { data } = imageData;
-  const isExcluded = (px, py) =>
-    Boolean(exclusionMask) && exclusionMask[py * imageData.width + px] > 0;
+
+  const maskRect = exclusionRect ?? {
+    x: 0,
+    y: 0,
+    width: imageData.width,
+    height: imageData.height,
+  };
+  const isExcluded = (px, py) => {
+    if (!exclusionMask) return false;
+    const mx = px - maskRect.x;
+    const my = py - maskRect.y;
+    if (mx < 0 || my < 0 || mx >= maskRect.width || my >= maskRect.height) {
+      return false;
+    }
+    return exclusionMask[my * maskRect.width + mx] > 0;
+  };
   const isInk = (px, py) => {
     if (px < x0 || py < y0 || px >= x1 || py >= y1) return false;
     // an area already covered by an annotation is solid: its outline bounds
@@ -146,11 +183,20 @@ export default function buildWallLineMasks({
     minRun: Math.max(2, toCells(minRunM)),
     bridgeGap: Math.max(1, toCells(bridgeGapM)),
     dashGap: toCells(dashGapM),
+    // distance beside a line where a crossing stroke is looked for: beyond
+    // the thickness of the line itself
+    probe: Math.max(3, toCells(crossingProbeM)),
   };
   const maskH = new Uint8Array(width * height);
   const maskV = new Uint8Array(width * height);
   keepWallRuns(bin, maskH, width, height, 1, width, runOptions);
   keepWallRuns(bin, maskV, height, width, width, 1, runOptions);
+
+  // --- 2b. doors: a gap with a swing arc is a door, the wall is continuous
+  // there (see closeDoorGaps)
+  const doors = detectDoors
+    ? closeDoorGaps({ ink: bin, maskH, maskV, width, height, meterByCell })
+    : [];
 
   // --- 3. prefix sums along the lines, raw and widened across the line
   const wide = Math.max(1, toCells(lineToleranceM));
@@ -187,6 +233,7 @@ export default function buildWallLineMasks({
     scale,
     meterByCell,
     wide,
+    doors,
     vCount,
     hCount,
     vWide,
@@ -228,7 +275,7 @@ function keepWallRuns(
   lineCount,
   stepStride,
   lineStride,
-  { minRun, bridgeGap, dashGap }
+  { minRun, bridgeGap, dashGap, probe }
 ) {
   for (let line = 0; line < lineCount; line++) {
     const base = line * lineStride;
@@ -248,12 +295,30 @@ function keepWallRuns(
     }
     if (start >= 0) runs.push([start, last]);
 
-    // chains of runs separated by small gaps
+    // Is the gap between two runs a dash gap? Not when a stroke crosses or
+    // abuts the line there (ink beside the line, around the gap): a wall line
+    // cut by the walls it meets is not a dashed line.
+    const isBlankAround = (previousEnd, nextStart) => {
+      for (const d of [-probe, probe]) {
+        const other = line + d;
+        if (other < 0 || other >= lineCount) continue;
+        const otherBase = other * lineStride;
+        const from = Math.max(0, previousEnd - 1);
+        const to = Math.min(lineLength - 1, nextStart + 1);
+        for (let t = from; t <= to; t++) {
+          if (bin[otherBase + t * stepStride]) return false;
+        }
+      }
+      return true;
+    };
+
+    // chains of runs separated by small blank gaps
     for (let i = 0; i < runs.length; ) {
       let j = i;
       while (
         j + 1 < runs.length &&
-        runs[j + 1][0] - runs[j][1] - 1 <= dashGap
+        runs[j + 1][0] - runs[j][1] - 1 <= dashGap &&
+        isBlankAround(runs[j][1], runs[j + 1][0])
       ) {
         j++;
       }

@@ -13,7 +13,10 @@ import {
   setRevolutionOnCommit,
 } from "../mapEditorSlice";
 import { setNewAnnotation } from "Features/annotations/annotationsSlice";
-import { cycleRoomShape } from "Features/smartDetect/smartDetectSlice";
+import {
+  cycleRoomShape,
+  stepRoomWindowSize,
+} from "Features/smartDetect/smartDetectSlice";
 import { selectPdfEditorOpen } from "Features/pdfEditor/pdfEditorSlice";
 import { selectDrawingToolsEditor } from "Features/meshPaint/utils/meshBrushSelectors";
 
@@ -132,6 +135,14 @@ export default function useDrawingToolHotkeys() {
       // « Pièce » tool: F cycles the room shape (Auto / Rectangulaire / L).
       if (mode === "ROOM_CLICK" && e.key.toLowerCase() === "f") {
         dispatch(cycleRoomShape());
+        e.preventDefault();
+        e.stopImmediatePropagation();
+        return;
+      }
+
+      // « Pièce » tool: Z enlarges / W shrinks the computation window.
+      if (mode === "ROOM_CLICK" && ["z", "w"].includes(e.key.toLowerCase())) {
+        dispatch(stepRoomWindowSize(e.key.toLowerCase() === "z" ? 1 : -1));
         e.preventDefault();
         e.stopImmediatePropagation();
         return;
