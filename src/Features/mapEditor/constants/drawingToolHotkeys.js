@@ -11,6 +11,7 @@ export const DRAWING_TOOL_HOTKEYS = {
   l: "CLICK", // click / polyline tool ("Ligne")
   c: "CIRCLE",
   g: "SURFACE_DROP", // "Goutte d'eau" = Remplissage
+  o: "ROOM_CLICK", // « Pièce » (one click inside a room of the base map)
   b: "STRIP", // "Bande"
   k: "SEGMENT", // 2-point segment tool (auto-commit; SEGMENT_SNAP detection)
   a: "ARC", // "Arc de cercle" — only resolves for shapes that have an ARC tool

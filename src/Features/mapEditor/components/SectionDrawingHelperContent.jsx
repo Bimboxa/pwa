@@ -49,6 +49,7 @@ import SmartDetectContainer from "Features/smartDetect/components/SmartDetectCon
 import CardSmartDetect from "Features/smartDetect/components/CardSmartDetect";
 import CardWallVectorization from "Features/smartDetect/components/CardWallVectorization";
 import SectionSurfaceDropOptions from "Features/smartDetect/components/SectionSurfaceDropOptions";
+import SectionRoomOptions from "Features/smartDetect/components/SectionRoomOptions";
 import SectionHeightCutDrawingOptions from "Features/heightCuts/components/SectionHeightCutDrawingOptions";
 import SectionShortcutHelpers from "Features/annotations/components/SectionShortcutHelpers";
 import WhiteSectionGeneric from "Features/form/components/WhiteSectionGeneric";
@@ -961,6 +962,7 @@ export default function SectionDrawingHelperContent() {
         <CardWallVectorization />
       )}
       {enabledDrawingMode === "SURFACE_DROP" && <SectionSurfaceDropOptions />}
+      {enabledDrawingMode === "ROOM_CLICK" && <SectionRoomOptions />}
       {/* « Ne pas découper » of the opening / surface cut tools — null
           otherwise. */}
       {!isThreedToggledEditor && <SectionHeightCutDrawingOptions />}

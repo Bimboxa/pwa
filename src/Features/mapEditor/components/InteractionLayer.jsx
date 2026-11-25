@@ -170,6 +170,8 @@ import runPatternDetection from 'Features/smartDetect/utils/runPatternDetection'
 import detectWallHoverCandidate from 'Features/smartDetect/utils/detectWallHoverCandidate';
 import adjustPasteCandidate, { isPasteAdjustEligible, snapSegmentToDarkBand } from 'Features/smartDetect/utils/adjustPasteCandidate';
 import repairOrthoJunctions, { buildJunctionNeighbors } from 'Features/smartDetect/utils/repairOrthoJunctions';
+import buildWallLineMasks from 'Features/smartDetect/utils/buildWallLineMasks';
+import detectRoomAtPoint, { getFrameRectangle } from 'Features/smartDetect/utils/detectRoomAtPoint';
 import runGlobalFloorPlanDetection from 'Features/smartDetect/utils/runGlobalFloorPlanDetection';
 import runWallSegmentVectorization from 'Features/smartDetect/utils/runWallSegmentVectorization';
 import useCreateAnnotationsFromDetectedMatches from 'Features/annotations/hooks/useCreateAnnotationsFromDetectedMatches';
@@ -1526,6 +1528,216 @@ const InteractionLayer = forwardRef(({
     };
   }, [enabledDrawingMode, smartDetectEnabled, sourceImageEl, annotationsUpdatedAt]);
 
+  // ROOM_CLICK (« Pièce » tool): wall-line masks of the base map image, built
+  // once when the tool activates (and again when the ortho frame or the scale
+  // changes), cleared otherwise. Heavy work deferred like the caches above.
+  // { masks } or { reason } — see buildWallLineMasks / detectRoomAtPoint.
+  const roomDetectionRef = useRef(null);
+  const roomShape = useSelector((s) => s.smartDetect.roomShape);
+  const roomIgnoreColoredLines = useSelector(
+    (s) => s.smartDetect.roomIgnoreColoredLines
+  );
+  // Signature of the displayed annotations (ids + geometry) while the
+  // « Pièce » tool is armed: the wall masks embed the annotations footprint,
+  // so they must be rebuilt as soon as the list really changes — including
+  // right after each room created in the same drawing session, whatever the
+  // commit path (annotationsUpdatedAt is not bumped by all of them).
+  const roomAnnotationsKey = useMemo(() => {
+    if (enabledDrawingMode !== "ROOM_CLICK") return null;
+    let hash = 0;
+    for (const annotation of annotations || []) {
+      const id = String(annotation.id ?? "");
+      for (let i = 0; i < id.length; i++) {
+        hash = (hash * 31 + id.charCodeAt(i)) | 0;
+      }
+      for (const point of annotation.points || []) {
+        hash =
+          (hash * 31 + Math.round(point.x * 10) + 7 * Math.round(point.y * 10)) |
+          0;
+      }
+    }
+    return `${annotations?.length ?? 0}:${hash}`;
+  }, [annotations, enabledDrawingMode]);
+
+  // Source-image ImageData of the « Pièce » tool, read once per image:
+  // { sourceImageEl, imageData }.
+  const roomImageDataRef = useRef(null);
+  useEffect(() => {
+    if (enabledDrawingMode !== "ROOM_CLICK") {
+      roomDetectionRef.current = null;
+      roomImageDataRef.current = null;
+      return;
+    }
+    if (!sourceImageEl || testIsWhitePageUrl(baseMapImageUrl)) {
+      roomDetectionRef.current = null;
+      return;
+    }
+    // every detection tolerance is in metres: the base map needs a scale
+    // (metres per source-image pixel)
+    const meterByImagePx =
+      (baseMapMeterByPx ?? 0) * Math.abs(baseMapImageScale || 1);
+    if (!(meterByImagePx > 0)) {
+      roomDetectionRef.current = { reason: "NO_SCALE" };
+      return;
+    }
+    // (the previous masks stay in use until the new ones are built)
+
+    let cancelled = false;
+    const buildMasks = () => {
+      if (cancelled) return;
+      try {
+        const w = sourceImageEl.naturalWidth || sourceImageEl.width;
+        const h = sourceImageEl.naturalHeight || sourceImageEl.height;
+        if (!w || !h) return;
+        if (roomImageDataRef.current?.sourceImageEl !== sourceImageEl) {
+          const canvas = document.createElement("canvas");
+          canvas.width = w;
+          canvas.height = h;
+          const ctx = canvas.getContext("2d", { willReadFrequently: true });
+          ctx.drawImage(sourceImageEl, 0, 0);
+          roomImageDataRef.current = {
+            sourceImageEl,
+            imageData: ctx.getImageData(0, 0, w, h),
+          };
+        }
+
+        // existing annotations are a mask: a room never spreads under them
+        // (rebuilt whenever they change, see roomAnnotationsKey)
+        const exclusionMask = buildExclusionMask(
+          annotationsRef.current || [],
+          { width: w, height: h },
+          baseMapImageScaleRef.current,
+          baseMapImageOffsetRef.current,
+          meterByPxRef.current ?? 0,
+          null,
+        );
+
+        const masks = buildWallLineMasks({
+          imageData: roomImageDataRef.current.imageData,
+          meterByImagePx,
+          // same sign convention as the strip detection frame (Y down)
+          angleRad: (-(orthoSnapAngleOffset || 0) * Math.PI) / 180,
+          ignoreColoredLines: roomIgnoreColoredLines,
+          exclusionMask,
+        });
+        if (!cancelled) roomDetectionRef.current = { masks };
+      } catch (err) {
+        console.error("[ROOM_CLICK] failed to build wall masks:", err);
+      }
+    };
+    const id = setTimeout(buildMasks, 0);
+    return () => {
+      cancelled = true;
+      clearTimeout(id);
+      resetRoomDraft();
+    };
+  }, [
+    enabledDrawingMode,
+    sourceImageEl,
+    baseMapImageUrl,
+    baseMapMeterByPx,
+    baseMapImageScale,
+    orthoSnapAngleOffset,
+    roomIgnoreColoredLines,
+    annotationsUpdatedAt,
+    roomAnnotationsKey,
+  ]);
+
+  // « Pièce » tool draft: first corner of the rectangle being drawn (local
+  // coords, null before the first click), and the current detected candidate
+  // — { points } in local coords or { points: null, reason } — committed
+  // with Space.
+  const roomFirstPointRef = useRef(null);
+  const roomCandidateRef = useRef(null);
+
+  // Room candidate (local coords): around `localPos`, or — once a first
+  // corner is placed — from the rectangle firstPoint → localPos.
+  // { points } or { points: null, reason }.
+  const detectRoomAtLocalPos = (localPos, firstLocalPos = null) => {
+    const cache = roomDetectionRef.current;
+    if (!cache?.masks) {
+      return { points: null, reason: cache?.reason ?? "NOT_READY" };
+    }
+    const scale = baseMapImageScaleRef.current || 1;
+    const offset = baseMapImageOffsetRef.current || { x: 0, y: 0 };
+    const toImagePx = (p) => ({
+      x: (p.x - offset.x) / scale,
+      y: (p.y - offset.y) / scale,
+    });
+    const result = detectRoomAtPoint({
+      masks: cache.masks,
+      shape: roomShape,
+      seed: toImagePx(localPos),
+      baseRectangle: firstLocalPos
+        ? { p1: toImagePx(firstLocalPos), p2: toImagePx(localPos) }
+        : null,
+    });
+    if (!result.points) return result;
+    return {
+      points: result.points.map((p) => ({
+        x: p.x * scale + offset.x,
+        y: p.y * scale + offset.y,
+      })),
+    };
+  };
+  const detectRoomAtLocalPosRef = useRef(detectRoomAtLocalPos);
+  detectRoomAtLocalPosRef.current = detectRoomAtLocalPos;
+
+  // Plain rectangle firstPoint → localPos (local coords), aligned on the
+  // ortho frame when the wall masks are available.
+  const getRoomManualRectangle = (firstLocalPos, localPos) => {
+    const masks = roomDetectionRef.current?.masks;
+    if (!masks) {
+      return [
+        { x: firstLocalPos.x, y: firstLocalPos.y },
+        { x: localPos.x, y: firstLocalPos.y },
+        { x: localPos.x, y: localPos.y },
+        { x: firstLocalPos.x, y: localPos.y },
+      ];
+    }
+    const scale = baseMapImageScaleRef.current || 1;
+    const offset = baseMapImageOffsetRef.current || { x: 0, y: 0 };
+    const toImagePx = (p) => ({
+      x: (p.x - offset.x) / scale,
+      y: (p.y - offset.y) / scale,
+    });
+    return getFrameRectangle(
+      masks,
+      toImagePx(firstLocalPos),
+      toImagePx(localPos)
+    ).map((p) => ({ x: p.x * scale + offset.x, y: p.y * scale + offset.y }));
+  };
+
+  const resetRoomDraft = () => {
+    roomFirstPointRef.current = null;
+    roomCandidateRef.current = null;
+    transientDetectedPolygonRef.current?.clear();
+    transientDetectedShapeLayerRef.current?.updateShape(null);
+  };
+
+  // throttled preview: the candidate room (green), plus the rectangle being
+  // drawn once the first corner is placed
+  const runRoomDetection = useMemo(() => throttle((localPos) => {
+    if (enabledDrawingModeRef.current !== "ROOM_CLICK") return;
+    const firstPoint = roomFirstPointRef.current;
+    const candidate = detectRoomAtLocalPosRef.current(localPos, firstPoint);
+    roomCandidateRef.current = candidate;
+    if (candidate.points) {
+      transientDetectedPolygonRef.current?.updatePolygon({
+        outerRing: candidate.points,
+      });
+    } else {
+      transientDetectedPolygonRef.current?.clear();
+    }
+    if (firstPoint) {
+      const corners = getRoomManualRectangle(firstPoint, localPos);
+      transientDetectedShapeLayerRef.current?.updateShape({
+        type: "POLYLINE",
+        points: [...corners, corners[0]],
+      });
+    }
+  }, 120), []);
+
   // Copy/paste pattern detection: build the full source-image ImageData once
   // when a paste detection sub-mode is active (cleared otherwise). Same lazy
   // setTimeout pattern as the STRIP cache so the keypress isn't blocked.
@@ -2151,7 +2363,7 @@ const InteractionLayer = forwardRef(({
   // HIDE_ANNOTATION: « Masquer l'annotation » armed from the commands toolbar
   // — a click hides the annotation for the session (Features/hiddenAnnotations).
   const POINTER_CLICK_MODES = [...SEGMENT_SELECT_MODES, "REASSIGN_TEMPLATE", "MESH_BRUSH", "CHANGE_STYLE", HIDE_ANNOTATION_MODE];
-  const NO_SMART_DETECT_MODES = [...SEGMENT_SELECT_MODES, "SPLIT_POLYLINE", "SPLIT_POLYLINE_CLICK", "COMPLETE_ANNOTATION", "JOIN_ANNOTATIONS", "CHAT_REPAIR", "MESH_BRUSH", "CHANGE_STYLE", HIDE_ANNOTATION_MODE, ...TRANSFORM_TOOL_MODES];
+  const NO_SMART_DETECT_MODES = [...SEGMENT_SELECT_MODES, "SPLIT_POLYLINE", "SPLIT_POLYLINE_CLICK", "COMPLETE_ANNOTATION", "JOIN_ANNOTATIONS", "CHAT_REPAIR", "MESH_BRUSH", "CHANGE_STYLE", "ROOM_CLICK", HIDE_ANNOTATION_MODE, ...TRANSFORM_TOOL_MODES];
 
   const [showSmartDetect, setShowSmartDetect] = useState(false);
   const showSmartDetectRef = useRef(showSmartDetect);
@@ -4686,6 +4898,13 @@ const InteractionLayer = forwardRef(({
         case 'Escape':
           console.log("Action: Reset Selection & Tool");
 
+          // « Pièce » tool: Escape first cancels the rectangle being drawn.
+          if (roomFirstPointRef.current) {
+            resetRoomDraft();
+            e.stopPropagation();
+            return;
+          }
+
           // Paste mode trumps everything: just exit cleanly without resetting
           // unrelated drawing/selection state.
           if (pasteClipboardRef.current) {
@@ -4910,6 +5129,41 @@ const InteractionLayer = forwardRef(({
           break;
 
         case ' ':
+          // --- ROOM_CLICK (« Pièce »): commit the candidate room ---
+          if (enabledDrawingModeRef.current === "ROOM_CLICK") {
+            e.preventDefault();
+            const candidate = roomCandidateRef.current;
+            if (candidate?.points?.length >= 3) {
+              const points = candidate.points;
+              resetRoomDraft();
+              onCommitDrawingRef.current({
+                points,
+                options: { closeLine: true },
+              });
+            } else {
+              const messages = {
+                NOT_READY:
+                  "Analyse du fond de plan en cours (ou fond de plan sans image) : réessayez dans un instant.",
+                NO_SCALE:
+                  "L'outil Pièce a besoin de l'échelle du fond de plan : définissez-la d'abord.",
+                SEED_ON_WALL:
+                  "Placez le curseur à l'intérieur de la pièce, pas sur une paroi.",
+                SEED_ON_ANNOTATION:
+                  "Cette zone est déjà couverte par une annotation.",
+                TOO_SMALL: "Le rectangle tracé est trop petit.",
+              };
+              dispatch(
+                setToaster({
+                  message:
+                    messages[candidate?.reason] ??
+                    "Aucune pièce détectée : les parois autour du curseur ne se referment pas.",
+                  isError: true,
+                })
+              );
+            }
+            return;
+          }
+
           // --- LOCALIZED_REPAIR: commit the current repair proposal ---
           if (repairProposalRef.current?.plan) {
             e.preventDefault();
@@ -6851,6 +7105,30 @@ const InteractionLayer = forwardRef(({
       }
     }
 
+    // -- CASE 4b: ROOM_CLICK — the « Pièce » tool (see detectRoomAtPoint).
+    //    The candidate room under the cursor is committed with Space. Clicks
+    //    draw a rectangle instead: the 1st one places a corner — the
+    //    rectangle then drives the detection — and the 2nd one creates the
+    //    rectangle as drawn.
+    else if (enabledDrawingMode === "ROOM_CLICK") {
+      const localPos = toLocalCoords(worldPos);
+      const firstPoint = roomFirstPointRef.current;
+      if (!firstPoint) {
+        roomFirstPointRef.current = localPos;
+        roomCandidateRef.current = null;
+        transientDetectedPolygonRef.current?.clear();
+      } else {
+        const points = getRoomManualRectangle(firstPoint, localPos);
+        resetRoomDraft();
+        const isFlat =
+          Math.abs(localPos.x - firstPoint.x) < 1e-6 ||
+          Math.abs(localPos.y - firstPoint.y) < 1e-6;
+        if (!isFlat) {
+          onCommitDrawingRef.current({ points, options: { closeLine: true } });
+        }
+      }
+    }
+
     // -- CASE 5: COLOR_PICKER (pick a pixel color from the base map)
     else if (enabledDrawingMode === "COLOR_PICKER") {
       const localPos = toLocalCoords(worldPos);
@@ -8167,6 +8445,11 @@ const InteractionLayer = forwardRef(({
     ) {
       const localPos = toLocalCoords(worldPos);
       runPolygonDetection(localPos, annotations, drawingPointsRef.current);
+    }
+
+    // --- ROOM DETECTION PREVIEW (« Pièce » tool) ---
+    if (enabledDrawingModeRef.current === "ROOM_CLICK") {
+      runRoomDetection(toLocalCoords(worldPos));
     }
 
     // --- LOGIQUE BRUSH ---

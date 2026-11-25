@@ -208,6 +208,7 @@ const DRAWING_SHAPE_CONFIG = {
       "POLYGON_CIRCLE",
       "POLYGON_CIRCLE_RADIUS",
       "SURFACE_DROP",
+      "ROOM_CLICK",
       "STRIP",
       "STRIP_SEGMENT",
       "RAMP",
