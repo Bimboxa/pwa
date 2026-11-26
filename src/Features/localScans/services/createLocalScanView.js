@@ -13,7 +13,9 @@ import readLocalScanInWorker from "./readLocalScanInWorker";
 import { registerLocalScanView } from "./localScanViewRegistry";
 
 // One independently owned scene root. Never enters the existing annotation,
-// mesh picking, clipping or export registries. The host renderer is unchanged.
+// mesh picking or export registries. The host renderer is unchanged. Under a
+// scan base map (`parent`) the points are sliced by the section plane, like
+// the rest of the base map group (ClippingManager); the splats are not.
 // editor: {sceneManager, requestRender}. With `parent` (the wrap of a scan
 // base map, which carries the pose) the root joins it untransformed instead
 // of the scene: setPlacement is then left to the tool's own view.
