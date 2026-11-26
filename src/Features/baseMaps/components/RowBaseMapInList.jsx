@@ -34,7 +34,7 @@ export default function RowBaseMapInList({
   imageEye, // null | { on, onToggle }
   annotationsBadge, // null | { count, on, onToggle } — onToggle null = plain
   scanButton, // null | { on, disabled, disabledTooltip?, onToggle }
-  clipButton = null, // null | { on, onToggle } — 3D clipping plane
+  clipButton = null, // null | { on, onToggle } — cut by this base map (3D)
   versionChip, // null | { label, onOpen }
   actions = null, // null | ReactNode
   renaming = null, // null | { value, onChange, onConfirm, onCancel }
@@ -51,9 +51,9 @@ export default function RowBaseMapInList({
   const showScanS = "Afficher la 3D du fond de plan (scan ou maillage)";
   const scanOffS = "3D non affichée (Affichage 3D : projection / masqué)";
   const versionS = "Changer de version";
-  const clipOnS = "Ne plus utiliser comme plan de coupe";
+  const clipOnS = "Désactiver la coupe par ce fond de plan";
   const clipOffS =
-    "Utiliser comme plan de coupe (masque les annotations et le nuage de points hors de sa tranche)";
+    "Activer la coupe par ce fond de plan (masque les annotations et le nuage de points hors de sa tranche)";
 
   // data
 

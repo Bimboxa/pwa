@@ -1,5 +1,9 @@
 // Clipping slab of a base map used as a 3D clipping plane (« Plan de coupe »
 // of the base map panel), stored on the record as `baseMap.clipping3d`:
+//   - enabled:    the base map offers the clipping plane (panel switch): its
+//                 row of the base maps list then shows the scissors button.
+//                 The cut itself is that button's SESSION state
+//                 (threedEditor.clippingBaseMapIdsIn3d): two distinct states;
 //   - frontM:     depth kept IN FRONT of the base map (its +normal side, the
 //                 side annotation heights extrude to), in metres;
 //   - backM:      depth kept BEHIND it;
@@ -21,6 +25,7 @@ export default function getBaseMapClipping3d(baseMap) {
   const stored = baseMap?.clipping3d ?? {};
   const tolerance = stored.toleranceM;
   return {
+    enabled: Boolean(stored.enabled),
     frontM: resolveDepth(stored.frontM, DEFAULT_CLIPPING_FRONT_M),
     backM: resolveDepth(stored.backM, DEFAULT_CLIPPING_BACK_M),
     toleranceM:

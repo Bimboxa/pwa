@@ -53,7 +53,8 @@ export default function useApplyBaseMapClippingIn3d({ rendererIsReady }) {
       const records = await db.baseMaps.bulkGet(clippingBaseMapIds);
       if (cancelled) return;
       const planes = records
-        .filter(Boolean)
+        // the cut only exists while the feature is enabled on the base map
+        .filter((record) => record?.clipping3d?.enabled)
         .flatMap((record) => getBaseMapClipSlabPlanes(record))
         .map(
           ({ normal, constant }) =>

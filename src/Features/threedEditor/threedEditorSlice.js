@@ -180,8 +180,9 @@ const threedEditorInitialState = {
   // image eye (eye off hides plane + scan, this flag hides the scan only).
   // Per-scope local state, persisted with the fields around it.
   hiddenScene3dBaseMapIdsIn3d: [],
-  // Base maps used as clipping planes in the 3D scene (« Plan de coupe » of
-  // the base map panel, scissors button of the base maps list): the
+  // Base maps whose cut is ON in the 3D scene — the scissors button of the
+  // base maps list, offered by the base maps whose « Plan de coupe » panel
+  // switch is on (baseMap.clipping3d.enabled, stored on the record): the
   // annotations and the point clouds are cut to the slab of each of them
   // (depths: baseMap.clipping3d). Session-only, like the 3D opacity.
   clippingBaseMapIdsIn3d: [],
@@ -637,6 +638,14 @@ export const threedEditorSlice = createSlice({
       } else {
         state.clippingBaseMapIdsIn3d.splice(i, 1);
       }
+    },
+    // { baseMapId, on }: the panel switch arms / drops the cut with the
+    // feature (the scissors button toggles it afterwards).
+    setBaseMapClippingIn3d: (state, action) => {
+      const { baseMapId, on } = action.payload;
+      const i = state.clippingBaseMapIdsIn3d.indexOf(baseMapId);
+      if (on && i === -1) state.clippingBaseMapIdsIn3d.push(baseMapId);
+      if (!on && i !== -1) state.clippingBaseMapIdsIn3d.splice(i, 1);
     },
     setVisibleBaseMapIdsIn3d: (state, action) => {
       state.visibleBaseMapIdsIn3d = action.payload ?? [];
@@ -1586,6 +1595,7 @@ export const {
   setBaseMapOpacityByIdIn3d,
   toggleBaseMapVisibleIn3d,
   toggleBaseMapClippingIn3d,
+  setBaseMapClippingIn3d,
   setVisibleBaseMapIdsIn3d,
   toggleScene3dHiddenIn3d,
   setHiddenScene3dBaseMapIdsIn3d,

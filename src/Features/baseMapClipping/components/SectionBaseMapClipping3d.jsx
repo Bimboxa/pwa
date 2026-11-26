@@ -5,7 +5,7 @@ import { useDispatch, useSelector } from "react-redux";
 import { triggerEntitiesTableUpdate } from "Features/entities/entitiesSlice";
 import { triggerBaseMapsUpdate } from "Features/baseMaps/baseMapsSlice";
 import { setToaster } from "Features/layout/layoutSlice";
-import { toggleBaseMapClippingIn3d } from "Features/threedEditor/threedEditorSlice";
+import { setBaseMapClippingIn3d } from "Features/threedEditor/threedEditorSlice";
 
 import { Box, CircularProgress, Switch, Typography } from "@mui/material";
 
@@ -29,8 +29,9 @@ function parseDepth(text) {
 // « Plan de coupe » section of the base map properties (3D editor): the base
 // map as a clipping plane of the 3D scene — the annotations and the point
 // clouds are cut to a slab around it (depths in front / behind, stored on
-// the base map; the switch is the session state shared with the scissors
-// button of the base maps list) — and « Vectoriser la coupe », which draws
+// the base map). The switch ENABLES the feature for this base map (stored
+// too): its row of the base maps list then shows the scissors button, which
+// turns the cut itself on / off (session state) — and « Vectoriser la coupe », which draws
 // on the base map the lines the point cloud leaves in its plane.
 export default function SectionBaseMapClipping3d({ baseMap }) {
   const dispatch = useDispatch();
@@ -39,7 +40,7 @@ export default function SectionBaseMapClipping3d({ baseMap }) {
 
   const titleS = "Plan de coupe";
   const captionS =
-    "Les annotations et le nuage de points sont masqués hors de la tranche. Champ vide : pas de limite de ce côté.";
+    "Les ciseaux de la liste des fonds de plan activent la coupe : les annotations et le nuage de points sont masqués hors de la tranche. Champ vide : pas de limite de ce côté.";
   const frontS = "Devant";
   const backS = "Derrière";
   const toleranceS = "Épaisseur de coupe ±";
@@ -58,7 +59,6 @@ export default function SectionBaseMapClipping3d({ baseMap }) {
 
   // data
 
-  const clippingIds = useSelector((s) => s.threedEditor.clippingBaseMapIdsIn3d);
   const scopeId = useSelector((s) => s.scopes.selectedScopeId);
 
   // state
@@ -67,8 +67,7 @@ export default function SectionBaseMapClipping3d({ baseMap }) {
 
   // helpers
 
-  const enabled = Boolean(baseMap?.id) && clippingIds.includes(baseMap.id);
-  const { frontM, backM, toleranceM } = getBaseMapClipping3d(baseMap);
+  const { enabled, frontM, backM, toleranceM } = getBaseMapClipping3d(baseMap);
   const depthText = (value) => (value === null ? "" : String(value));
   // cm, without float noise (0.01 m → "1")
   const toleranceCmText = String(Math.round(toleranceM * 1000) / 10);
@@ -78,10 +77,18 @@ export default function SectionBaseMapClipping3d({ baseMap }) {
   async function updateClipping3d(patch) {
     if (!baseMap?.id) return;
     await db.baseMaps.update(baseMap.id, {
-      clipping3d: { frontM, backM, toleranceM, ...patch },
+      clipping3d: { enabled, frontM, backM, toleranceM, ...patch },
     });
     dispatch(triggerEntitiesTableUpdate("baseMaps"));
     dispatch(triggerBaseMapsUpdate());
+  }
+
+  // Enabling the feature shows the scissors button of the base maps list
+  // and arms the cut right away; disabling it drops both.
+  async function handleEnabledChange(e) {
+    const on = e.target.checked;
+    await updateClipping3d({ enabled: on });
+    dispatch(setBaseMapClippingIn3d({ baseMapId: baseMap.id, on }));
   }
 
   function handleDepthCommit(key, text) {
@@ -143,11 +150,7 @@ export default function SectionBaseMapClipping3d({ baseMap }) {
         <Typography variant="body2" sx={{ fontWeight: "bold", flex: 1 }}>
           {titleS}
         </Typography>
-        <Switch
-          size="small"
-          checked={enabled}
-          onChange={() => dispatch(toggleBaseMapClippingIn3d(baseMap.id))}
-        />
+        <Switch size="small" checked={enabled} onChange={handleEnabledChange} />
       </Box>
 
       {enabled && (
