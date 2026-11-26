@@ -413,6 +413,12 @@ export default class ClippingManager {
     );
   }
 
+  // Bounding box of the scene content (base map groups + annotations), or
+  // null when the scene is empty.
+  getSceneBox() {
+    return this._computeSceneBox();
+  }
+
   // Union of basemap groups + annotation objects. null when the scene is empty.
   _computeSceneBox() {
     const box = new Box3();

@@ -16,18 +16,34 @@ export function setBaseMapClipPlaneEntries(entries) {
   _entries = entries || new Map();
 }
 
-// Moves the plane of `side` to `depthM` (preview). No-op when the base map
-// is not cutting, or when that side has no plane (no limit).
-export function previewBaseMapClipDepth(baseMapId, side, depthM) {
+// Moves the planes of a base map (preview) to the given overrides of its
+// record: `positionY` (world altitude of a horizontal base map), `frontM`,
+// `backM`. Fields left undefined keep the stored value. No-op when the base
+// map is not cutting; a side without limit has no plane to move.
+export function previewBaseMapClip(baseMapId, { positionY, frontM, backM }) {
   const entry = _entries.get(baseMapId);
-  const plane = entry?.planes?.[side];
-  if (!plane) return;
-  const key = side === "front" ? "frontM" : "backM";
-  const next = getBaseMapClipSlabPlanes({
-    ...entry.record,
-    clipping3d: { ...entry.record.clipping3d, [key]: depthM },
-  }).find((p) => p.side === side);
-  if (!next) return;
-  plane.normal.set(next.normal.x, next.normal.y, next.normal.z);
-  plane.constant = next.constant;
+  if (!entry) return;
+  const { record } = entry;
+  const clipping3d = { ...record.clipping3d };
+  if (frontM !== undefined) clipping3d.frontM = frontM;
+  if (backM !== undefined) clipping3d.backM = backM;
+  const position =
+    positionY === undefined
+      ? record.position
+      : { x: 0, z: 0, ...record.position, y: positionY };
+  getBaseMapClipSlabPlanes({ ...record, position, clipping3d }).forEach(
+    ({ side, normal, constant }) => {
+      const plane = entry.planes[side];
+      if (!plane) return;
+      plane.normal.set(normal.x, normal.y, normal.z);
+      plane.constant = constant;
+    }
+  );
+}
+
+// Moves the plane of `side` to `depthM` (preview).
+export function previewBaseMapClipDepth(baseMapId, side, depthM) {
+  previewBaseMapClip(baseMapId, {
+    [side === "front" ? "frontM" : "backM"]: depthM,
+  });
 }
