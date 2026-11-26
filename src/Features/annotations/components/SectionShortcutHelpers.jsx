@@ -46,6 +46,7 @@ export default function SectionShortcutHelpers({ shortcuts: shortcutsProp }) {
             ? [
                 { key: "← →", label: "Tourner le rectangle de 10°" },
                 { key: "⇧ ← →", label: "Tourner le rectangle de 1°" },
+                { key: "T", label: "Tourner le rectangle de 90°" },
             ]
             : []),
         ...([
