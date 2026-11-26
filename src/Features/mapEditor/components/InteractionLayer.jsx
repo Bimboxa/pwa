@@ -313,6 +313,9 @@ const AXIS_SNAP_APPROACH_PX = AXIS_SNAP_PX * 1.5; // approach band (grey ring)
 // « Déplacer » / « Tourner »: max screen distance of an honoured PROJECTION
 // snap — same value as SnappingLayer's display threshold for its marker.
 const TRANSFORM_PROJECTION_SNAP_MAX_PX = 10;
+// A grid node counts as lying on a locked crosshair branch within this
+// distance (screen px).
+const GRID_ON_AXIS_LOCK_TOLERANCE_PX = 1;
 
 // Drawing modes where the cursor PLACES a point (rubber-band preview from the
 // last point): the modes of the drawing preview, also the only ones — with
@@ -2292,9 +2295,9 @@ const InteractionLayer = forwardRef(({
     };
   };
 
-  // Editor grid snap of a local point: the nearest grid line on each axis
-  // within the usual snap threshold, on the grid currently DISPLAYED (same
-  // cell size as LayerEditorGrid). null when the grid is off / hidden / too
+  // Editor grid snap of a local point: the nearest grid node within the
+  // usual snap radius (same dynamics as a vertex snap), on the grid currently
+  // DISPLAYED (same cell size as LayerEditorGrid). null when the grid is off / hidden / too
   // far. See Features/editorGrid.
   const computeGridSnap = (localPos) => {
     const grid = editorGridRef.current;
@@ -2319,7 +2322,37 @@ const InteractionLayer = forwardRef(({
       threshold: SNAP_THRESHOLD_ABSOLUTE / (basePoseK * zoom),
     });
   };
-  // Shows the grid snap cross on a local point (null hides it).
+  // Editor grid snap of a point already locked by the distant-point axis snap
+  // (`axisSnap`, see computeAxisSnap): the point keeps its lock and slides
+  // along the locked branch onto a grid node lying on that branch — the
+  // usual case of a locked vertex that sits on a grid line. null when both
+  // branches are locked (nothing left to slide), when no node is within the
+  // snap radius, or when the nearest node is off the locked branch.
+  const computeGridSnapOnAxisLock = (axisSnap) => {
+    const locked = axisSnap?.local;
+    const branches = axisSnap?.snappedBranches;
+    if (!axisSnap?.hasLock || !locked || !branches) return null;
+    if (branches.v && branches.h) return null;
+    const node = computeGridSnap(locked);
+    if (!node) return null;
+    // Same frame as the crosshair branches and the grid (utils/gridAxes.js):
+    // u along the horizontal branch, v along the vertical one.
+    const a = ((orthoSnapAngleOffsetRef.current || 0) * Math.PI) / 180;
+    const u = { x: Math.cos(a), y: -Math.sin(a) };
+    const v = { x: Math.sin(a), y: Math.cos(a) };
+    const dx = node.x - locked.x;
+    const dy = node.y - locked.y;
+    // vertical branch locked → slide along v; horizontal → along u
+    const along = branches.v ? v : u;
+    const across = branches.v ? u : v;
+    const scale = getTargetScale() * (viewportRef.current?.getZoom() || 1);
+    if (Math.abs(dx * across.x + dy * across.y) * scale > GRID_ON_AXIS_LOCK_TOLERANCE_PX) {
+      return null;
+    }
+    const t = dx * along.x + dy * along.y;
+    return { x: locked.x + t * along.x, y: locked.y + t * along.y };
+  };
+  // Shows the grid snap ring on a local point (null hides it).
   const showGridSnapMarker = (local) => {
     if (!local) {
       gridSnapMarkerRef.current?.update(null);
@@ -8176,6 +8209,12 @@ const InteractionLayer = forwardRef(({
           screenCursorRef.current?.setSnappedBranches(axisSnap?.snappedBranches || null);
           if (axisSnap?.hasLock && axisSnap.local) {
             snapOverride = { x: axisSnap.local.x, y: axisSnap.local.y };
+            // A grid node on the locked branch still catches the vertex.
+            const gridSnap = computeGridSnapOnAxisLock(axisSnap);
+            if (gridSnap) {
+              snapOverride = gridSnap;
+              showGridSnapMarker(gridSnap);
+            }
           }
         } else {
           axisSnapLayerRef.current?.update(null);
@@ -8478,6 +8517,25 @@ const InteractionLayer = forwardRef(({
         const gridSnap = computeGridSnap(toLocalCoords(worldPos));
         if (gridSnap) {
           gridSnapRef.current = { x: gridSnap.x, y: gridSnap.y };
+          showGridSnapMarker(gridSnap);
+        }
+      } else if (
+        enabledDrawingMode &&
+        gridAllowedForMode &&
+        snappingEnabled &&
+        !preventSnapping &&
+        !pointSnapActive &&
+        axisSnapRef.current &&
+        !segmentConstraint &&
+        !(event.shiftKey || event.evt?.shiftKey)
+      ) {
+        // Axis lock + grid: the locked point slides along its branch onto a
+        // grid node of that branch. It stays an axis lock (same commit /
+        // preview path), only its position moves.
+        const gridSnap = computeGridSnapOnAxisLock(axisSnap);
+        if (gridSnap) {
+          axisSnap = { ...axisSnap, local: gridSnap };
+          axisSnapRef.current = gridSnap;
           showGridSnapMarker(gridSnap);
         }
       }

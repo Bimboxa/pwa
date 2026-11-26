@@ -6,13 +6,14 @@ const EDGE_EPSILON = 0.5;
 
 // Snap of a point on the editor grid, in base-map local px.
 //
-// The grid frame (utils/gridAxes.js) is anchored on the bottom-left corner
-// of the base map and turned by the ortho snap angle (`angleDeg`).
+// The grid frame (utils/gridAxes.js) is anchored on the centre of the base
+// map and turned by the ortho snap angle (`angleDeg`).
 //
-// Each grid axis snaps on its own: near a line of one family only that
-// coordinate is corrected, near a node both.
+// Same dynamics as the snap on an existing vertex: only the grid NODES are
+// targets, and the nearest one catches the point once it is within
+// `threshold` of it (a disc around the node) — no snap on a line alone.
 //
-// @returns null | { x, y, snappedU, snappedV }
+// @returns null | { x, y }
 export default function getGridSnap({
   point,
   cellPx,
@@ -37,11 +38,9 @@ export default function getGridSnap({
   const { u, v } = toGrid(axes, point);
   const gridU = Math.round(u / cellPx) * cellPx;
   const gridV = Math.round(v / cellPx) * cellPx;
-  const snappedU = Math.abs(gridU - u) <= threshold;
-  const snappedV = Math.abs(gridV - v) <= threshold;
-  if (!snappedU && !snappedV) return null;
+  if (Math.hypot(gridU - u, gridV - v) > threshold) return null;
 
-  const snapped = fromGrid(axes, snappedU ? gridU : u, snappedV ? gridV : v);
+  const snapped = fromGrid(axes, gridU, gridV);
   if (
     snapped.x < -EDGE_EPSILON ||
     snapped.x > width + EDGE_EPSILON ||
@@ -51,5 +50,5 @@ export default function getGridSnap({
     return null;
   }
 
-  return { x: snapped.x, y: snapped.y, snappedU, snappedV };
+  return { x: snapped.x, y: snapped.y };
 }

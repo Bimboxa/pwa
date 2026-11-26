@@ -1,6 +1,8 @@
 // Frame of the editor grid, in base-map local px (SVG: y down).
 //
-// - origin: the BOTTOM-LEFT corner of the base map (plan convention);
+// - origin: the CENTRE of the base map — the centre axes drawn by the grid
+//   layer are the u = 0 and v = 0 lines, so they always lie on main lines
+//   and on snap nodes;
 // - direction: the ortho snap angle of the editor
 //   (mapEditor.orthoSnapAngleOffset, degrees). Same convention as
 //   snapToAngle / the rotated crosshair: a positive angle turns the frame
@@ -14,8 +16,8 @@ export function getGridAxes({ imageSize, angleDeg = 0 }) {
   const cos = Math.cos(phi);
   const sin = Math.sin(phi);
   return {
-    ox: 0,
-    oy: imageSize?.height ?? 0,
+    ox: (imageSize?.width ?? 0) / 2,
+    oy: (imageSize?.height ?? 0) / 2,
     ux: cos,
     uy: sin,
     vx: -sin,
