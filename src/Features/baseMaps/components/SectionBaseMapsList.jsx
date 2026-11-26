@@ -21,6 +21,7 @@ import { generateKeyBetween } from "fractional-indexing";
 import {
   toggleBaseMapVisibleIn3d,
   toggleBaseMapClippingIn3d,
+  setBaseMapClipBoxShownIn3d,
   toggleScene3dHiddenIn3d,
   setBaseMapAnnotationsModeIn3d,
 } from "Features/threedEditor/threedEditorSlice";
@@ -227,6 +228,7 @@ export default function SectionBaseMapsList({
 
   const visibleIds = useSelector((s) => s.threedEditor.visibleBaseMapIdsIn3d);
   const clippingIds = useSelector((s) => s.threedEditor.clippingBaseMapIdsIn3d);
+  const clipBoxIds = useSelector((s) => s.threedEditor.clipBoxBaseMapIdsIn3d);
   const hiddenScanIds = useSelector(
     (s) => s.threedEditor.hiddenScene3dBaseMapIdsIn3d
   );
@@ -461,6 +463,22 @@ export default function SectionBaseMapsList({
           }
         : null;
 
+    // Clip box toggle, next to the scissors while the cut is on: shows /
+    // hides the box of the cut and its drag handles (same state as the
+    // « Afficher la boîte de coupe » switch of the panel).
+    const clipBoxButton = clipButton?.on
+      ? {
+          on: clipBoxIds.includes(map.id),
+          onToggle: () =>
+            dispatch(
+              setBaseMapClipBoxShownIn3d({
+                baseMapId: map.id,
+                shown: !clipBoxIds.includes(map.id),
+              })
+            ),
+        }
+      : null;
+
     // The Viewer module has no version selector in the top bar.
     const versionChip =
       isMain && isViewerModule && mainVersions.length > 1
@@ -476,6 +494,7 @@ export default function SectionBaseMapsList({
       annotationsBadge,
       scanButton,
       clipButton,
+      clipBoxButton,
       versionChip,
     };
   }
