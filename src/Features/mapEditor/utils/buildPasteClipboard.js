@@ -1,4 +1,5 @@
 import getAnnotationStrokeWidthPx from "Features/geometry/utils/getAnnotationStrokeWidthPx";
+import getRectangleCorners from "Features/rectangles/utils/getRectangleCorners";
 
 // Snapshot one annotation's geometry (pixel-image space) into a paste-clipboard
 // item. Pure — used by the Ctrl+C handler for both single and multi selection.
@@ -135,6 +136,13 @@ export function buildClipboardItem(ann, meterByPx) {
     const p = ann.point || ann.targetPoint;
     if (!p) return null;
     item.basePoint = { x: p.x, y: p.y };
+  } else if (type === "RECTANGLE") {
+    // RECTANGLE (bbox + rotation): its 4 corners, rotation applied (NW, NE,
+    // SE, SW of the unrotated bbox). The paste rebuilds bbox + rotation from
+    // the transformed corners.
+    const corners = getRectangleCorners(ann);
+    if (!corners) return null;
+    item.baseRectangleCorners = corners;
   } else {
     return null;
   }
@@ -180,6 +188,7 @@ export default function buildPasteClipboard(annotations, meterByPx) {
     if (it.baseLayoutLines)
       it.baseLayoutLines.forEach((l) => l.points.forEach(acc));
     if (it.basePoint) acc(it.basePoint);
+    if (it.baseRectangleCorners) it.baseRectangleCorners.forEach(acc);
   }
   const sourceCenter = Number.isFinite(minX)
     ? { x: (minX + maxX) / 2, y: (minY + maxY) / 2 }

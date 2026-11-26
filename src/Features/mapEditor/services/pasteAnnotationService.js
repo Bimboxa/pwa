@@ -556,6 +556,30 @@ export default async function pasteAnnotationService({
       const record = imageFileRecord(item.imageAsset, clonedAnnotation);
       clonedAnnotation.image = record.image;
       imageFiles.push(record.file);
+    } else if (type === "RECTANGLE") {
+      // BBOX geometry family: inline normalized bbox + rotation, no db.points
+      // rows. Rebuilt from the transformed corners (NW, NE, SE, SW): the
+      // rectangle turns / rescales with the group around its own centre.
+      if (item.baseRectangleCorners?.length !== 4) continue;
+      const [nw, ne, , sw] = applyPasteTransformToPoints(
+        item.baseRectangleCorners,
+        sourceCenter,
+        targetCenter,
+        transform
+      );
+      const rectWidth = Math.hypot(ne.x - nw.x, ne.y - nw.y);
+      const rectHeight = Math.hypot(sw.x - nw.x, sw.y - nw.y);
+      // NE and SW are opposite corners: their middle is the centre.
+      const center = { x: (ne.x + sw.x) / 2, y: (ne.y + sw.y) / 2 };
+      clonedAnnotation.bbox = {
+        x: (center.x - rectWidth / 2) / width,
+        y: (center.y - rectHeight / 2) / height,
+        width: rectWidth / width,
+        height: rectHeight / height,
+      };
+      const rotationDeg =
+        (Math.atan2(ne.y - nw.y, ne.x - nw.x) * 180) / Math.PI;
+      clonedAnnotation.rotation = ((rotationDeg % 360) + 360) % 360;
     } else if (type === "POINT" || type === "MARKER" || type === "DETAIL") {
       if (!item.basePoint) continue;
       const [transformed] = applyPasteTransformToPoints(

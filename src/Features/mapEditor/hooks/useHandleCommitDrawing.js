@@ -705,7 +705,10 @@ export default function useHandleCommitDrawing({ annotations } = {}) {
 
             // ÉTAPE 2 : new points — DEFERRED write (see pendingPointRows
             // declaration above).
-            if (newPointsToSave.length > 0) {
+            // A bbox annotation (RECTANGLE / IMAGE / OBJECT_3D) stores its
+            // geometry inline: its 2 raw corners are never referenced, so no
+            // db.points row is written for them.
+            if (newPointsToSave.length > 0 && !drawRectangle) {
                 pendingPointRows.push(...newPointsToSave);
             }
 
@@ -985,6 +988,11 @@ export default function useHandleCommitDrawing({ annotations } = {}) {
                     y: rawPoints[0].y / height,
                     width: (rawPoints[1].x - rawPoints[0].x) / width,
                     height: (rawPoints[1].y - rawPoints[0].y) / height,
+                }
+                // RECTANGLE: rotation chosen at placement (around the bbox
+                // centre, clockwise degrees).
+                if (Number.isFinite(options?.rotation)) {
+                    _newAnnotation.rotation = options.rotation;
                 }
                 // Photo: its anchor (the numbered badge) is its top-left
                 // corner — the photo stays pinned on it until dragged away.

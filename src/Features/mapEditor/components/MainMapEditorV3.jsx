@@ -203,8 +203,14 @@ import { buildSegmentFlagChanges } from "Features/annotations/utils/segmentFlags
 import useBaseMaps from "Features/baseMaps/hooks/useBaseMaps";
 import fitBoundsToViewport from "../utils/fitBoundsToViewport";
 import getAnnotationBounds from "../utils/getAnnotationBounds";
-import getAnnotationTemplateSizeInPx from "Features/annotations/utils/getAnnotationTemplateSizeInPx";
-import getRectangleRawPointsFromOnePoint from "Features/rectangles/utils/getRectangleRawPointsFromOnePoint";
+import getRectangleSizeInPx from "Features/rectangles/utils/getRectangleSizeInPx";
+import getRectangleSizeLocks from "Features/rectangles/utils/getRectangleSizeLocks";
+import resizeRectangleBbox from "Features/rectangles/utils/resizeRectangleBbox";
+import {
+  getRectangleFromTwoPoints,
+  getRectanglePlacementRotation,
+  getRectangleRawPoints,
+} from "Features/rectangles/utils/rectanglePlacement";
 import useCommitBlockInstance from "Features/blocks/hooks/useCommitBlockInstance";
 import BlockDefinitionsDefs from "Features/blocks/components/BlockDefinitionsDefs";
 import getObject3DAnnotationRectanglePointsFromOnePoint from "Features/object3D/utils/getObject3DAnnotationRectanglePointsFromOnePoint";
@@ -630,6 +636,16 @@ export default function MainMapEditorV3({ forViewerKey = "MAP" }) {
 
   let newAnnotation = useSelector((s) => s.annotations.newAnnotation);
   const type = newAnnotation?.type;
+
+  // RECTANGLE placement: rotation typed with the arrow keys while a rectangle
+  // is being placed (degrees, clockwise, on top of the drawing frame). Kept
+  // between two placements of the same template, reset when it changes.
+  const rectanglePlacementRotationRef = useRef(0);
+  const rectangleTemplateId =
+    type === "RECTANGLE" ? newAnnotation?.annotationTemplateId : null;
+  useEffect(() => {
+    rectanglePlacementRotationRef.current = 0;
+  }, [rectangleTemplateId]);
 
   // annotations
 
@@ -1148,21 +1164,38 @@ export default function MainMapEditorV3({ forViewerKey = "MAP" }) {
       commitBlockInstance({ newAnnotation, baseMap, pointPx: rawPoints[0] });
       return;
     }
+    // RECTANGLE in one click: the template dimensions centred on the click,
+    // at the placement rotation.
     if (rawPoints.length === 1 && type === "RECTANGLE") {
-      const imageSize = getAnnotationTemplateSizeInPx({
+      const sizePx = getRectangleSizeInPx({
         size: newAnnotation.size,
         sizeUnit: newAnnotation.sizeUnit,
-        meterByPx: baseMap?.meterByPx,
+        meterByPx: baseMap?.getMeterByPx?.(),
       });
-      const width = imageSize.width;
-      const height = imageSize.height;
-      rawPoints = getRectangleRawPointsFromOnePoint({
-        point: rawPoints[0],
-        width,
-        height,
+      if (sizePx.width === null || sizePx.height === null) {
+        dispatch(
+          setToaster({
+            message:
+              "Impossible de poser le rectangle : le fond de plan n'a pas d'échelle ou le modèle n'a pas de dimensions.",
+            severity: "warning",
+          })
+        );
+        return;
+      }
+      rawPoints = getRectangleRawPoints({
+        center: rawPoints[0],
+        width: sizePx.width,
+        height: sizePx.height,
       });
 
-      options = { ...(options ?? {}), drawRectangle: true };
+      options = {
+        ...(options ?? {}),
+        drawRectangle: true,
+        rotation: getRectanglePlacementRotation(
+          orthoSnapAngleOffset,
+          rectanglePlacementRotationRef.current
+        ),
+      };
     }
 
     // IMAGE: the 1-click → bbox conversion lives in useHandleCommitDrawing
@@ -1433,6 +1466,26 @@ export default function MainMapEditorV3({ forViewerKey = "MAP" }) {
   // handlers - rectangle
 
   const handleCommitDrawingFromRectangle = (points) => {
+    // RECTANGLE annotation: the two clicks are opposite corners of a
+    // rectangle whose sides follow the placement rotation. Stored as the
+    // unrotated bbox around its centre + that rotation.
+    if (type === "RECTANGLE" && points.length === 2) {
+      const rotation = getRectanglePlacementRotation(
+        orthoSnapAngleOffset,
+        rectanglePlacementRotationRef.current
+      );
+      const rectangle = getRectangleFromTwoPoints({
+        p1: points[0],
+        p2: points[1],
+        rotation,
+      });
+      if (!(rectangle.width > 0) || !(rectangle.height > 0)) return;
+      handleCommitDrawing(getRectangleRawPoints(rectangle), {
+        drawRectangle: true,
+        rotation,
+      });
+      return;
+    }
     if (["POLYGON", "POLYLINE", "CUT"].includes(type) && points.length === 2) {
       points = getPolylinePointsFromRectangle(points, orthoSnapAngleOffset);
     }
@@ -2473,10 +2526,10 @@ export default function MainMapEditorV3({ forViewerKey = "MAP" }) {
         const cw = currentBBox.width;
         const ch = currentBBox.height;
 
-        // Contraintes template
-        const templateSize = annotation.annotationTemplateProps?.size;
-        const lockedWidth = templateSize?.width != null;
-        const lockedHeight = templateSize?.height != null;
+        // Dimensions locked by the template (per-dimension padlocks)
+        const { lockedWidth, lockedHeight } = getRectangleSizeLocks(
+          annotation.annotationTemplateProps
+        );
 
         let nx = cx;
         let ny = cy;
@@ -2491,39 +2544,22 @@ export default function MainMapEditorV3({ forViewerKey = "MAP" }) {
           if (newRotation < 0) newRotation += 360;
           updates.rotation = newRotation;
         } else if (partType && partType.startsWith("RESIZE_")) {
-          const handle = partType.replace("RESIZE_", "");
-
-          // Deltas libres par dimension, verrouillés si template contraint
-          const dx = lockedWidth ? 0 : deltaPos.x;
-          const dy = lockedHeight ? 0 : deltaPos.y;
-
-          if (handle === "SE") {
-            nw = cw + dx;
-            nh = ch + dy;
-          } else if (handle === "SW") {
-            nw = cw - dx;
-            nh = ch + dy;
-            nx = cx + dx;
-          } else if (handle === "NE") {
-            nw = cw + dx;
-            nh = ch - dy;
-            ny = cy + dy;
-          } else if (handle === "NW") {
-            nw = cw - dx;
-            nh = ch - dy;
-            nx = cx + dx;
-            ny = cy + dy;
-          }
-
-          // Sécurité min 20px
-          if (nw < 20) {
-            nw = 20;
-            if (handle.includes("W")) nx = cx + (cw - 20);
-          }
-          if (nh < 20) {
-            nh = 20;
-            if (handle.includes("N")) ny = cy + (ch - 20);
-          }
+          // Same maths as the drag preview (applyDeltaPosToAnnotation):
+          // the delta is read in the rectangle's own frame, the opposite
+          // corner stays put, a locked dimension ignores it.
+          ({
+            x: nx,
+            y: ny,
+            width: nw,
+            height: nh,
+          } = resizeRectangleBbox({
+            bbox: currentBBox,
+            rotation: currentRotation,
+            handle: partType.replace("RESIZE_", ""),
+            deltaPos,
+            lockedWidth,
+            lockedHeight,
+          }));
 
           updates.bbox = {
             x: nx / bgW,
@@ -2791,6 +2827,7 @@ export default function MainMapEditorV3({ forViewerKey = "MAP" }) {
         >
           <InteractionProvider>
             <InteractionLayer
+              rectanglePlacementRotationRef={rectanglePlacementRotationRef}
               hideBaseMapImage={hideBaseMapImage}
               isActiveViewer={isActiveViewer}
               imageDisplayIndexById={imageDisplayIndexById}

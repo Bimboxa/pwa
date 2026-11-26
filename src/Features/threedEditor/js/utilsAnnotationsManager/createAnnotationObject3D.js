@@ -81,6 +81,7 @@ import createObject3DAnnotation from "./createObject3DAnnotation";
 import createImageAnnotation3D from "./createImageAnnotation3D";
 import getAnnotationVerticalLift from "./getAnnotationVerticalLift";
 import isAntiAliasingShrinkEnabled from "./isAntiAliasingShrinkEnabled";
+import getRectangleCorners from "Features/rectangles/utils/getRectangleCorners";
 
 // Screen-space thickness (px) of the vertical "trait" rendered for a POINT
 // annotation with a height (the in-progress trait of DrawingOverlayThreed is
@@ -411,14 +412,11 @@ function pointsToLocal(points, baseMap) {
   }));
 }
 
-function bboxToCorners(bbox) {
-  const { x, y, width, height } = bbox;
-  return [
-    { x, y },
-    { x: x + width, y },
-    { x: x + width, y: y + height },
-    { x, y: y + height },
-  ];
+// Footprint of a RECTANGLE annotation in base map pixels: the 4 corners of
+// its bbox, turned by its `rotation` around the bbox centre (same rotation as
+// the 2D node — pointsToLocal then mirrors y, so no sign to flip here).
+function rectangleToCorners(annotation) {
+  return getRectangleCorners(annotation) ?? [];
 }
 
 // Lift the white fold lines just above the surface to avoid z-fighting.
@@ -1011,7 +1009,7 @@ export default function createAnnotationObject3D(annotation, baseMap, options) {
     }
     case "RECTANGLE": {
       if (!annotation.bbox) break;
-      const pts = pointsToLocal(bboxToCorners(annotation.bbox), baseMap);
+      const pts = pointsToLocal(rectangleToCorners(annotation), baseMap);
       object = extrudeClosedShape(
         pts,
         height,
@@ -1617,7 +1615,7 @@ export default function createAnnotationObject3D(annotation, baseMap, options) {
   ) {
     const sourcePoints =
       annotation.type === "RECTANGLE"
-        ? bboxToCorners(annotation.bbox || { x: 0, y: 0, width: 0, height: 0 })
+        ? rectangleToCorners(annotation)
         : annotation.points || [];
     const localPts = pointsToLocal(sourcePoints, baseMap);
     // Basemap-local space: X/Y are planar, Z is the normal (offsetTop /

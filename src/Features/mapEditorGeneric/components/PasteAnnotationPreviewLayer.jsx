@@ -106,6 +106,21 @@ function renderItem(item, key, meterByPx) {
       />
     );
   }
+  if (type === "RECTANGLE" && item.baseRectangleCorners?.length) {
+    return (
+      <polygon
+        key={key}
+        points={item.baseRectangleCorners.map((p) => `${p.x},${p.y}`).join(" ")}
+        fill={fillColor}
+        stroke={ann?.fillColor || strokeColor}
+        strokeWidth={2}
+        strokeDasharray="6 4"
+        vectorEffect="non-scaling-stroke"
+        opacity={0.8}
+        style={{ pointerEvents: "none" }}
+      />
+    );
+  }
   if (type === "POLYGON" && item.basePoints?.length) {
     const outerD =
       "M " + item.basePoints.map((p) => `${p.x} ${p.y}`).join(" L ") + " Z";

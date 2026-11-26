@@ -599,6 +599,14 @@ function computeAnnotationQties({ annotation, meterByPx, imageSize }) {
     // FREE_TEXT is a pure text box: it describes the drawing, no quantities.
     if (annotation.type === "FREE_TEXT") return { enabled: false };
 
+    // RECTANGLE (rigid bbox + rotation, no points): surface = Lx × Ly,
+    // length = its perimeter. The bbox is resolved in base map pixels.
+    if (annotation.type === "RECTANGLE") {
+      const lx = (Number(annotation.bbox?.width) || 0) * meterByPx;
+      const ly = (Number(annotation.bbox?.height) || 0) * meterByPx;
+      return { enabled: true, length: 2 * (lx + ly), surface: lx * ly };
+    }
+
     // DISC: surface of its 3D shape — the plane disc / sector area, or the
     // developed area of the « Coupole » (Pappus on the dome profile); length
     // = the arc of the rim.

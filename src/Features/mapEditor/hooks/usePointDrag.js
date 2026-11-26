@@ -273,6 +273,11 @@ export default function usePointDrag({
       // --- CAS 2 : PROJECTION / MIDPOINT (Nouveau Point sur segment) ---
       else if (snap.type === "PROJECTION" || snap.type === "MIDPOINT") {
 
+        // Side of a RECTANGLE (bbox + rotation, no stored points — see
+        // getBestSnap): a position-only snap, there is no contour to insert
+        // a vertex into.
+        if (!snap.previewAnnotationId) return false;
+
         // Permission check : vérifier que l'annotation cible est à moi
         if (!permissions.canEditAnnotation(snap.previewAnnotationId)) return false;
 

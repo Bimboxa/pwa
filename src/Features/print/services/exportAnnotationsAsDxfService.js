@@ -19,6 +19,7 @@ import {
 
 import JSZip from "jszip";
 import { formatHeightCutDelta } from "Features/heightCuts/constants/heightCutConstants";
+import getRectangleCorners from "Features/rectangles/utils/getRectangleCorners";
 
 // Exports the active base map's annotations as a DXF file (model space).
 // Coordinates: resolved pixel space (useAnnotationsV2 output — never raw db
@@ -329,18 +330,9 @@ export default async function exportAnnotationsAsDxf({
         break;
       }
       case "RECTANGLE": {
-        const { x, y, width, height } = a.bbox ?? {};
-        if ([x, y, width, height].every(Number.isFinite)) {
-          done = addRing(
-            [
-              { x, y },
-              { x: x + width, y },
-              { x: x + width, y: y + height },
-              { x, y: y + height },
-            ],
-            true
-          );
-        }
+        // 4 corners of the bbox, rotation applied
+        const corners = getRectangleCorners(a);
+        if (corners) done = addRing(corners, true);
         break;
       }
       case "POLYLINE": {

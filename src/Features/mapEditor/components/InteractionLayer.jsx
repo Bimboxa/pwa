@@ -195,6 +195,14 @@ import LassoOverlay from 'Features/mapEditorGeneric/components/LassoOverlay';
 import mergeBboxes from 'Features/misc/utils/mergeBboxes';
 import snapToAngle from 'Features/mapEditor/utils/snapToAngle';
 import getBestSnap from 'Features/mapEditor/utils/getBestSnap';
+import getRectangleSizeLocks from "Features/rectangles/utils/getRectangleSizeLocks";
+import {
+  RECTANGLE_ROTATE_STEP_DEG,
+  RECTANGLE_ROTATE_FINE_STEP_DEG,
+  getRectangleDraftConstraints,
+  getRectangleFromTwoPoints,
+  getRectanglePlacementRotation,
+} from "Features/rectangles/utils/rectanglePlacement";
 import {
   computeSegmentDragMoves,
   computeVertexDragMoves,
@@ -321,7 +329,7 @@ import { resolveSystemSelectionIds } from "Features/systems/utils/applySystemDis
 
 const PAN_STEP = 30;
 
-const PASTE_SUPPORTED_TYPES = ["POLYGON", "POLYLINE", "STRIP", "POINT", "MARKER", "RULER", "DETAIL"];
+const PASTE_SUPPORTED_TYPES = ["POLYGON", "POLYLINE", "STRIP", "POINT", "MARKER", "RULER", "DETAIL", "RECTANGLE"];
 
 // Node-merge tolerance for the annotation-geometry polygon detection
 // (POLYGON_CLICK hover + SURFACE_DROP "utiliser les contours"). Endpoints of
@@ -427,6 +435,9 @@ const InteractionLayer = forwardRef(({
   onSplitPolylineReset,
   onSplitPolylineClickPoint,
   onJoinAnnotationsRect,
+  // RECTANGLE placement: ref of the rotation typed with the arrow keys
+  // (degrees, clockwise) — owned by the host, read again at commit.
+  rectanglePlacementRotationRef,
   onTransformToolClick,
   onTransformToolMove,
   onChatRepairRect,
@@ -3342,6 +3353,24 @@ const InteractionLayer = forwardRef(({
   const selectedAnnotationsForCopyRef = useRef([]);
 
   const newAnnotationRef = useRef(newAnnotation);
+  // RECTANGLE annotation, 2-click tool: the corner opposite to the first
+  // click, given the cursor — dimensions locked by the template (or typed)
+  // keep their length, the sides follow the placement rotation. Same maths as
+  // the live preview (DrawingLayer).
+  const getRectangleSecondCorner = (firstPoint, cursorPos) =>
+    getRectangleFromTwoPoints({
+      p1: firstPoint,
+      p2: cursorPos,
+      rotation: getRectanglePlacementRotation(
+        orthoSnapAngleOffsetRef.current,
+        rectanglePlacementRotationRef?.current
+      ),
+      ...getRectangleDraftConstraints({
+        newAnnotation: newAnnotationRef.current,
+        meterByPx: meterByPxRef.current,
+        metrics: rectMetricsRef.current,
+      }),
+    }).corners[2];
   useEffect(() => {
     newAnnotationRef.current = newAnnotation;
   }, [newAnnotation]);
@@ -4385,6 +4414,29 @@ const InteractionLayer = forwardRef(({
       const showSmartDetect = showSmartDetectRef.current;
       const enabledDrawingMode = enabledDrawingModeRef.current;
 
+      // --- RECTANGLE placement: ← → rotate the rectangle being placed ---
+      // (10° steps, Shift = 1°), instead of panning the camera. Handled
+      // before the auto-repeat guard: holding the key keeps turning it.
+      if (
+        isActiveViewerRef.current &&
+        rectanglePlacementRotationRef &&
+        (e.key === "ArrowLeft" || e.key === "ArrowRight") &&
+        ["ONE_CLICK", "RECTANGLE"].includes(enabledDrawingMode) &&
+        newAnnotationRef.current?.type === "RECTANGLE"
+      ) {
+        e.preventDefault();
+        const step = e.shiftKey
+          ? RECTANGLE_ROTATE_FINE_STEP_DEG
+          : RECTANGLE_ROTATE_STEP_DEG;
+        rectanglePlacementRotationRef.current =
+          (rectanglePlacementRotationRef.current || 0) +
+          (e.key === "ArrowRight" ? step : -step);
+        if (lastPreviewPosRef.current) {
+          drawingLayerRef.current?.updatePreview(lastPreviewPosRef.current);
+        }
+        return;
+      }
+
       if (e.repeat) return;
 
       // The single selected DOOR opening (drawingShape OPENING, openingType
@@ -4884,15 +4936,21 @@ const InteractionLayer = forwardRef(({
         drawingPointsRef.current?.length === 1;
 
       if (isRectangleSecondPhase && e.key !== "Escape") {
+        // RECTANGLE annotation: a dimension locked by the template cannot be
+        // typed.
+        const rectLocks =
+          newAnnotationRef.current?.type === "RECTANGLE"
+            ? getRectangleSizeLocks(newAnnotationRef.current)
+            : null;
         // Axis switching (also resets the targeted buffer)
         if (e.key === "x" || e.key === "X") {
           e.preventDefault();
-          setRectAxis("x");
+          if (!rectLocks?.lockedWidth) setRectAxis("x");
           return;
         }
         if (e.key === "y" || e.key === "Y") {
           e.preventDefault();
-          setRectAxis("y");
+          if (!rectLocks?.lockedHeight) setRectAxis("y");
           return;
         }
         // The remaining keys only act when an axis is currently selected
@@ -4933,7 +4991,9 @@ const InteractionLayer = forwardRef(({
             const fallbackPos = lastPreviewPosRef.current || lastPoint;
             const angleDeg = orthoSnapAngleOffsetRef.current || 0;
             let finalPos;
-            if (angleDeg === 0) {
+            if (newAnnotationRef.current?.type === "RECTANGLE") {
+              finalPos = getRectangleSecondCorner(lastPoint, fallbackPos);
+            } else if (angleDeg === 0) {
               finalPos = {
                 x: metrics.rectX != null ? lastPoint.x + metrics.rectX / mPerPx : fallbackPos.x,
                 y: metrics.rectY != null ? lastPoint.y + metrics.rectY / mPerPx : fallbackPos.y,
@@ -6810,7 +6870,14 @@ const InteractionLayer = forwardRef(({
 
       // Apply rectangle X/Y typed-dimensions override for the second point
       const isRectangleMode = ["RECTANGLE", "POLYLINE_RECTANGLE", "POLYGON_RECTANGLE", "CUT_RECTANGLE"].includes(enabledDrawingMode);
-      if (isRectangleMode && drawingPoints.length === 1) {
+      if (
+        isRectangleMode &&
+        drawingPoints.length === 1 &&
+        newAnnotationRef.current?.type === "RECTANGLE"
+      ) {
+        // RECTANGLE annotation: locked / typed dimensions + placement rotation
+        finalPos = getRectangleSecondCorner(drawingPoints[0], finalPos);
+      } else if (isRectangleMode && drawingPoints.length === 1) {
         const metrics = rectMetricsRef.current || {};
         if (metrics.rectX != null || metrics.rectY != null) {
           const lastPoint = drawingPoints[0];
@@ -8037,12 +8104,16 @@ const InteractionLayer = forwardRef(({
             currentSnapRef.current = snapResult;
             snapOverride = {
               x: snapResult.x, y: snapResult.y,
-              projectionSnap: {
-                annotationId: snapResult.previewAnnotationId,
-                segmentStartId: snapResult.segmentStartId,
-                segmentEndId: snapResult.segmentEndId,
-                cutIndex: snapResult.cutIndex,
-              },
+              // No insertion target on the side of a RECTANGLE (id-less
+              // snap, see getBestSnap): the dragged point only lands on it.
+              projectionSnap: snapResult.previewAnnotationId
+                ? {
+                  annotationId: snapResult.previewAnnotationId,
+                  segmentStartId: snapResult.segmentStartId,
+                  segmentEndId: snapResult.segmentEndId,
+                  cutIndex: snapResult.cutIndex,
+                }
+                : undefined,
             };
 
             if (screenSnap) {
@@ -9602,7 +9673,7 @@ const InteractionLayer = forwardRef(({
       // `isLabelPart`).
       // OBJECT_3D footprint: same rule as the IMAGE body.
       const isUnselectedPlacement =
-        ["REVOLUTION_AXIS_PLACEMENT", "IMAGE", "OBJECT_3D"].includes(
+        ["REVOLUTION_AXIS_PLACEMENT", "IMAGE", "OBJECT_3D", "RECTANGLE"].includes(
           draggableGroup.dataset?.annotationType
         ) &&
         !partType &&
@@ -10280,7 +10351,7 @@ const InteractionLayer = forwardRef(({
         {/* Mounted with no point yet for the single-click ghosts (object / image
             placement, revolution axis placement / reposition): their preview
             follows the cursor before the first click. */}
-        {(enabledDrawingMode && (drawingPoints.length > 0 || (enabledDrawingMode === "ONE_CLICK" && ["OBJECT_3D", "IMAGE", "BLOCK_INSTANCE"].includes(newAnnotation?.type)) || Boolean(revolutionPlacementGhostSource))) && (
+        {(enabledDrawingMode && (drawingPoints.length > 0 || (enabledDrawingMode === "ONE_CLICK" && ["OBJECT_3D", "IMAGE", "BLOCK_INSTANCE", "RECTANGLE"].includes(newAnnotation?.type)) || Boolean(revolutionPlacementGhostSource))) && (
           <g transform={`translate(${targetPose.x}, ${targetPose.y}) scale(${targetPose.k})`}>
             <DrawingLayer
               ref={drawingLayerRef}
@@ -10296,6 +10367,7 @@ const InteractionLayer = forwardRef(({
               rampWidthM={rampWidthM}
               onRectanglePreview={handleRectanglePreview}
               revolutionPlacementGhostSource={revolutionPlacementGhostSource}
+              rectanglePlacementRotationRef={rectanglePlacementRotationRef}
             />
           </g>
 
