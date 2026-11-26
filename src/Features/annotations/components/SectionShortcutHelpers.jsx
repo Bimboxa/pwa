@@ -6,6 +6,7 @@ import KeyboardReturnIcon from '@mui/icons-material/KeyboardReturn';
 import KeyChip from './KeyChip';
 
 import { RECTANGLE_PLACEMENT_MODES } from "Features/rectangles/utils/rectanglePlacement";
+import { BOUNDARY_DETECT_MODE } from "Features/mapEditor/constants/boundaryDetectMode";
 
 // `shortcuts` prop overrides the drawing-mode-derived list (e.g. the 3D
 // OBJECT_3D placement mode shows its own rotation shortcuts).
@@ -17,6 +18,7 @@ export default function SectionShortcutHelpers({ shortcuts: shortcutsProp }) {
     const isReassignMode = enabledDrawingMode === "REASSIGN_TEMPLATE";
     const isLocalizedRepair = enabledDrawingMode === "LOCALIZED_REPAIR";
     const isJoinAnnotations = enabledDrawingMode === "JOIN_ANNOTATIONS";
+    const isBoundaryDetect = enabledDrawingMode === BOUNDARY_DETECT_MODE;
 
     // Note: loupe size / constraint-length shortcuts are shown inline inside
     // CardLoupe and SectionDrawingConstraints respectively — no longer here.
@@ -27,6 +29,14 @@ export default function SectionShortcutHelpers({ shortcuts: shortcutsProp }) {
           ]
         : isJoinAnnotations
         ? [{ key: "Esc", label: "Quitter" }]
+        : isBoundaryDetect
+        ? [
+            {
+                key: <KeyboardReturnIcon sx={{ fontSize: '1rem' }} />,
+                label: "Détecter la frontière",
+            },
+            { key: "Esc", label: "Effacer la zone / Quitter" },
+          ]
         : [
         ...(isReassignMode
             ? []

@@ -3,6 +3,8 @@ import { useDispatch } from "react-redux";
 
 import { setDrawingHasFirstPoint } from "../mapEditorSlice";
 
+import { BOUNDARY_DETECT_MODE } from "../constants/boundaryDetectMode";
+
 import cv from "Features/opencv/services/opencvService";
 
 const LOUPE_SIZE = 200; // Taille écran de la loupe (doit correspondre à InteractionLayer)
@@ -16,6 +18,8 @@ const LOUPE_SIZE = 200; // Taille écran de la loupe (doit correspondre à Inter
  * - brushPath : chemin du pinceau en mode BRUSH
  * - commitPoint() : commit un point unique (mode ONE_CLICK)
  * - commitPolyline() : commit une polyligne, brush ou smart detect
+ *   (BOUNDARY_DETECT: `resolveBoundaryDetectRef.current(regionPoints)` turns
+ *   the drawn region into the points of the detected frontier, or null)
  *
  * Pas d'impact ownership — le dessin crée toujours des annotations nouvelles,
  * attribuées à l'utilisateur courant par le hook Dexie dans db.js.
@@ -26,6 +30,7 @@ export default function useDrawingCommit({
   brushLayerRef,
   smartDetectRef,
   lastSmartROI,
+  resolveBoundaryDetectRef,
 }) {
   // --- drawing points ---
 
@@ -138,6 +143,21 @@ export default function useDrawingCommit({
       return;
     }
 
+    // --- BOUNDARY_DETECT: the drawn points are a REGION; the committed
+    // polyline follows the blank / inked frontier of the base map inside it.
+    // Nothing is created when no frontier is found (the tool stays armed).
+    if (drawingMode === BOUNDARY_DETECT_MODE) {
+      const regionPoints = drawingPointsRef.current;
+      setDrawingPoints([]);
+      setCutHostId(null);
+      if (regionPoints.length === 0) return;
+      const points = resolveBoundaryDetectRef?.current?.(regionPoints);
+      if (points?.length >= 2 && onCommitDrawingRef.current) {
+        onCommitDrawingRef.current({ points, event, options });
+      }
+      return;
+    }
+
     // --- CAS CLICK/POLYLINE (Défaut) ---
 
     const pointsToSave = drawingPointsRef.current;
@@ -165,6 +185,7 @@ export default function useDrawingCommit({
     brushLayerRef,
     smartDetectRef,
     lastSmartROI,
+    resolveBoundaryDetectRef,
   ]);
 
   return {

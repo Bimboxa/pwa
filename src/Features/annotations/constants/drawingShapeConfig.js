@@ -150,6 +150,8 @@ const DRAWING_SHAPE_CONFIG = {
       "POLYLINE_CIRCLE",
       "POLYLINE_CIRCLE_RADIUS",
       "POLYLINE_ARC",
+      "POLYLINE_BOUNDARY_DETECT",
+      "POLYLINE_HIGHLIGHT_VECTORIZE",
       "STRIP",
       "STRIP_SEGMENT",
       // « Pinceau » (paints edges in 3D, converts / duplicates annotations

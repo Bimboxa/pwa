@@ -50,6 +50,7 @@ import CardSmartDetect from "Features/smartDetect/components/CardSmartDetect";
 import CardWallVectorization from "Features/smartDetect/components/CardWallVectorization";
 import SectionSurfaceDropOptions from "Features/smartDetect/components/SectionSurfaceDropOptions";
 import SectionRoomOptions from "Features/smartDetect/components/SectionRoomOptions";
+import SectionHighlightVectorizeOptions from "Features/smartDetect/components/SectionHighlightVectorizeOptions";
 import SectionHeightCutDrawingOptions from "Features/heightCuts/components/SectionHeightCutDrawingOptions";
 import SectionShortcutHelpers from "Features/annotations/components/SectionShortcutHelpers";
 import WhiteSectionGeneric from "Features/form/components/WhiteSectionGeneric";
@@ -62,6 +63,8 @@ import {
   isBaseMapLinkLocateDraft,
 } from "Features/baseMapLinks/utils/startBaseMapLinkTools";
 import SectionDrawingPatternRepeat from "./SectionDrawingPatternRepeat";
+import { BOUNDARY_DETECT_MODE } from "Features/mapEditor/constants/boundaryDetectMode";
+import { HIGHLIGHT_VECTORIZE_MODE } from "Features/mapEditor/constants/highlightVectorizeMode";
 import getEffectiveDetectionMode, {
   SMART_DETECT_UI_MODES,
 } from "Features/mapEditor/utils/getEffectiveDetectionMode";
@@ -193,6 +196,16 @@ const THREED_MESH_BRUSH_SHORTCUTS = [
 // finish.
 const SECTION_MARK_SHORTCUTS = [{ key: "Esc", label: "Quitter" }];
 
+// Shortcuts of the « Vectoriser au surligneur » tool (InteractionLayer
+// HIGHLIGHT_VECTORIZE_MODE gesture; F and Z / W are shown in its options
+// card).
+const HIGHLIGHT_VECTORIZE_SHORTCUTS = [
+  { key: "Clic", label: "Démarrer / arrêter le surlignage" },
+  { key: "Shift", label: "Verrouiller la direction du geste" },
+  { key: "Entrée", label: "Vectoriser les zones surlignées" },
+  { key: "Esc", label: "Vectoriser / Quitter" },
+];
+
 // Shortcuts of the « Pinceau » armed in the 2D editor (template brush:
 // InteractionLayer MESH_BRUSH branch + useTemplateBrushClick).
 const TEMPLATE_BRUSH_2D_SHORTCUTS = [
@@ -305,6 +318,10 @@ export default function SectionDrawingHelperContent() {
   const templateBrushSwitchS = "Dupliquer l'annotation cible";
   const templateBrushHiddenS =
     "Le modèle actif est masqué : les annotations converties ou dupliquées ne seront pas visibles.";
+  const boundaryDetectS =
+    "Détourez la zone à cheval sur la frontière, puis Entrée : la ligne suit la limite entre le vide et le plan.";
+  const highlightVectorizeS =
+    "Clic : surlignez les points à suivre, clic pour arrêter (autant de zones que nécessaire). Entrée : la ligne passe par les points surlignés.";
   const surfaceCutS =
     "Tracez un trait à travers la surface : elle est coupée en autant d'annotations que de morceaux";
   const coplanarPointsS = "Points coplanaires";
@@ -595,7 +612,9 @@ export default function SectionDrawingHelperContent() {
         !isTemplateBrush2d &&
         enabledDrawingMode !== "LOCALIZED_REPAIR" &&
         enabledDrawingMode !== "JOIN_ANNOTATIONS" &&
-        enabledDrawingMode !== "CHAT_REPAIR" && (
+        enabledDrawingMode !== "CHAT_REPAIR" &&
+        enabledDrawingMode !== BOUNDARY_DETECT_MODE &&
+        enabledDrawingMode !== HIGHLIGHT_VECTORIZE_MODE && (
           <LoupeSlot enabled={loupeEnabled} />
         )}
       {/* Source annotation of a procedure being drawn (2D): the procedure's
@@ -841,6 +860,38 @@ export default function SectionDrawingHelperContent() {
           {surfaceCutS}
         </Box>
       )}
+      {enabledDrawingMode === BOUNDARY_DETECT_MODE && (
+        <Box
+          sx={{
+            px: 1.5,
+            py: 1.5,
+            borderRadius: 1,
+            bgcolor: "primary.main",
+            color: "primary.contrastText",
+            fontSize: "0.875rem",
+            fontWeight: 600,
+            textAlign: "center",
+          }}
+        >
+          {boundaryDetectS}
+        </Box>
+      )}
+      {enabledDrawingMode === HIGHLIGHT_VECTORIZE_MODE && (
+        <Box
+          sx={{
+            px: 1.5,
+            py: 1.5,
+            borderRadius: 1,
+            bgcolor: "primary.main",
+            color: "primary.contrastText",
+            fontSize: "0.875rem",
+            fontWeight: 600,
+            textAlign: "center",
+          }}
+        >
+          {highlightVectorizeS}
+        </Box>
+      )}
       {enabledDrawingMode === "CUT_SEGMENT" && (
         <Box
           sx={{
@@ -963,6 +1014,9 @@ export default function SectionDrawingHelperContent() {
       )}
       {enabledDrawingMode === "SURFACE_DROP" && <SectionSurfaceDropOptions />}
       {enabledDrawingMode === "ROOM_CLICK" && <SectionRoomOptions />}
+      {enabledDrawingMode === HIGHLIGHT_VECTORIZE_MODE && (
+        <SectionHighlightVectorizeOptions />
+      )}
       {/* « Ne pas découper » of the opening / surface cut tools — null
           otherwise. */}
       {!isThreedToggledEditor && <SectionHeightCutDrawingOptions />}
@@ -1066,7 +1120,9 @@ export default function SectionDrawingHelperContent() {
                 ? SURFACE_CUT_SHORTCUTS
                 : isSectionMarkDraw
                   ? SECTION_MARK_SHORTCUTS
-                  : undefined
+                  : enabledDrawingMode === HIGHLIGHT_VECTORIZE_MODE
+                    ? HIGHLIGHT_VECTORIZE_SHORTCUTS
+                    : undefined
         }
       />
     </Box>

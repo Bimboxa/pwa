@@ -16,7 +16,10 @@ import { setNewAnnotation } from "Features/annotations/annotationsSlice";
 import {
   cycleRoomShape,
   stepRoomWindowSize,
+  stepHighlightBrushSize,
+  cycleHighlightVectorizeShape,
 } from "Features/smartDetect/smartDetectSlice";
+import { HIGHLIGHT_VECTORIZE_MODE } from "Features/mapEditor/constants/highlightVectorizeMode";
 import { selectPdfEditorOpen } from "Features/pdfEditor/pdfEditorSlice";
 import { selectDrawingToolsEditor } from "Features/meshPaint/utils/meshBrushSelectors";
 
@@ -143,6 +146,27 @@ export default function useDrawingToolHotkeys() {
       // « Pièce » tool: Z enlarges / W shrinks the computation window.
       if (mode === "ROOM_CLICK" && ["z", "w"].includes(e.key.toLowerCase())) {
         dispatch(stepRoomWindowSize(e.key.toLowerCase() === "z" ? 1 : -1));
+        e.preventDefault();
+        e.stopImmediatePropagation();
+        return;
+      }
+
+      // « Vectoriser au surligneur » tool: F cycles the shape fitted through
+      // the highlighted pixels (arc / line / right angle / free).
+      if (mode === HIGHLIGHT_VECTORIZE_MODE && e.key.toLowerCase() === "f") {
+        dispatch(cycleHighlightVectorizeShape());
+        e.preventDefault();
+        e.stopImmediatePropagation();
+        return;
+      }
+
+      // « Vectoriser au surligneur » tool: Z enlarges / W shrinks the
+      // highlighter.
+      if (
+        mode === HIGHLIGHT_VECTORIZE_MODE &&
+        ["z", "w"].includes(e.key.toLowerCase())
+      ) {
+        dispatch(stepHighlightBrushSize(e.key.toLowerCase() === "z" ? 1 : -1));
         e.preventDefault();
         e.stopImmediatePropagation();
         return;
