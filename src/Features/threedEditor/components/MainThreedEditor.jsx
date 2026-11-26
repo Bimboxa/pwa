@@ -21,6 +21,7 @@ import useApplyBaseMapsScanModeIn3d from "../hooks/useApplyBaseMapsScanModeIn3d"
 import useApplyBaseMapClippingIn3d from "Features/baseMapClipping/hooks/useApplyBaseMapClippingIn3d";
 import useBaseMapClipBoxDragHandlers from "Features/baseMapClipping/hooks/useBaseMapClipBoxDragHandlers";
 import ThreedBaseMapClipBoxes from "Features/baseMapClipping/components/ThreedBaseMapClipBoxes";
+import SliderBaseMapClipLevelsThreed from "Features/baseMapClipping/components/SliderBaseMapClipLevelsThreed";
 import useApplyBaseMapTransformsIn3d from "../hooks/useApplyBaseMapTransformsIn3d";
 import useRevolutionSectionIn3d from "../hooks/useRevolutionSectionIn3d";
 import useSyncClippingPlanTo3D from "../hooks/useSyncClippingPlanTo3D";
@@ -3795,6 +3796,9 @@ export default function MainThreedEditor() {
       {isThreedViewer && <MeshingOverlayThreed />}
       {isThreedViewer && <ExtrudeOverlayThreed />}
       {isThreedViewer && <RevolutionAxisCutOverlayThreed />}
+      <SliderBaseMapClipLevelsThreed
+        enabled={isThreedViewer && rendererIsReady}
+      />
       {isThreedViewer && <VertexOffsetOverlayThreed />}
       {isThreedViewer && <ShootLanceOverlayThreed />}
     </Box>
