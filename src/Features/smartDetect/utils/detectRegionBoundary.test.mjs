@@ -40,19 +40,33 @@ function speckledDisc({ density = 0.6, inside = true } = {}) {
   return { width: WIDTH, height: HEIGHT, data };
 }
 
-const REGION = [
-  { x: 60, y: 420 },
-  { x: 150, y: 120 },
-  { x: 420, y: 40 },
-  { x: 520, y: 200 },
-  { x: 300, y: 300 },
-  { x: 220, y: 460 },
-];
+// Highlighter stroke swept along the edge of the disc, drawn by hand: its
+// axis wanders up to 12 px off the edge.
+function strokeAlongEdge({ from = 3.35, to = 4.3, radius = 30 } = {}) {
+  const points = [];
+  for (let k = 0; k <= 200; k++) {
+    const angle = from + ((to - from) * k) / 200;
+    const r = RADIUS + 12 * Math.sin(k / 9);
+    points.push({
+      x: CENTER.x + r * Math.cos(angle),
+      y: CENTER.y + r * Math.sin(angle),
+    });
+  }
+  return { points, radius };
+}
+
+const squareStroke = (x, y) => ({
+  radius: 40,
+  points: [
+    { x, y },
+    { x: x + 60, y: y + 60 },
+  ],
+});
 
 test("follows the edge of a speckled disc", () => {
   const result = detectRegionBoundary({
     imageData: speckledDisc(),
-    regionPoints: REGION,
+    strokes: [strokeAlongEdge()],
   });
   assert.ok(result.points, `no boundary: ${result.reason}`);
   assert.equal(result.closed, false);
@@ -67,7 +81,7 @@ test("follows the edge of a speckled disc", () => {
   }
   assert.ok(maxDeviation < 3, `max deviation ${maxDeviation.toFixed(2)} px`);
 
-  // the chain crosses the whole region
+  // the chain runs all along the stroke
   const first = result.points[0];
   const last = result.points[result.points.length - 1];
   assert.ok(Math.hypot(last.x - first.x, last.y - first.y) > 250);
@@ -76,7 +90,7 @@ test("follows the edge of a speckled disc", () => {
 test("same edge on a downsampled analysis grid", () => {
   const result = detectRegionBoundary({
     imageData: speckledDisc(),
-    regionPoints: REGION,
+    strokes: [strokeAlongEdge()],
     maxAnalysisSize: 160,
   });
   assert.ok(result.points, `no boundary: ${result.reason}`);
@@ -89,40 +103,41 @@ test("same edge on a downsampled analysis grid", () => {
   }
 });
 
-test("no boundary in a blank or a uniformly inked region", () => {
+test("no boundary in a blank or a uniformly inked zone", () => {
   const imageData = speckledDisc();
   const blank = detectRegionBoundary({
     imageData,
-    regionPoints: [
-      { x: 10, y: 10 },
-      { x: 90, y: 10 },
-      { x: 90, y: 90 },
-      { x: 10, y: 90 },
-    ],
+    strokes: [squareStroke(20, 20)],
   });
   assert.equal(blank.points, null);
   assert.equal(blank.reason, "NO_BOUNDARY");
 
   const inked = detectRegionBoundary({
     imageData,
-    regionPoints: [
-      { x: 400, y: 300 },
-      { x: 580, y: 300 },
-      { x: 580, y: 480 },
-      { x: 400, y: 480 },
-    ],
+    strokes: [squareStroke(440, 360)],
   });
   assert.equal(inked.points, null);
   assert.equal(inked.reason, "NO_BOUNDARY");
 });
 
-test("rejects a degenerate region", () => {
+test("follows the edge across two overlapping strokes", () => {
   const result = detectRegionBoundary({
     imageData: speckledDisc(),
-    regionPoints: [
-      { x: 10, y: 10 },
-      { x: 90, y: 10 },
+    strokes: [
+      strokeAlongEdge({ from: 3.35, to: 3.9 }),
+      strokeAlongEdge({ from: 3.8, to: 4.3 }),
     ],
+  });
+  assert.ok(result.points, `no boundary: ${result.reason}`);
+  const first = result.points[0];
+  const last = result.points[result.points.length - 1];
+  assert.ok(Math.hypot(last.x - first.x, last.y - first.y) > 250);
+});
+
+test("rejects a missing or empty stroke", () => {
+  const result = detectRegionBoundary({
+    imageData: speckledDisc(),
+    strokes: [{ points: [], radius: 30 }],
   });
   assert.equal(result.reason, "INVALID_REGION");
 });

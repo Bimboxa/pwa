@@ -150,14 +150,15 @@ const DRAWING_SHAPE_CONFIG = {
       "POLYLINE_CIRCLE",
       "POLYLINE_CIRCLE_RADIUS",
       "POLYLINE_ARC",
-      "POLYLINE_BOUNDARY_DETECT",
-      "POLYLINE_HIGHLIGHT_VECTORIZE",
       "STRIP",
       "STRIP_SEGMENT",
       // « Pinceau » (paints edges in 3D, converts / duplicates annotations
-      // in 2D): kept last so tools[0] — the default tool of new templates —
-      // never changes.
+      // in 2D): after the drawing tools so tools[0] — the default tool of
+      // new templates — never changes.
       MESH_BRUSH_TOOL_KEY,
+      // Raster vectorization tools (highlighter gesture, 2D editor only).
+      "POLYLINE_BOUNDARY_DETECT",
+      "POLYLINE_HIGHLIGHT_VECTORIZE",
     ],
     configurableProps: [
       "strokeColor",

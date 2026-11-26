@@ -249,7 +249,7 @@ import parseConstraintLengths, { CONSTRAINT_BUFFER_CHAR_RE } from "Features/mapE
 import { getPatternSegmentCount, parsePatternRepeatCount, repeatDrawingPattern } from "Features/mapEditor/utils/patternRepeat";
 import PATTERN_REPEAT_DRAWING_MODES from "Features/mapEditor/constants/patternRepeatDrawingModes";
 import { BOUNDARY_DETECT_MODE } from "Features/mapEditor/constants/boundaryDetectMode";
-import { HIGHLIGHT_VECTORIZE_MODE } from "Features/mapEditor/constants/highlightVectorizeMode";
+import { HIGHLIGHT_VECTORIZE_MODE, isHighlightStrokeMode } from "Features/mapEditor/constants/highlightVectorizeMode";
 import detectRegionBoundary from "Features/smartDetect/utils/detectRegionBoundary";
 import vectorizeHighlightStroke from "Features/smartDetect/utils/vectorizeHighlightStroke";
 import boundaryChainToPolylinePoints from "Features/smartDetect/utils/boundaryChainToPolylinePoints";
@@ -294,7 +294,6 @@ const MULTI_POINT_DRAWING_MODES = [
   "SPLIT_CLICK",
   "STRIP",
   "COMPLETE_ANNOTATION",
-  BOUNDARY_DETECT_MODE,
 ];
 
 // Drawing modes whose preview is a straight segment from the last placed
@@ -328,7 +327,7 @@ const GRID_ON_AXIS_LOCK_TOLERANCE_PX = 1;
 // last point): the modes of the drawing preview, also the only ones — with
 // the move tool destination — where the editor grid snaps the cursor. Pick /
 // fill / paste modes are left out: their click targets what is under it.
-const POINT_PLACEMENT_DRAWING_MODES = ['CLICK', 'POLYLINE_CLICK', BOUNDARY_DETECT_MODE, 'POLYGON_CLICK', 'CUT_CLICK', 'SPLIT_CLICK', 'STRIP', 'ONE_CLICK', "MEASURE", "IMAGE_SCALE", "SEGMENT", "POLYLINE_SEGMENT", "STRIP_SEGMENT", "RECTANGLE", "POLYLINE_RECTANGLE", "POLYGON_RECTANGLE", "CUT_RECTANGLE", RECTANGLE_FILL_ZONE_MODE, "LOCALIZED_REPAIR", "JOIN_ANNOTATIONS", "CHAT_REPAIR", "CIRCLE", "POLYLINE_CIRCLE", "POLYGON_CIRCLE", "CUT_CIRCLE", "POLYLINE_CIRCLE_RADIUS", "POLYGON_CIRCLE_RADIUS", "REVOLUTION_AXIS_PLAN", "REVOLUTION_AXIS_PLACEMENT", "REPOSITION_REVOLUTION_PLACEMENT", "REVOLUTION_AXIS_SECTION", "PHOTO_POSE", "ARC", "POLYLINE_ARC", "COMPLETE_ANNOTATION", "COTE_TWO_CLICK", "ADD_GUIDE_LINE", "ADD_ISO_HEIGHT_LINE", "ADD_PROFILE_LINE", "ADD_LAYOUT_LINE", "RAMP"];
+const POINT_PLACEMENT_DRAWING_MODES = ['CLICK', 'POLYLINE_CLICK', 'POLYGON_CLICK', 'CUT_CLICK', 'SPLIT_CLICK', 'STRIP', 'ONE_CLICK', "MEASURE", "IMAGE_SCALE", "SEGMENT", "POLYLINE_SEGMENT", "STRIP_SEGMENT", "RECTANGLE", "POLYLINE_RECTANGLE", "POLYGON_RECTANGLE", "CUT_RECTANGLE", RECTANGLE_FILL_ZONE_MODE, "LOCALIZED_REPAIR", "JOIN_ANNOTATIONS", "CHAT_REPAIR", "CIRCLE", "POLYLINE_CIRCLE", "POLYGON_CIRCLE", "CUT_CIRCLE", "POLYLINE_CIRCLE_RADIUS", "POLYGON_CIRCLE_RADIUS", "REVOLUTION_AXIS_PLAN", "REVOLUTION_AXIS_PLACEMENT", "REPOSITION_REVOLUTION_PLACEMENT", "REVOLUTION_AXIS_SECTION", "PHOTO_POSE", "ARC", "POLYLINE_ARC", "COMPLETE_ANNOTATION", "COTE_TWO_CLICK", "ADD_GUIDE_LINE", "ADD_ISO_HEIGHT_LINE", "ADD_PROFILE_LINE", "ADD_LAYOUT_LINE", "RAMP"];
 const DRAG_THRESHOLD_PX = 3; // Seuil de déplacement pour activer le drag
 const SCREEN_BRUSH_RADIUS_PX = 12; // Rayon fixe à l'écran
 const LOUPE_SIZE = 200; // Taille écran de la loupe
@@ -2169,8 +2168,8 @@ const InteractionLayer = forwardRef(({
     helperScaleRef.current?.updateZoom(cameraMatrix.k);
     onCameraChangeExternal?.(cameraMatrix);
 
-    // « Vectoriser au surligneur »: the disc keeps its screen size.
-    if (enabledDrawingModeRef.current === HIGHLIGHT_VECTORIZE_MODE) {
+    // Highlighter tools: the disc keeps its screen size.
+    if (isHighlightStrokeMode(enabledDrawingModeRef.current)) {
       renderHighlightStrokeRef.current?.(cameraMatrix.k);
     }
 
@@ -3792,45 +3791,51 @@ const InteractionLayer = forwardRef(({
 
   // drawing state + commit (extracted to useDrawingCommit)
 
-  // « Détection de frontière auto » (BOUNDARY_DETECT_MODE): turns the region
-  // drawn by the user (local coords) into the points of the polyline that
-  // follows the blank / inked frontier of the base map inside it (local
-  // coords, arcs as "circle" points). Null — with a toaster — when there is
-  // nothing to follow. Only the bounding box of the region is read from the
-  // image.
+  // « Détection de frontière auto » (BOUNDARY_DETECT_MODE): turns the zone
+  // highlighted by the user (strokes of the highlighter gesture below, local
+  // coords) into the points of the polyline that follows the blank / inked
+  // frontier of the base map inside it (local coords, arcs as "circle"
+  // points). Null — with a toaster — when there is nothing to follow. Only
+  // the bounding box of the strokes is read from the image.
   const resolveBoundaryDetectRef = useRef(null);
-  resolveBoundaryDetectRef.current = (regionPoints) => {
+  resolveBoundaryDetectRef.current = (localStrokes) => {
     const fail = (message) => {
       dispatch(setToaster({ message, severity: "info" }));
       return null;
     };
     const image = sourceImageElRef.current;
     if (!image) return fail("Aucune image de fond de plan à analyser.");
-    if ((regionPoints?.length ?? 0) < 3) {
-      return fail("Détourez la zone avec au moins 3 points.");
-    }
     const imageScale = baseMapImageScaleRef.current || 1;
     const imageOffset = baseMapImageOffsetRef.current || { x: 0, y: 0 };
-    const region = regionPoints.map((p) => ({
-      x: (p.x - imageOffset.x) / imageScale,
-      y: (p.y - imageOffset.y) / imageScale,
+    const strokes = localStrokes.map(({ points, radius }) => ({
+      radius: radius / imageScale,
+      points: points.map((p) => ({
+        x: (p.x - imageOffset.x) / imageScale,
+        y: (p.y - imageOffset.y) / imageScale,
+      })),
     }));
 
     const imageWidth = image.naturalWidth || image.width;
     const imageHeight = image.naturalHeight || image.height;
-    // window read from the image: the region plus the blur margin of
+    // window read from the image: the strokes plus the blur margin of
     // detectRegionBoundary (which clamps to the data it is given)
-    const xs = region.map((p) => p.x);
-    const ys = region.map((p) => p.y);
-    const side = Math.max(
-      Math.max(...xs) - Math.min(...xs),
-      Math.max(...ys) - Math.min(...ys)
-    );
-    const margin = Math.ceil(side * 0.02) + 16;
-    const x0 = Math.max(0, Math.floor(Math.min(...xs) - margin));
-    const y0 = Math.max(0, Math.floor(Math.min(...ys) - margin));
-    const x1 = Math.min(imageWidth, Math.ceil(Math.max(...xs) + margin));
-    const y1 = Math.min(imageHeight, Math.ceil(Math.max(...ys) + margin));
+    let minX = Infinity;
+    let minY = Infinity;
+    let maxX = -Infinity;
+    let maxY = -Infinity;
+    for (const { points, radius } of strokes) {
+      for (const p of points) {
+        minX = Math.min(minX, p.x - radius);
+        minY = Math.min(minY, p.y - radius);
+        maxX = Math.max(maxX, p.x + radius);
+        maxY = Math.max(maxY, p.y + radius);
+      }
+    }
+    const margin = Math.ceil(Math.max(maxX - minX, maxY - minY) * 0.02) + 16;
+    const x0 = Math.max(0, Math.floor(minX - margin));
+    const y0 = Math.max(0, Math.floor(minY - margin));
+    const x1 = Math.min(imageWidth, Math.ceil(maxX + margin));
+    const y1 = Math.min(imageHeight, Math.ceil(maxY + margin));
     if (x1 - x0 < 2 || y1 - y0 < 2) {
       return fail("La zone est en dehors du fond de plan.");
     }
@@ -3844,7 +3849,10 @@ const InteractionLayer = forwardRef(({
       ctx.drawImage(image, x0, y0, x1 - x0, y1 - y0, 0, 0, x1 - x0, y1 - y0);
       result = detectRegionBoundary({
         imageData: ctx.getImageData(0, 0, x1 - x0, y1 - y0),
-        regionPoints: region.map((p) => ({ x: p.x - x0, y: p.y - y0 })),
+        strokes: strokes.map(({ points, radius }) => ({
+          radius,
+          points: points.map((p) => ({ x: p.x - x0, y: p.y - y0 })),
+        })),
       });
     } catch (err) {
       console.error("[BOUNDARY_DETECT] failed to read the base map image:", err);
@@ -3865,14 +3873,16 @@ const InteractionLayer = forwardRef(({
     }));
   };
 
-  // --- « VECTORISER AU SURLIGNEUR » (HIGHLIGHT_VECTORIZE_MODE) ---
+  // --- HIGHLIGHTER GESTURE (isHighlightStrokeMode: « Vectoriser au
+  // surligneur » and « Détection de frontière auto ») ---
   // A click starts a stroke: the mouse then highlights the pixels to follow
   // with a disc of fixed SCREEN size (Z / W, smartDetect.highlightBrushSizePx)
   // — no button held, so the left drag still pans. A second click ends the
-  // stroke, the next one starts another. Enter / Escape commit the shape
+  // stroke, the next one starts another. Enter / Escape commit: the shape
   // fitted through the inked pixels under all the strokes (F cycles it:
-  // smartDetect.highlightVectorizeShape). Shift held while highlighting
-  // locks the disc on the current direction of the gesture.
+  // smartDetect.highlightVectorizeShape), or the blank / inked frontier
+  // inside them (boundary detection). Shift held while highlighting locks
+  // the disc on the current direction of the gesture.
   const highlightBrushSizePx = useSelector(
     (s) => s.smartDetect.highlightBrushSizePx
   );
@@ -3984,8 +3994,9 @@ const InteractionLayer = forwardRef(({
     }));
   };
 
-  // Enter / Escape: commits the shape fitted through the strokes. Returns
-  // false when there was no stroke at all (the key keeps its default role).
+  // Enter / Escape: commits the polyline resolved from the strokes by the
+  // armed tool. Returns false when there was no stroke at all (the key keeps
+  // its default role).
   const commitHighlightStrokesRef = useRef(null);
   commitHighlightStrokesRef.current = ({ commit = true } = {}) => {
     const active = highlightStrokeRef.current;
@@ -3997,7 +4008,11 @@ const InteractionLayer = forwardRef(({
     highlightStrokesRef.current = [];
     renderHighlightStrokeRef.current();
     if (commit && strokes.length) {
-      const points = resolveHighlightVectorizeRef.current(strokes);
+      const resolveRef =
+        enabledDrawingModeRef.current === BOUNDARY_DETECT_MODE
+          ? resolveBoundaryDetectRef
+          : resolveHighlightVectorizeRef;
+      const points = resolveRef.current(strokes);
       if (points?.length >= 2) onCommitDrawingRef.current?.({ points });
     }
     return hadStrokes;
@@ -4071,7 +4086,7 @@ const InteractionLayer = forwardRef(({
 
   // Leaving the tool: drop the strokes and the disc.
   useEffect(() => {
-    if (enabledDrawingMode !== HIGHLIGHT_VECTORIZE_MODE) return;
+    if (!isHighlightStrokeMode(enabledDrawingMode)) return;
     return () => {
       commitHighlightStrokesRef.current({ commit: false });
       highlightCursorRef.current = null;
@@ -4081,7 +4096,7 @@ const InteractionLayer = forwardRef(({
 
   // Z / W: resize the disc without waiting for a mouse move.
   useEffect(() => {
-    if (enabledDrawingMode !== HIGHLIGHT_VECTORIZE_MODE) return;
+    if (!isHighlightStrokeMode(enabledDrawingMode)) return;
     if (highlightCursorRef.current) renderHighlightStrokeRef.current();
   }, [enabledDrawingMode, highlightBrushSizePx]);
 
@@ -4096,7 +4111,6 @@ const InteractionLayer = forwardRef(({
     brushLayerRef,
     smartDetectRef,
     lastSmartROI,
-    resolveBoundaryDetectRef,
   });
 
   // --- « RÉPÉTITION DU MOTIF » (`*N` typed while drawing, utils/patternRepeat) ---
@@ -4824,7 +4838,7 @@ const InteractionLayer = forwardRef(({
       // modes. Returns true when the mode was commit-capable — shared by the
       // Enter and Escape branches so both keys finish the drawing.
       const commitInProgressDrawing = () => {
-        if (!["CLICK", "POLYLINE_CLICK", "POLYGON_CLICK", "CUT_CLICK", "SPLIT_CLICK", "STRIP", "BRUSH", "COMPLETE_ANNOTATION", BOUNDARY_DETECT_MODE].includes(enabledDrawingModeRef.current)) {
+        if (!["CLICK", "POLYLINE_CLICK", "POLYGON_CLICK", "CUT_CLICK", "SPLIT_CLICK", "STRIP", "BRUSH", "COMPLETE_ANNOTATION"].includes(enabledDrawingModeRef.current)) {
           return false;
         }
         if (enabledDrawingModeRef.current === "COMPLETE_ANNOTATION" && completeAnnotationRef.current) {
@@ -5461,10 +5475,10 @@ const InteractionLayer = forwardRef(({
             return;
           }
 
-          // « Vectoriser au surligneur »: Escape vectorizes the strokes, same
-          // as Enter (with no stroke, it quits the tool as usual).
+          // Highlighter tools: Escape commits the strokes, same as Enter
+          // (with no stroke, it quits the tool as usual).
           if (
-            enabledDrawingModeRef.current === HIGHLIGHT_VECTORIZE_MODE &&
+            isHighlightStrokeMode(enabledDrawingModeRef.current) &&
             commitHighlightStrokesRef.current()
           ) {
             e.stopPropagation();
@@ -5533,11 +5547,9 @@ const InteractionLayer = forwardRef(({
               enabledDrawingModeRef.current === "BRUSH" &&
               brushPathRef.current?.length > 0;
             if (enabledDrawingMode && (drawingPointsRef.current?.length > 0 || isBrushing)) {
-              // A surface cut trace is dropped, never cut (Enter cuts). Same
-              // for the region of the boundary detection (Enter detects).
+              // A surface cut trace is dropped, never cut (Enter cuts).
               const committed =
                 !isSurfaceCutDraft(newAnnotationRef.current) &&
-                enabledDrawingModeRef.current !== BOUNDARY_DETECT_MODE &&
                 commitInProgressDrawing();
               if (!committed) {
                 setDrawingPoints([]);
@@ -6128,8 +6140,8 @@ const InteractionLayer = forwardRef(({
         }
 
         case "Enter":
-          // « Vectoriser au surligneur »: vectorizes the strokes.
-          if (enabledDrawingModeRef.current === HIGHLIGHT_VECTORIZE_MODE) {
+          // Highlighter tools: commits the strokes.
+          if (isHighlightStrokeMode(enabledDrawingModeRef.current)) {
             commitHighlightStrokesRef.current();
             break;
           }
@@ -6433,9 +6445,9 @@ const InteractionLayer = forwardRef(({
     // Pan/zoom remain available because they live in MapEditorViewport.
     if (imageModeEnabledRef.current) return;
 
-    // « Vectoriser au surligneur »: a click starts a stroke or ends the one
-    // being drawn (Enter / Escape vectorize).
-    if (enabledDrawingModeRef.current === HIGHLIGHT_VECTORIZE_MODE) {
+    // Highlighter tools: a click starts a stroke or ends the one being
+    // drawn (Enter / Escape commit).
+    if (isHighlightStrokeMode(enabledDrawingModeRef.current)) {
       toggleHighlightStroke(toLocalCoords(worldPos));
       return;
     }
@@ -8199,9 +8211,9 @@ const InteractionLayer = forwardRef(({
       updateCursorAltitude({ worldPos, viewportPos, event });
     }
 
-    // « Vectoriser au surligneur »: the move only drives the highlighter (no
-    // snap, no hover — Shift is the direction lock of the stroke).
-    if (enabledDrawingModeRef.current === HIGHLIGHT_VECTORIZE_MODE) {
+    // Highlighter tools: the move only drives the highlighter (no snap, no
+    // hover — Shift is the direction lock of the stroke).
+    if (isHighlightStrokeMode(enabledDrawingModeRef.current)) {
       moveHighlightStroke(toLocalCoords(worldPos), event, isPanning);
       screenCursorRef.current?.move(viewportPos.x, viewportPos.y);
       return;
@@ -9513,9 +9525,9 @@ const InteractionLayer = forwardRef(({
     // CAPTURE / image mode: no annotation drag to finalize.
     if (imageModeEnabledRef.current) return;
 
-    // « Vectoriser au surligneur »: no drag nor pending click to finalize
-    // (see handleMouseDownCapture).
-    if (enabledDrawingModeRef.current === HIGHLIGHT_VECTORIZE_MODE) return;
+    // Highlighter tools: no drag nor pending click to finalize (see
+    // handleMouseDownCapture).
+    if (isHighlightStrokeMode(enabledDrawingModeRef.current)) return;
 
     // SEGMENT DRAG end. A real drag commits the moved points; a click-without-
     // move falls back to the regular single-part toggle (the mousedown was
@@ -9821,10 +9833,10 @@ const InteractionLayer = forwardRef(({
     // click path of handleMouseUp and replaced the selection.
     if (e.button !== 0) return;
 
-    // « Vectoriser au surligneur »: the press is left to the viewport (pan,
-    // or click → handleWorldClick starts / ends a stroke); no annotation
-    // drag nor selection starts from it.
-    if (enabledDrawingModeRef.current === HIGHLIGHT_VECTORIZE_MODE) return;
+    // Highlighter tools: the press is left to the viewport (pan, or click →
+    // handleWorldClick starts / ends a stroke); no annotation drag nor
+    // selection starts from it.
+    if (isHighlightStrokeMode(enabledDrawingModeRef.current)) return;
 
     // ==================
     // Annotation

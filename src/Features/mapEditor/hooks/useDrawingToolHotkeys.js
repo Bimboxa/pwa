@@ -19,7 +19,10 @@ import {
   stepHighlightBrushSize,
   cycleHighlightVectorizeShape,
 } from "Features/smartDetect/smartDetectSlice";
-import { HIGHLIGHT_VECTORIZE_MODE } from "Features/mapEditor/constants/highlightVectorizeMode";
+import {
+  HIGHLIGHT_VECTORIZE_MODE,
+  isHighlightStrokeMode,
+} from "Features/mapEditor/constants/highlightVectorizeMode";
 import { selectPdfEditorOpen } from "Features/pdfEditor/pdfEditorSlice";
 import { selectDrawingToolsEditor } from "Features/meshPaint/utils/meshBrushSelectors";
 
@@ -160,10 +163,9 @@ export default function useDrawingToolHotkeys() {
         return;
       }
 
-      // « Vectoriser au surligneur » tool: Z enlarges / W shrinks the
-      // highlighter.
+      // Highlighter tools: Z enlarges / W shrinks the highlighter.
       if (
-        mode === HIGHLIGHT_VECTORIZE_MODE &&
+        isHighlightStrokeMode(mode) &&
         ["z", "w"].includes(e.key.toLowerCase())
       ) {
         dispatch(stepHighlightBrushSize(e.key.toLowerCase() === "z" ? 1 : -1));
