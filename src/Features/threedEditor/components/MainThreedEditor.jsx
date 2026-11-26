@@ -18,6 +18,7 @@ import useDeleteAnnotationOnKeyboardInThreedEditor from "../hooks/useDeleteAnnot
 import useApplyBaseMapOpacityIn3d from "../hooks/useApplyBaseMapOpacityIn3d";
 import useApplyBaseMapVisibilityIn3d from "../hooks/useApplyBaseMapVisibilityIn3d";
 import useApplyBaseMapsScanModeIn3d from "../hooks/useApplyBaseMapsScanModeIn3d";
+import useApplyBaseMapClippingIn3d from "Features/baseMapClipping/hooks/useApplyBaseMapClippingIn3d";
 import useApplyBaseMapTransformsIn3d from "../hooks/useApplyBaseMapTransformsIn3d";
 import useRevolutionSectionIn3d from "../hooks/useRevolutionSectionIn3d";
 import useSyncClippingPlanTo3D from "../hooks/useSyncClippingPlanTo3D";
@@ -101,6 +102,7 @@ import ThreedLassoOverlay from "./ThreedLassoOverlay";
 import ThreedPopperEditAnnotations from "./ThreedPopperEditAnnotations";
 import ThreedImageModeOverlay from "./ThreedImageModeOverlay";
 import LocalScansGate from "Features/localScans/components/LocalScansGate";
+import BaseMapSelectionOutlineThreed from "./BaseMapSelectionOutlineThreed";
 import ThreedSelectionDimmer from "./ThreedSelectionDimmer";
 
 import { Box } from "@mui/material";
@@ -1081,8 +1083,10 @@ export default function MainThreedEditor() {
     clippingManager.setEnabled(clippingEnabled);
     // Keep the hover/dim highlight materials clipped in sync with the plane, so
     // highlighting a clipped annotation doesn't render its hidden half.
-    setHighlightClippingPlanes(clippingEnabled ? clippingManager.planes : null);
-    setFaceHoverClippingPlanes(clippingEnabled ? clippingManager.planes : null);
+    // (global plane + slabs of the base maps used as clipping planes)
+    const highlightPlanes = clippingManager.getAnnotationClipPlanes();
+    setHighlightClippingPlanes(highlightPlanes);
+    setFaceHoverClippingPlanes(highlightPlanes);
   }, [clippingEnabled, rendererIsReady]);
 
   // Sync clipping plane editing → gizmo visibility.
@@ -1148,6 +1152,8 @@ export default function MainThreedEditor() {
   useApplyBaseMapsScanModeIn3d({ rendererIsReady });
 
   useApplyBaseMapTransformsIn3d();
+
+  useApplyBaseMapClippingIn3d({ rendererIsReady });
 
   useRevolutionSectionIn3d({ rendererIsReady });
 
@@ -3747,6 +3753,9 @@ export default function MainThreedEditor() {
       {isThreedViewer && <CutLineAxisOverlayThreed />}
       {isThreedViewer && <CutPlaneOverlayThreed />}
       <Mesh3dPartsHighlightThreed enabled={isThreedViewer && rendererIsReady} />
+      <BaseMapSelectionOutlineThreed
+        enabled={isThreedViewer && rendererIsReady}
+      />
       <SurfacePiecesHighlightThreed
         enabled={isThreedViewer && rendererIsReady}
       />

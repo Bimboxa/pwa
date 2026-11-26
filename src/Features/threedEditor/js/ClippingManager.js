@@ -30,6 +30,12 @@ export default class ClippingManager {
     // the global plane on every material, without touching `enabled`.
     this.sectionPreview = null;
 
+    // Slabs of the base maps used as clipping planes (setBaseMapClips):
+    // { planes, getExtraRoots } or null. On top of the global plane, on the
+    // annotations and the point clouds only — never on the base map images.
+    this.baseMapClip = null;
+    this._baseMapClipExtraRoots = [];
+
     this.enabled = false;
     this.editing = false;
     this.center = new Vector3();
@@ -307,6 +313,38 @@ export default class ClippingManager {
     this.sceneManager.renderScene();
   }
 
+  // Base maps used as clipping planes (« Plan de coupe » of a base map):
+  // { planes, getExtraRoots } or null.
+  //   - `planes`: every active slab plane (two per base map: in front /
+  //     behind), applied to the annotations and to the point clouds IN
+  //     ADDITION to the global plane. Base map images, GLB scenes and the
+  //     Zmap stay whole;
+  //   - `getExtraRoots`: () => roots outside the base map groups and the
+  //     annotations (the Scan 3D tool's own cloud), read at each apply.
+  // The caller owns the planes. A section preview suspends them.
+  setBaseMapClips(clip) {
+    this.baseMapClip = clip?.planes?.length
+      ? { planes: clip.planes, getExtraRoots: clip.getExtraRoots ?? null }
+      : null;
+    this._applyMaterials(this.enabled);
+    this.sceneManager.renderScene();
+  }
+
+  // Active base map slab planes ([] while a section preview replaces them).
+  getBaseMapClipPlanes() {
+    if (this.sectionPreview) return [];
+    return this.baseMapClip?.planes ?? [];
+  }
+
+  // Planes clipping the annotations: global plane (when enabled) + base map
+  // slabs. null when nothing clips. For the highlight materials swapped in
+  // place of the annotation materials (hover / dim / face hover).
+  getAnnotationClipPlanes() {
+    const clips = this.getBaseMapClipPlanes();
+    if (!clips.length) return this.enabled ? this.planes : null;
+    return [...(this.enabled ? this.planes : []), ...clips];
+  }
+
   // Re-assign the clipping planes to current geometry (after a reload).
   reapply() {
     if (this.sectionPreview) {
@@ -319,7 +357,10 @@ export default class ClippingManager {
       // Annotations may have been recreated —
       // recompute the contour against the new meshes.
       this.sceneManager.sectionContourManager?.update();
-    } else if (Object.keys(this.annotationPlanes).length > 0) {
+    } else if (
+      Object.keys(this.annotationPlanes).length > 0 ||
+      this.baseMapClip
+    ) {
       this._applyMaterials(false);
     }
   }
@@ -401,54 +442,93 @@ export default class ClippingManager {
     // A section preview replaces the global plane (see setSectionPreview).
     const preview = this.sectionPreview;
     const planes = preview ? preview.planes : enabled ? this.planes : null;
-    const cloudPlanes = preview ? preview.cloudPlanes : planes;
-    // [root, planes of that root]
-    const roots = [];
+    // Base map slabs: annotations and clouds only (see setBaseMapClips).
+    const clips = this.getBaseMapClipPlanes();
+    const withClips = (base) =>
+      clips.length ? [...(base || []), ...clips] : base;
+    const cloudPlanes = preview ? preview.cloudPlanes : withClips(planes);
+    const annotationPlanes = withClips(planes);
+
     const images = this.sceneManager.imagesManager?.imagesMap || {};
-    Object.values(images).forEach((g) => g && roots.push([g, planes]));
     const annotations =
       this.sceneManager.annotationsManager?.annotationsObjectsMap || {};
-    Object.entries(annotations).forEach(([id, o]) => {
-      if (!o) return;
-      const own = this.annotationPlanes[id];
-      roots.push([o, own?.length ? [...(planes || []), ...own] : planes]);
-    });
-    (preview?.extraRoots ?? []).forEach((r) => r && roots.push([r, planes]));
+    // The annotations are children of the base map groups and carry planes
+    // of their own: the group pass leaves them to the annotation pass.
+    const annotationRoots = new Set(Object.values(annotations).filter(Boolean));
 
-    roots.forEach(([root, rootPlanes]) =>
-      this._setRootPlanes(root, rootPlanes, cloudPlanes)
+    // Tool cloud that left the base map slabs (slabs off, preview, tool
+    // closed): back to unclipped.
+    const clipExtraRoots = clips.length
+      ? (this.baseMapClip?.getExtraRoots?.() ?? []).filter(Boolean)
+      : [];
+    const keptExtraRoots = new Set([
+      ...clipExtraRoots,
+      ...(preview?.extraRoots ?? []),
+    ]);
+    this._baseMapClipExtraRoots
+      .filter((root) => !keptExtraRoots.has(root))
+      .forEach((root) => this._setRootPlanes(root, null, null));
+    this._baseMapClipExtraRoots = clipExtraRoots;
+
+    Object.values(images).forEach(
+      (group) =>
+        group &&
+        this._setRootPlanes(group, planes, cloudPlanes, annotationRoots)
+    );
+    Object.entries(annotations).forEach(([id, object]) => {
+      if (!object) return;
+      const own = this.annotationPlanes[id];
+      this._setRootPlanes(
+        object,
+        own?.length ? [...(annotationPlanes || []), ...own] : annotationPlanes,
+        cloudPlanes
+      );
+    });
+    clipExtraRoots.forEach((root) => this._setRootPlanes(root, null, clips));
+    (preview?.extraRoots ?? []).forEach(
+      (root) => root && this._setRootPlanes(root, planes, cloudPlanes)
     );
   }
 
   // material.clippingPlanes of every clipped object under `root`: `planes`
-  // for meshes and lines, `cloudPlanes` for point clouds.
-  _setRootPlanes(root, planes, cloudPlanes) {
-    root.traverse((child) => {
-      // Clip solids (Mesh) AND the black edge outlines / wireframes
-      // (Line / LineSegments) — otherwise the cut-away part keeps showing
-      // its wireframe. Line materials honor clippingPlanes too. Points are
-      // the cloud of a scan base map (PointsMaterial clips per fragment).
-      if (
-        (!child.isMesh && !child.isLine && !child.isPoints) ||
-        !child.material
-      )
-        return;
-      // Base maps grid decorations (sheet outline, hit plane) are UI, not
-      // content: never sliced by the section plane.
-      if (child.userData?.isGridPlaceholder) return;
-      const childPlanes = child.isPoints ? cloudPlanes : planes;
-      const count = childPlanes?.length ?? 0;
-      const mats = Array.isArray(child.material)
-        ? child.material
-        : [child.material];
-      mats.forEach((m) => {
-        const prevCount = m.clippingPlanes?.length ?? 0;
-        m.clippingPlanes = childPlanes;
-        // A change of the clipping-plane COUNT is a shader #define — force
-        // a recompile. Never happens during a drag (that only mutates the
-        // planes in place), nor on a re-apply with the same planes.
-        if (prevCount !== count) m.needsUpdate = true;
-      });
+  // for meshes and lines, `cloudPlanes` for point clouds. The subtrees of
+  // `skipRoots` are left untouched.
+  _setRootPlanes(root, planes, cloudPlanes, skipRoots = null) {
+    const visit = (child) => {
+      if (skipRoots?.has(child)) return;
+      this._setObjectPlanes(child, planes, cloudPlanes);
+      child.children.forEach(visit);
+    };
+    visit(root);
+  }
+
+  _setObjectPlanes(child, planes, cloudPlanes) {
+    // Clip solids (Mesh) AND the black edge outlines / wireframes
+    // (Line / LineSegments) — otherwise the cut-away part keeps showing
+    // its wireframe. Line materials honor clippingPlanes too. Points are
+    // the cloud of a scan base map (PointsMaterial clips per fragment).
+    if ((!child.isMesh && !child.isLine && !child.isPoints) || !child.material)
+      return;
+    // Base maps grid decorations (sheet outline, hit plane) are UI, not
+    // content: never sliced by the section plane.
+    // Same for the outline of the selected base map.
+    if (
+      child.userData?.isGridPlaceholder ||
+      child.userData?.isBasemapSelectionOutline
+    )
+      return;
+    const childPlanes = child.isPoints ? cloudPlanes : planes;
+    const count = childPlanes?.length ?? 0;
+    const mats = Array.isArray(child.material)
+      ? child.material
+      : [child.material];
+    mats.forEach((m) => {
+      const prevCount = m.clippingPlanes?.length ?? 0;
+      m.clippingPlanes = childPlanes;
+      // A change of the clipping-plane COUNT is a shader #define — force
+      // a recompile. Never happens during a drag (that only mutates the
+      // planes in place), nor on a re-apply with the same planes.
+      if (prevCount !== count) m.needsUpdate = true;
     });
   }
 

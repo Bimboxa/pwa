@@ -58,6 +58,7 @@ import DialogDeleteRessource from "Features/layout/components/DialogDeleteRessou
 import FieldTextV2 from "Features/form/components/FieldTextV2";
 import FieldBaseMapOpacity from "./FieldBaseMapOpacity";
 import FieldBaseMapIsBlocks from "Features/blocks/components/FieldBaseMapIsBlocks";
+import SectionBaseMapClipping3d from "Features/baseMapClipping/components/SectionBaseMapClipping3d";
 import FieldBaseMapIsOrthophoto from "Features/orthophotos/components/FieldBaseMapIsOrthophoto";
 import FieldBaseMapBlueprintScale from "./FieldBaseMapBlueprintScale";
 import PanelBaseMapPrintZone from "./PanelBaseMapPrintZone";
@@ -378,6 +379,10 @@ export default function PanelBaseMapProperties() {
             <ChevronRight color="action" />
           </ButtonBase>
         </WhiteSectionGeneric>
+
+        {/* Clipping plane of the 3D scene + section vectorization
+            (Features/baseMapClipping) */}
+        {isThreedViewer && <SectionBaseMapClipping3d baseMap={baseMap} />}
 
         {/* Blocks base map (Features/blocks): the page defines blocks */}
         <FieldBaseMapIsBlocks baseMap={baseMap} />

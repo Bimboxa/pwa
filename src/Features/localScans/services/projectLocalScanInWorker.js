@@ -37,3 +37,9 @@ export function buildLocalScanHeightMapInWorker(data, frame) {
 export function buildLocalScanHeightPreviewInWorker(data, query) {
   return runLocalScanWorkerJob(data, "HEIGHT_PREVIEW", query);
 }
+
+// query: {frame, lower, upper, maxPoints?} → collectLocalScanSlicePoints
+// result
+export function collectLocalScanSlicePointsInWorker(data, query) {
+  return runLocalScanWorkerJob(data, "SLICE_POINTS", query);
+}

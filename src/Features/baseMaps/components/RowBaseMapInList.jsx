@@ -5,13 +5,14 @@ import { Box, IconButton, InputBase, Tooltip, Typography } from "@mui/material";
 import ArrowDropDownIcon from "@mui/icons-material/ArrowDropDown";
 import Check from "@mui/icons-material/Check";
 import Close from "@mui/icons-material/Close";
+import ContentCutIcon from "@mui/icons-material/ContentCut";
 import DragIndicatorIcon from "@mui/icons-material/DragIndicator";
 import LayersIcon from "@mui/icons-material/Layers";
 
 // ---------------------------------------------------------------------------
 // RowBaseMapInList — one base map of the "Fonds de plan" list, left to right:
 // drag handle | name (+ version chip) | « Scan » button | annotations badge
-// | image eye | actions. The handle (shown on hover, `canDrag`) reorders the
+// | clipping plane button | image eye | actions. The handle (shown on hover, `canDrag`) reorders the
 // row inside its listing — the row must live in a dnd-kit SortableContext.
 // The name wraps on several lines rather than being truncated.
 // Presentational: SectionBaseMapsList resolves the states (main / 2D / 3D)
@@ -33,6 +34,7 @@ export default function RowBaseMapInList({
   imageEye, // null | { on, onToggle }
   annotationsBadge, // null | { count, on, onToggle } — onToggle null = plain
   scanButton, // null | { on, disabled, disabledTooltip?, onToggle }
+  clipButton = null, // null | { on, onToggle } — 3D clipping plane
   versionChip, // null | { label, onOpen }
   actions = null, // null | ReactNode
   renaming = null, // null | { value, onChange, onConfirm, onCancel }
@@ -49,6 +51,9 @@ export default function RowBaseMapInList({
   const showScanS = "Afficher la 3D du fond de plan (scan ou maillage)";
   const scanOffS = "3D non affichée (Affichage 3D : projection / masqué)";
   const versionS = "Changer de version";
+  const clipOnS = "Ne plus utiliser comme plan de coupe";
+  const clipOffS =
+    "Utiliser comme plan de coupe (masque les annotations et le nuage de points hors de sa tranche)";
 
   // data
 
@@ -348,6 +353,47 @@ export default function RowBaseMapInList({
             >
               {annotationsBadge.count}
             </Typography>
+          </Box>
+        </Tooltip>
+      )}
+
+      {/* Clipping plane (3D): same chip as the image eye, scissors icon */}
+      {clipButton && (
+        <Tooltip title={clipButton.on ? clipOnS : clipOffS} disableInteractive>
+          <Box
+            role="button"
+            onClick={(e) => stop(e, clipButton.onToggle)}
+            sx={{
+              display: "inline-flex",
+              alignItems: "center",
+              justifyContent: "center",
+              width: 20,
+              height: 20,
+              flexShrink: 0,
+              borderRadius: "50%",
+              border: "1px solid",
+              borderColor:
+                clipButton.on || isMain ? "transparent" : "panel.border",
+              bgcolor: clipButton.on
+                ? "secondary.main"
+                : isMain
+                  ? "grey.700"
+                  : "transparent",
+              color: clipButton.on
+                ? "secondary.contrastText"
+                : isMain
+                  ? "grey.400"
+                  : "text.disabled",
+              cursor: "pointer",
+              transition: "0.2s",
+              "&:hover": {
+                filter: "brightness(1.15)",
+                borderColor:
+                  clipButton.on || isMain ? "transparent" : "text.secondary",
+              },
+            }}
+          >
+            <ContentCutIcon sx={{ fontSize: 12 }} />
           </Box>
         </Tooltip>
       )}

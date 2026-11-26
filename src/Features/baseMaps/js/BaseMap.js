@@ -161,6 +161,10 @@ export default class BaseMap {
     // width, height } — sheet rect in REFERENCE image px, see
     // baseMaps/utils/printZone.js. null = resolved at read time (getPrintZone).
     printZone,
+    // Clipping slab of the base map used as a 3D clipping plane (« Plan de
+    // coupe »): { frontM, backM, toleranceM }, see
+    // baseMapClipping/utils/getBaseMapClipping3d.js. null = defaults.
+    clipping3d,
     // White page (« Page blanche »): {} marker of a base map created with
     // no image file — the image is synthesized at hydration, see
     // baseMaps/utils/createWhitePageImage.js.
@@ -203,6 +207,7 @@ export default class BaseMap {
     this.whitePage = whitePage ?? null;
     this.scene3d = scene3d ?? null;
     this.localScan = localScan ?? null;
+    this.clipping3d = clipping3d ?? null;
     this.fromDXF = Boolean(fromDXF);
     this.dxf = dxf ?? null;
     // version system
@@ -596,6 +601,7 @@ export default class BaseMap {
       whitePage: this.whitePage ?? null,
       scene3d: this.scene3d ?? null,
       localScan: this.localScan ?? null,
+      clipping3d: this.clipping3d ?? null,
       isOrthophoto: this.isOrthophoto,
       isReconstruction3d: this.isReconstruction3d,
       reconstruction3d: this.reconstruction3d ?? null,
