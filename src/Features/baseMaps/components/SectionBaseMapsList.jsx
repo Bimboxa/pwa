@@ -20,6 +20,7 @@ import { generateKeyBetween } from "fractional-indexing";
 
 import {
   toggleBaseMapVisibleIn3d,
+  toggleBaseMapClippingIn3d,
   toggleScene3dHiddenIn3d,
   setBaseMapAnnotationsModeIn3d,
 } from "Features/threedEditor/threedEditorSlice";
@@ -225,6 +226,7 @@ export default function SectionBaseMapsList({
   } = useMainBaseMapVisibilityToggles();
 
   const visibleIds = useSelector((s) => s.threedEditor.visibleBaseMapIdsIn3d);
+  const clippingIds = useSelector((s) => s.threedEditor.clippingBaseMapIdsIn3d);
   const hiddenScanIds = useSelector(
     (s) => s.threedEditor.hiddenScene3dBaseMapIdsIn3d
   );
@@ -448,6 +450,16 @@ export default function SectionBaseMapsList({
 
     const scanButton = getScanButton(map);
 
+    // Scissors: the base map as a clipping plane of the 3D scene (depths in
+    // its properties panel, « Plan de coupe »).
+    const clipButton =
+      isThreedDisplayed && !map.isPhoto
+        ? {
+            on: clippingIds.includes(map.id),
+            onToggle: () => dispatch(toggleBaseMapClippingIn3d(map.id)),
+          }
+        : null;
+
     // The Viewer module has no version selector in the top bar.
     const versionChip =
       isMain && isViewerModule && mainVersions.length > 1
@@ -457,7 +469,14 @@ export default function SectionBaseMapsList({
           }
         : null;
 
-    return { isMain, imageEye, annotationsBadge, scanButton, versionChip };
+    return {
+      isMain,
+      imageEye,
+      annotationsBadge,
+      scanButton,
+      clipButton,
+      versionChip,
+    };
   }
 
   // « 3D » chip of the base maps carrying a 3D model: « Scène 3D » mesh

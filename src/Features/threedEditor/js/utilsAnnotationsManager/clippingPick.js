@@ -9,11 +9,50 @@
 // (avoids edge flicker right at the cut).
 const CLIP_EPS = -1e-4;
 
-// Returns the active THREE.Plane, or null when clipping is off / unavailable.
+// Returns the active clipping, or null when nothing clips:
+//   - the global THREE.Plane alone, or
+//   - a "clip set" when base maps are used as clipping planes (« Plan de
+//     coupe » of a base map, ClippingManager.setBaseMapClips): the global
+//     plane (if enabled) + the slab planes. It answers `distanceToPoint`
+//     like a plane (smallest signed distance: negative = clipped by at least
+//     one plane), so the callers treat both the same way.
 export function getActiveClippingPlane(sceneManager) {
   const cm = sceneManager?.clippingManager;
-  if (!cm?.enabled || !cm.plane) return null;
-  return cm.plane;
+  const globalPlane = cm?.enabled && cm.plane ? cm.plane : null;
+  const clipPlanes = cm?.getBaseMapClipPlanes?.() ?? [];
+  if (!clipPlanes.length) return globalPlane;
+  const planes = globalPlane ? [globalPlane, ...clipPlanes] : clipPlanes;
+  return {
+    isClipSet: true,
+    globalPlane,
+    planes,
+    distanceToPoint(point) {
+      let min = Infinity;
+      for (const plane of planes) {
+        const d = plane.distanceToPoint(point);
+        if (d < min) min = d;
+      }
+      return min;
+    },
+  };
+}
+
+// The base map slabs clip the annotations and the point clouds only: the
+// content of a base map itself (image plane, GLB scene, scan carrier, Zmap)
+// stays whole, and so stays pickable.
+function isBaseMapOwnContent(object) {
+  for (let o = object; o?.parent; o = o.parent) {
+    const group = o.parent;
+    if (group.userData?.kind !== "baseMap") continue;
+    const { meshWrap, scanWrap, localScanWrap } = group.userData;
+    return (
+      o === meshWrap ||
+      o === scanWrap ||
+      o === localScanWrap ||
+      Boolean(o.userData?.isDecor)
+    );
+  }
+  return false;
 }
 
 // True when the point is on the visible side (or clipping is off / no point).
@@ -26,5 +65,14 @@ export function isWorldPointVisible(plane, point) {
 // sorted near→far, so the first survivor is the correct pick.
 export function filterIntersectionsByClipping(intersects, plane) {
   if (!plane) return intersects;
-  return intersects.filter((i) => isWorldPointVisible(plane, i.point));
+  if (!plane.isClipSet)
+    return intersects.filter((i) => isWorldPointVisible(plane, i.point));
+  return intersects.filter((i) =>
+    isWorldPointVisible(
+      isBaseMapOwnContent(i.object) && !i.object?.isPoints
+        ? plane.globalPlane
+        : plane,
+      i.point
+    )
+  );
 }

@@ -103,10 +103,11 @@ function syncMaterialClipping(mat) {
   const next =
     _clippingPlanes && _clippingPlanes.length ? _clippingPlanes : null;
   if (mat.clippingPlanes === next) return;
-  const had = !!(mat.clippingPlanes && mat.clippingPlanes.length);
-  const has = !!next;
+  // the plane COUNT is a shader #define (global plane + base map slabs)
+  const prevCount = mat.clippingPlanes?.length ?? 0;
+  const nextCount = next?.length ?? 0;
   mat.clippingPlanes = next;
-  if (had !== has) mat.needsUpdate = true;
+  if (prevCount !== nextCount) mat.needsUpdate = true;
 }
 
 // Called when the clipping plane is enabled/disabled. Pass the shared planes

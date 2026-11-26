@@ -1,4 +1,4 @@
-import { SRGBColorSpace } from "three";
+import { SRGBColorSpace, Vector2 } from "three";
 
 import createImageObject, {
   attachBaseMapMesh,
@@ -14,6 +14,12 @@ import {
   refitBaseMapBorder,
   disposeBaseMapBorder,
 } from "./utilsImagesManager/baseMapBorder";
+import {
+  createBaseMapSelectionOutlineMaterial,
+  ensureBaseMapSelectionOutline,
+  refitBaseMapSelectionOutline,
+  disposeBaseMapSelectionOutline,
+} from "./utilsImagesManager/baseMapSelectionOutline";
 import getPreviewTextureAsync from "./utilsImagesManager/getPreviewTextureAsync";
 import { FADED_IMAGE_OPACITY } from "Features/baseMaps/constants/baseMapsImageMode";
 import attachScene3dToBaseMapGroup, {
@@ -84,6 +90,11 @@ export default class ImagesManager {
     // off (BaseMapsGridManager). Same record-then-apply contract as the
     // opacity: applied after every async mesh attach.
     this.fadedBaseMapIds = new Set();
+    // Base map selected in the 3D editor (its properties panel is open),
+    // mirrored from redux by BaseMapSelectionOutlineThreed: outlined in the
+    // secondary colour. Same record-then-apply contract as the opacity.
+    this.selectedBaseMapId = null;
+    this._selectionOutlineMaterial = null;
     // Preview textures of the 3D base maps grid (down-scaled images, see
     // ensureBaseMapPreview), kept for the session: id → { signature,
     // promise }.
@@ -158,8 +169,53 @@ export default class ImagesManager {
         } else {
           disposeBaseMapBorder(child);
         }
+        // Selection outline, on the full mesh only (same reason).
+        if (
+          baseMapId === this.selectedBaseMapId &&
+          !child.userData.isBasemapPreview
+        ) {
+          ensureBaseMapSelectionOutline(
+            child,
+            this._getSelectionOutlineMaterial()
+          );
+        } else {
+          disposeBaseMapSelectionOutline(child);
+        }
       }
     });
+  }
+
+  // Outline the base map selected in the 3D editor (null: none). Recorded,
+  // then applied to the mesh now and after every later async attach.
+  setSelectedBaseMapId(baseMapId) {
+    const next = baseMapId ?? null;
+    const previous = this.selectedBaseMapId;
+    if (previous === next) return;
+    this.selectedBaseMapId = next;
+    if (previous) this.applyBaseMapOpacity(previous);
+    if (next) this.applyBaseMapOpacity(next);
+    this.sceneManager.renderScene();
+  }
+
+  _getOutlineResolution() {
+    const dom = this.sceneManager.renderer?.domElement;
+    return new Vector2(dom?.clientWidth || 1, dom?.clientHeight || 1);
+  }
+
+  _getSelectionOutlineMaterial() {
+    if (!this._selectionOutlineMaterial) {
+      this._selectionOutlineMaterial = createBaseMapSelectionOutlineMaterial(
+        this._getOutlineResolution()
+      );
+    }
+    return this._selectionOutlineMaterial;
+  }
+
+  // Keeps the screen-space selection outline crisp after a canvas resize.
+  onResize() {
+    this._selectionOutlineMaterial?.resolution.copy(
+      this._getOutlineResolution()
+    );
   }
 
   // Orientation of a loaded base map changed in place (no mesh rebuild):
@@ -568,6 +624,7 @@ export default class ImagesManager {
       .forEach((mesh) => {
         meshWrap.remove(mesh);
         disposeBaseMapBorder(mesh);
+        disposeBaseMapSelectionOutline(mesh);
         mesh.geometry?.dispose?.();
         mesh.material?.map?.dispose?.();
         mesh.material?.dispose?.();
@@ -716,6 +773,7 @@ export default class ImagesManager {
         child.geometry?.dispose?.();
         child.geometry = buildBaseMapPlaneGeometry({ ...planePx, meterByPx });
         refitBaseMapBorder(child);
+        refitBaseMapSelectionOutline(child);
       }
     });
   }
@@ -735,6 +793,7 @@ export default class ImagesManager {
         child.geometry?.dispose?.();
         child.geometry = buildBaseMapPlaneGeometry({ ...planePx, meterByPx });
         refitBaseMapBorder(child);
+        refitBaseMapSelectionOutline(child);
       }
     });
   }
@@ -758,6 +817,10 @@ export default class ImagesManager {
           if (child.userData?.isBasemap || child.userData?.isBasemapBorder) {
             child.geometry?.dispose?.();
             child.material?.dispose?.();
+          }
+          // shared material: geometry only
+          if (child.userData?.isBasemapSelectionOutline) {
+            child.geometry?.dispose?.();
           }
         });
       });

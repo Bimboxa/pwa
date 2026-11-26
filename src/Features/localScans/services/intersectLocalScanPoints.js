@@ -42,7 +42,11 @@ export default function intersectLocalScanPoints({ sceneManager }, ray) {
   camera.updateMatrixWorld();
   _onRay.copy(ray.origin).add(ray.direction).project(camera);
   const ndc = [_onRay.x, _onRay.y];
-  const clipPlane = clippingManager?.enabled ? clippingManager.plane : null;
+  // global plane + slabs of the base maps used as clipping planes
+  const clipPlanes = [
+    ...(clippingManager?.enabled ? [clippingManager.plane] : []),
+    ...(clippingManager?.getBaseMapClipPlanes?.() ?? []),
+  ];
 
   let best = null;
   for (const view of views) {
@@ -59,9 +63,11 @@ export default function intersectLocalScanPoints({ sceneManager }, ray) {
       .multiply(world);
     const step = Math.ceil(positions.length / 3 / MAX_POINTS_READ);
     let planes = null;
-    if (clipPlane) {
-      _plane.copy(clipPlane).applyMatrix4(_inverse);
-      planes = [[..._plane.normal.toArray(), _plane.constant]];
+    if (clipPlanes.length) {
+      planes = clipPlanes.map((clipPlane) => {
+        _plane.copy(clipPlane).applyMatrix4(_inverse);
+        return [..._plane.normal.toArray(), _plane.constant];
+      });
     }
     const hit = pickNearestScanPointOnScreen(positions, {
       matrix: _matrix.elements,

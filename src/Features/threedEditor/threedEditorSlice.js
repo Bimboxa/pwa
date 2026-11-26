@@ -180,6 +180,11 @@ const threedEditorInitialState = {
   // image eye (eye off hides plane + scan, this flag hides the scan only).
   // Per-scope local state, persisted with the fields around it.
   hiddenScene3dBaseMapIdsIn3d: [],
+  // Base maps used as clipping planes in the 3D scene (« Plan de coupe » of
+  // the base map panel, scissors button of the base maps list): the
+  // annotations and the point clouds are cut to the slab of each of them
+  // (depths: baseMap.clipping3d). Session-only, like the 3D opacity.
+  clippingBaseMapIdsIn3d: [],
   // Per-base-map annotation display mode in the 3D scene, keyed by baseMapId.
   // Value "NORMAL" | "DIMMED"; a missing key means "NONE" (no annotations).
   // Independent from `visibleBaseMapIdsIn3d` (the image-eye toggle): a base
@@ -622,6 +627,15 @@ export const threedEditorSlice = createSlice({
         state.visibleBaseMapIdsIn3d.push(id);
       } else {
         state.visibleBaseMapIdsIn3d.splice(i, 1);
+      }
+    },
+    toggleBaseMapClippingIn3d: (state, action) => {
+      const id = action.payload;
+      const i = state.clippingBaseMapIdsIn3d.indexOf(id);
+      if (i === -1) {
+        state.clippingBaseMapIdsIn3d.push(id);
+      } else {
+        state.clippingBaseMapIdsIn3d.splice(i, 1);
       }
     },
     setVisibleBaseMapIdsIn3d: (state, action) => {
@@ -1517,6 +1531,7 @@ export const threedEditorSlice = createSlice({
       (state, action) => {
         const saved = getInitScopeVisibility(action.payload)?.threed;
         state.visibleBaseMapIdsIn3d = saved?.visibleBaseMapIdsIn3d ?? [];
+        state.clippingBaseMapIdsIn3d = [];
         state.hiddenScene3dBaseMapIdsIn3d =
           saved?.hiddenScene3dBaseMapIdsIn3d ?? [];
         state.annotationsModeByBaseMapIdIn3d =
@@ -1570,6 +1585,7 @@ export const {
   setBaseMapOpacityIn3d,
   setBaseMapOpacityByIdIn3d,
   toggleBaseMapVisibleIn3d,
+  toggleBaseMapClippingIn3d,
   setVisibleBaseMapIdsIn3d,
   toggleScene3dHiddenIn3d,
   setHiddenScene3dBaseMapIdsIn3d,

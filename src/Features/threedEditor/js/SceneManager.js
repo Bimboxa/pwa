@@ -127,6 +127,7 @@ export default class SceneManager {
     this._updateCamera({ width, height });
     this.sectionContourManager?.onResize();
     this.baseMapsGridManager?.onResize();
+    this.imagesManager?.onResize();
     this.renderScene();
   };
 

@@ -1,6 +1,7 @@
 import projectLocalScanSlice from "../utils/projectLocalScanSlice.js";
 import rasterizeLocalScanHeightMap from "../utils/rasterizeLocalScanHeightMap.js";
 import projectLocalScanHeightPreview from "../utils/projectLocalScanHeightPreview.js";
+import collectLocalScanSlicePoints from "../utils/collectLocalScanSlicePoints.js";
 
 let source,
   pending,
@@ -29,6 +30,13 @@ async function drain() {
           const result = projectLocalScanHeightPreview(source, job.query);
           if (latestId === job.id)
             self.postMessage({ id: job.id, result }, [result.heights.buffer]);
+          continue;
+        }
+        if (job.type === "SLICE_POINTS") {
+          // Exact 2D points of a slice (section vectorization, one shot).
+          const result = collectLocalScanSlicePoints(source, job.query);
+          if (latestId === job.id)
+            self.postMessage({ id: job.id, result }, [result.points.buffer]);
           continue;
         }
         const result = await projectLocalScanSlice(source, job.query, {
