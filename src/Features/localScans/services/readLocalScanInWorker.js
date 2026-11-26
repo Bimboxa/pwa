@@ -1,7 +1,8 @@
 // read: readLocalPly options (maxPoints, zone) for the points decode.
+// convert: rewrite an ASCII PLY as binary instead of decoding → File.
 export default function readLocalScanInWorker(
   file,
-  { signal, onProgress, decodeSplats = false, read } = {}
+  { signal, onProgress, decodeSplats = false, read, convert = false } = {}
 ) {
   return new Promise((resolve, reject) => {
     const worker = decodeSplats
@@ -34,6 +35,6 @@ export default function readLocalScanInWorker(
     };
     signal?.addEventListener("abort", abort, { once: true });
     if (signal?.aborted) abort();
-    else worker.postMessage({ file, options: read });
+    else worker.postMessage({ file, options: read, convert });
   });
 }

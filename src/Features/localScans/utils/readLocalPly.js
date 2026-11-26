@@ -1,6 +1,6 @@
 import { createScanZoneFilter } from "./localScanZone.js";
 
-const TYPES = {
+export const PLY_TYPES = {
   float: [4, "getFloat32"],
   float32: [4, "getFloat32"],
   double: [8, "getFloat64"],
@@ -59,7 +59,7 @@ export async function readLocalPlyHeader(file) {
       if (element === "vertex") count = size;
     }
     if (parts[0] === "property" && element === "vertex") {
-      const type = TYPES[parts[1]];
+      const type = PLY_TYPES[parts[1]];
       if (!type || properties[parts[2]])
         throw new Error("Structure de propriétés PLY non prise en charge.");
       properties[parts[2]] = { offset: stride, size: type[0], read: type[1] };

@@ -12,3 +12,13 @@ export function registerLocalScanView(view) {
 export function getLocalScanViews() {
   return [...views];
 }
+
+// Is the scan view displayed: attached to the scene, its root and every
+// ancestor visible (a hidden base map group, chip off, tool eye off…).
+export function isLocalScanViewDisplayed(view, scene) {
+  for (let object = view.root; object; object = object.parent) {
+    if (!object.visible) return false;
+    if (object === scene) return true;
+  }
+  return false;
+}

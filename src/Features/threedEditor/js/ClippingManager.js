@@ -379,8 +379,13 @@ export default class ClippingManager {
       root.traverse((child) => {
         // Clip solids (Mesh) AND the black edge outlines / wireframes
         // (Line / LineSegments) — otherwise the cut-away part keeps showing
-        // its wireframe. Line materials honor clippingPlanes too.
-        if ((!child.isMesh && !child.isLine) || !child.material) return;
+        // its wireframe. Line materials honor clippingPlanes too. Points are
+        // the cloud of a scan base map (PointsMaterial clips per fragment).
+        if (
+          (!child.isMesh && !child.isLine && !child.isPoints) ||
+          !child.material
+        )
+          return;
         // Base maps grid decorations (sheet outline, hit plane) are UI, not
         // content: never sliced by the section plane.
         if (child.userData?.isGridPlaceholder) return;

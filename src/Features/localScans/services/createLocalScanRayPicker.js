@@ -1,16 +1,9 @@
 import { Matrix4, Ray, Raycaster, Vector2, Vector3 } from "three";
-import { getLocalScanViews } from "./localScanViewRegistry";
+import {
+  getLocalScanViews,
+  isLocalScanViewDisplayed,
+} from "./localScanViewRegistry";
 import classifyScanPlaneNormal from "../utils/classifyScanPlaneNormal";
-
-// Is the scan root displayed: attached to the scene, itself and every
-// ancestor visible (a hidden base map group, chip off, tool eye off…).
-function isDisplayed(root, scene) {
-  for (let object = root; object; object = object.parent) {
-    if (!object.visible) return false;
-    if (object === scene) return true;
-  }
-  return false;
-}
 
 // Base map carrying the cloud (scan base map), for the cote host.
 function getCarrierBaseMapId(root) {
@@ -142,7 +135,7 @@ export default function createLocalScanRayPicker({ sceneManager }) {
     // Whether a cloud could answer (lets callers skip the async path).
     hasDisplayedScans() {
       return getLocalScanViews().some((view) =>
-        isDisplayed(view.root, sceneManager.scene)
+        isLocalScanViewDisplayed(view, sceneManager.scene)
       );
     },
     async pick(ndc = new Vector2(0, 0)) {
@@ -179,7 +172,7 @@ export default function createLocalScanRayPicker({ sceneManager }) {
       workers.delete(view);
     });
     const views = [...live].filter((view) =>
-      isDisplayed(view.root, sceneManager.scene)
+      isLocalScanViewDisplayed(view, sceneManager.scene)
     );
     const hits = (
       await Promise.all(views.map((view) => pickView(view, target)))

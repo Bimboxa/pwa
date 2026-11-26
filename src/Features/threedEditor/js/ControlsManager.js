@@ -17,6 +17,7 @@ import CameraControls from "camera-controls";
 import { loadNavigationPreset } from "Features/threedEditor/services/navigationPresetLocalStorage";
 import { isObjectChainVisible } from "Features/threedEditor/js/utilsAnnotationsManager/visibilityPick";
 import intersectScene3d from "Features/scene3d/services/intersectScene3d";
+import intersectLocalScanPoints from "Features/localScans/services/intersectLocalScanPoints";
 
 import resolveNavigationMouseActions from "Features/threedEditor/utils/resolveNavigationMouseActions";
 
@@ -1298,8 +1299,9 @@ export default class ControlsManager {
 
   // Resolve the world point under the cursor, in priority order:
   //   (a) the nearest opaque mesh hit (see-through meshes are ignored so a
-  //       dimmed annotation never captures the pivot) or the nearest point
-  //       of a scan base map mesh, whichever is closer,
+  //       dimmed annotation never captures the pivot), the nearest point
+  //       of a scan base map mesh or of a scan point cloud, whichever is
+  //       closer,
   //   (b) the nearest basemap plane (infinite — robust even if the basemap
   //       image isn't drawn or is too small),
   //   (c) the ground plane y=0.
@@ -1345,12 +1347,23 @@ export default class ControlsManager {
       null,
       { ray: ray.ray }
     );
+    // (a'') Point clouds (scan base maps shown as points, Scan 3D tool):
+    // never raycast either — the point drawn under the cursor, nearest to
+    // the camera.
+    const cloudHit = intersectLocalScanPoints(
+      { sceneManager: this.sceneManager },
+      ray.ray
+    );
+    const nearestScanHit =
+      cloudHit && !(scanHit?.position && scanHit.distance <= cloudHit.distance)
+        ? cloudHit
+        : scanHit;
     if (
-      scanHit?.position &&
-      !(meshHit && meshHit.distance <= scanHit.distance)
+      nearestScanHit?.position &&
+      !(meshHit && meshHit.distance <= nearestScanHit.distance)
     ) {
       this._pivotSource = "mesh";
-      return this._pivotBest.copy(scanHit.position);
+      return this._pivotBest.copy(nearestScanHit.position);
     }
     if (meshHit) {
       this._pivotSource = "mesh";
