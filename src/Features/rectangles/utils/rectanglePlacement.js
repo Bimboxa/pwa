@@ -10,6 +10,7 @@ import getRectangleSizeInPx from "./getRectangleSizeInPx";
 
 export const RECTANGLE_ROTATE_STEP_DEG = 10;
 export const RECTANGLE_ROTATE_FINE_STEP_DEG = 1;
+export const RECTANGLE_QUARTER_TURN_DEG = 90; // T key
 
 /**
  * Rotation of the rectangle being placed: the drawing frame

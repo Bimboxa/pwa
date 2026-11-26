@@ -199,6 +199,7 @@ import getRectangleSizeLocks from "Features/rectangles/utils/getRectangleSizeLoc
 import {
   RECTANGLE_ROTATE_STEP_DEG,
   RECTANGLE_ROTATE_FINE_STEP_DEG,
+  RECTANGLE_QUARTER_TURN_DEG,
   getRectangleDraftConstraints,
   getRectangleFromTwoPoints,
   getRectanglePlacementRotation,
@@ -4415,22 +4416,33 @@ const InteractionLayer = forwardRef(({
       const enabledDrawingMode = enabledDrawingModeRef.current;
 
       // --- RECTANGLE placement: ← → rotate the rectangle being placed ---
-      // (10° steps, Shift = 1°), instead of panning the camera. Handled
-      // before the auto-repeat guard: holding the key keeps turning it.
+      // (10° steps, Shift = 1°), instead of panning the camera; T turns it
+      // by a quarter turn. Handled before the auto-repeat guard: holding an
+      // arrow keeps turning it (T ignores the repeat).
+      const isRectangleQuarterTurnKey =
+        (e.key === "t" || e.key === "T") &&
+        !e.ctrlKey &&
+        !e.metaKey &&
+        !e.altKey;
       if (
         isActiveViewerRef.current &&
         rectanglePlacementRotationRef &&
-        (e.key === "ArrowLeft" || e.key === "ArrowRight") &&
+        (e.key === "ArrowLeft" ||
+          e.key === "ArrowRight" ||
+          isRectangleQuarterTurnKey) &&
         ["ONE_CLICK", "RECTANGLE"].includes(enabledDrawingMode) &&
         newAnnotationRef.current?.type === "RECTANGLE"
       ) {
         e.preventDefault();
-        const step = e.shiftKey
-          ? RECTANGLE_ROTATE_FINE_STEP_DEG
-          : RECTANGLE_ROTATE_STEP_DEG;
+        if (isRectangleQuarterTurnKey && e.repeat) return;
+        const step = isRectangleQuarterTurnKey
+          ? RECTANGLE_QUARTER_TURN_DEG
+          : e.shiftKey
+            ? RECTANGLE_ROTATE_FINE_STEP_DEG
+            : RECTANGLE_ROTATE_STEP_DEG;
         rectanglePlacementRotationRef.current =
           (rectanglePlacementRotationRef.current || 0) +
-          (e.key === "ArrowRight" ? step : -step);
+          (e.key === "ArrowLeft" ? -step : step);
         if (lastPreviewPosRef.current) {
           drawingLayerRef.current?.updatePreview(lastPreviewPosRef.current);
         }
