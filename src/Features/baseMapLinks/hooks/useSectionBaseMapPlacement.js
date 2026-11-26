@@ -90,7 +90,8 @@ const isEditableTarget = (target) => {
  *   and a point cloud only keeps its slab within `cloudToleranceM`;
  * - Space / Enter (outside a field) validate: createSectionBaseMapService
  *   moves the mark, creates the page (the cloud slab printed on it with
- *   `printPointCloud`), locates the mark on it and poses it, then the new
+ *   `printPointCloud`, vectorized into polylines with
+ *   `vectorizePointCloud`), locates the mark on it and poses it, then the new
  *   base map is selected. Escape cancels.
  *
  * Pointer ownership mirrors useRevolutionAxisHandleDragHandlers:
@@ -106,7 +107,8 @@ export default function useSectionBaseMapPlacement({ rendererIsReady }) {
   const nameRequiredS = "Donnez un nom au fond de plan";
   const pickBaseMapS = "Choisissez un fond de plan vertical";
   const failedS = "Le fond de plan n'a pas pu être créé";
-  const noCloudS = "Aucun nuage de points affiché à imprimer";
+  const noCloudS = "Aucun nuage de points affiché à imprimer ou vectoriser";
+  const noLineS = "Aucune ligne détectée dans la coupe du nuage de points";
   const noCloudPointS =
     "Aucun point du nuage dans la tranche : page blanche créée";
 
@@ -125,6 +127,7 @@ export default function useSectionBaseMapPlacement({ rendererIsReady }) {
     sectionPreview,
     cloudToleranceM,
     printPointCloud,
+    vectorizePointCloud,
   } = useSelector(selectSectionBaseMapPlacement);
   const projectId = useSelector((s) => s.projects.selectedProjectId);
   const scopeId = useSelector((s) => s.scopes.selectedScopeId);
@@ -218,6 +221,7 @@ export default function useSectionBaseMapPlacement({ rendererIsReady }) {
     normalOffsetM,
     cloudToleranceM,
     printPointCloud,
+    vectorizePointCloud,
     ready: Boolean(anchors && pageSpec),
   };
   // Live options of the preview, read by refresh() without re-running the
@@ -510,10 +514,12 @@ export default function useSectionBaseMapPlacement({ rendererIsReady }) {
         dispatch(setToaster({ message: nameRequiredS, severity: "warning" }));
         return;
       }
-      // Point clouds to print on a new page: the ones displayed in 3D.
+      // Point clouds to print on / vectorize onto a new page: the ones
+      // displayed in 3D.
       let cloudPrint = null;
+      let cloudVectorize = null;
       if (
-        params.printPointCloud &&
+        (params.printPointCloud || params.vectorizePointCloud) &&
         params.mode !== SECTION_BASE_MAP_MODES.EXISTING
       ) {
         const scene = getActiveThreedEditor()?.sceneManager?.scene;
@@ -533,11 +539,13 @@ export default function useSectionBaseMapPlacement({ rendererIsReady }) {
           dispatch(setToaster({ message: noCloudS, severity: "warning" }));
           return;
         }
-        cloudPrint = {
+        const cloudCut = {
           clouds,
           toleranceM:
             params.cloudToleranceM > 0 ? params.cloudToleranceM : 0.01,
         };
+        if (params.printPointCloud) cloudPrint = cloudCut;
+        if (params.vectorizePointCloud) cloudVectorize = cloudCut;
       }
       committingRef.current = true;
       try {
@@ -554,6 +562,7 @@ export default function useSectionBaseMapPlacement({ rendererIsReady }) {
             angleDeg: placement.angleDeg,
           },
           cloudPrint,
+          cloudVectorize,
           projectId: params.projectId,
           scopeId: params.scopeId,
           createBaseMapFromImageFn: createBaseMapFromImageRef.current,
@@ -566,6 +575,8 @@ export default function useSectionBaseMapPlacement({ rendererIsReady }) {
         }
         if (created.printedPointCount === 0) {
           dispatch(setToaster({ message: noCloudPointS, severity: "info" }));
+        } else if (created.vectorizedLineCount === 0) {
+          dispatch(setToaster({ message: noLineS, severity: "info" }));
         }
         // The new base map becomes the main one, selected like a base map
         // just created from the Fonds de plan panel.

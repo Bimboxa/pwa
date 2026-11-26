@@ -8,6 +8,10 @@ import getBlankBaseMapGeometry, {
 
 import worldToBaseMapNormalized from "Features/baseMaps/js/worldToBaseMapNormalized";
 import printLocalScanSectionService from "Features/localScans/services/printLocalScanSectionService";
+import { withUndoGroup } from "App/db/undoManager";
+import { getTemplatelessDraft } from "Features/mapEditor/utils/startTemplatelessDraw";
+import vectorizeLocalScanSectionService from "Features/baseMapClipping/services/vectorizeLocalScanSectionService";
+import buildVectorizedSectionRows from "Features/baseMapClipping/utils/buildVectorizedSectionRows";
 
 import { SECTION_BASE_MAP_MODES } from "../sectionBaseMapPlacementSlice";
 import { createGeometryBaseMap } from "./getHydratedBaseMap";
@@ -41,10 +45,17 @@ import resyncBaseMapLinkPlacementsService from "./resyncBaseMapLinkPlacementsSer
 //     the tolerance of the page are printed on it
 //     (printLocalScanSectionService) and that image replaces the white page.
 //     No point in the slab → the white page, as without the option.
+// 0c. `cloudVectorize` ({ toleranceM, clouds }, blank page only), same slab:
+//     the footprint of the clouds is vectorized
+//     (vectorizeLocalScanSectionService) and drawn on the new base map as
+//     templateless POLYLINE annotations, once it is posed. Alone, the base
+//     map stays a white page (no image); with `cloudPrint`, the lines lie
+//     over the printed image.
 //
 // `createBaseMapFromImageFn` = useCreateBaseMapFromImage, `createAnnotationFn`
-// = useCreateAnnotation. Returns { baseMapId, listingId, printedPointCount
-// (null when nothing was asked) }, or null when nothing was created.
+// = useCreateAnnotation. Returns { baseMapId, listingId, printedPointCount,
+// vectorizedLineCount (both null when not asked) }, or null when nothing
+// was created.
 export default async function createSectionBaseMapService({
   sourceAnnotationId,
   mode,
@@ -54,6 +65,7 @@ export default async function createSectionBaseMapService({
   sourceAnchorsWorld = null,
   pagePose = null,
   cloudPrint = null,
+  cloudVectorize = null,
   projectId,
   scopeId,
   createBaseMapFromImageFn,
@@ -93,6 +105,8 @@ export default async function createSectionBaseMapService({
 
   let baseMapId = null;
   let printedPointCount = null;
+  // { polylines, widthM, heightM } of the new page (0c), drawn at the end
+  let vectorized = null;
   if (mode === SECTION_BASE_MAP_MODES.EXISTING) {
     const record = existingBaseMapId
       ? await db.baseMaps.get(existingBaseMapId)
@@ -109,24 +123,40 @@ export default async function createSectionBaseMapService({
       size,
       scale,
     });
-    // --- 0b. the point clouds cut by the page, printed on it ---
-    let printed = null;
-    if (cloudPrint?.clouds?.length && pagePose?.position) {
-      printed = await printLocalScanSectionService({
-        clouds: cloudPrint.clouds,
-        toleranceM: cloudPrint.toleranceM,
-        name,
-        page: {
+    const page = pagePose?.position
+      ? {
           orientation: "VERTICAL",
           angleDeg: pagePose.angleDeg,
           position: pagePose.position,
           width: pixelWidth,
           height: pixelHeight,
           meterByPx,
-        },
+        }
+      : null;
+    // --- 0b. the point clouds cut by the page, printed on it ---
+    let printed = null;
+    if (cloudPrint?.clouds?.length && page) {
+      printed = await printLocalScanSectionService({
+        clouds: cloudPrint.clouds,
+        toleranceM: cloudPrint.toleranceM,
+        name,
+        page,
       });
     }
     if (cloudPrint) printedPointCount = printed?.pointCount ?? 0;
+    // --- 0c. … and vectorized (computed before anything is created) ---
+    if (cloudVectorize?.clouds?.length && page) {
+      const { polylines } = await vectorizeLocalScanSectionService({
+        clouds: cloudVectorize.clouds,
+        toleranceM: cloudVectorize.toleranceM,
+        page,
+      });
+      vectorized = {
+        polylines,
+        widthM: pixelWidth * meterByPx,
+        heightM: pixelHeight * meterByPx,
+      };
+    }
     const entity = await createBaseMapFromImageFn({
       ...(printed
         ? { file: printed.file }
@@ -201,6 +231,31 @@ export default async function createSectionBaseMapService({
   // --- 3. pose the base map ---
 
   await resyncBaseMapLinkPlacementsService({ cloneId: clone.id, dispatch });
+
+  // --- 0c (end). the vectorized lines, on the posed base map ---
+
+  let vectorizedLineCount = null;
+  if (cloudVectorize) {
+    const { newPoints, newAnnotations } = buildVectorizedSectionRows({
+      polylines: vectorized?.polylines ?? [],
+      widthM: vectorized?.widthM,
+      heightM: vectorized?.heightM,
+      baseMapId,
+      projectId: projectId ?? source.projectId,
+      scopeId: scopeId ?? source.scopeId ?? null,
+      annotationProps: getTemplatelessDraft("POLYLINE"),
+      createId: nanoid,
+    });
+    if (newAnnotations.length) {
+      await withUndoGroup(async () => {
+        await db.transaction("rw", db.points, db.annotations, async () => {
+          await db.points.bulkAdd(newPoints);
+          await db.annotations.bulkAdd(newAnnotations);
+        });
+      });
+    }
+    vectorizedLineCount = newAnnotations.length;
+  }
   dispatch?.(triggerAnnotationsUpdate());
 
   const record = await db.baseMaps.get(baseMapId);
@@ -208,5 +263,6 @@ export default async function createSectionBaseMapService({
     baseMapId,
     listingId: record?.listingId ?? null,
     printedPointCount,
+    vectorizedLineCount,
   };
 }
