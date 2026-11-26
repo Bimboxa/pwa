@@ -250,7 +250,7 @@ const DRAWING_SHAPE_CONFIG = {
   RECTANGLE: {
     label: "Rectangle",
     annotationType: "RECTANGLE",
-    tools: ["ONE_CLICK", "RECTANGLE"],
+    tools: ["ONE_CLICK", "RECTANGLE", "RECTANGLE_FILL_ZONE"],
     configurableProps: [
       "fillColor",
       "fillOpacity",

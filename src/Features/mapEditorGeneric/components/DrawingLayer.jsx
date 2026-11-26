@@ -43,10 +43,13 @@ import { getBlockDefId } from "Features/blocks/js/blockDefinitionsStore";
 import { getBlockInstanceTransform } from "Features/blocks/utils/blockInstanceGeometry";
 import getRectangleSizeInPx from "Features/rectangles/utils/getRectangleSizeInPx";
 import {
+  RECTANGLE_FILL_ZONE_MODE,
   getRectangleDraftConstraints,
+  getRectangleFillLayout,
   getRectangleFromTwoPoints,
   getRectanglePlacementRotation,
 } from "Features/rectangles/utils/rectanglePlacement";
+import getRectangleCorners from "Features/rectangles/utils/getRectangleCorners";
 
 // Number of samples per arc segment — mirrors NodePolylineStatic so the live
 // preview matches the committed render.
@@ -164,6 +167,7 @@ const DrawingLayer = forwardRef(
     const previewObject3DRef = useRef(null); // OBJECT_3D top-view ghost under the cursor
     const previewImageRef = useRef(null); // IMAGE ghost under the cursor
     const previewRectangleGhostRef = useRef(null); // RECTANGLE ghost under the cursor
+    const previewRectangleFillRef = useRef(null); // rectangles of « Texturer une zone »
     // Revolution axis preview — mirrors the NodeRevolutionAxisStatic glyph
     // (orange half-arc + black half-arc + diameter + centre dot).
     const previewRevAxisGroupRef = useRef(null);
@@ -339,7 +343,12 @@ const DrawingLayer = forwardRef(
       "LOCALIZED_REPAIR",
       "JOIN_ANNOTATIONS",
       "CHAT_REPAIR",
+      RECTANGLE_FILL_ZONE_MODE,
     ].includes(enabledDrawingMode);
+    // « Texturer une zone rectangulaire »: the drawn rectangle is only the
+    // zone; the RECTANGLE annotations it will create are previewed inside.
+    const isRectangleFillZone =
+      enabledDrawingMode === RECTANGLE_FILL_ZONE_MODE && isRectangleAnnotation;
     const drawCircle = [
       "CIRCLE",
       "POLYLINE_CIRCLE",
@@ -598,7 +607,47 @@ const DrawingLayer = forwardRef(
           let B;
           let C;
           let D;
-          if (isRectangleAnnotation) {
+          if (isRectangleFillZone) {
+            // Zone of « Texturer une zone rectangulaire » + the rectangles
+            // that fit in it (one closed sub-path each).
+            const na = newAnnotationRef.current || {};
+            const rotation = getRectangleRotation();
+            const sizePx = getRectangleSizeInPx({
+              size: na.size,
+              sizeUnit: na.sizeUnit,
+              meterByPx: mbp,
+            });
+            const layout = getRectangleFillLayout({
+              p1: lastPoint,
+              p2: cursorPos,
+              rotation,
+              itemWidthPx: sizePx.width,
+              itemHeightPx: sizePx.height,
+            });
+            [A, B, C, D] = layout.corners;
+            if (previewRectangleFillRef.current) {
+              const d = layout.centers
+                .map((center) => {
+                  const corners = getRectangleCorners({
+                    bbox: {
+                      x: center.x - sizePx.width / 2,
+                      y: center.y - sizePx.height / 2,
+                      width: sizePx.width,
+                      height: sizePx.height,
+                    },
+                    rotation,
+                  });
+                  return (
+                    "M " + corners.map((p) => `${p.x} ${p.y}`).join(" L ") + " Z"
+                  );
+                })
+                .join(" ");
+              previewRectangleFillRef.current.setAttribute("d", d);
+              previewRectangleFillRef.current.style.display = d
+                ? "block"
+                : "none";
+            }
+          } else if (isRectangleAnnotation) {
             // RECTANGLE annotation: sides along the placement rotation, a
             // locked / typed dimension keeps its length and flips with the
             // quadrant of the cursor.
@@ -1247,6 +1296,8 @@ const DrawingLayer = forwardRef(
           previewObject3DRef.current.style.display = "none";
         if (previewRectangleGhostRef.current)
           previewRectangleGhostRef.current.style.display = "none";
+        if (previewRectangleFillRef.current)
+          previewRectangleFillRef.current.style.display = "none";
         if (previewRampRef.current)
           previewRampRef.current.style.display = "none";
         if (previewCoteGroupRef.current)
@@ -1332,6 +1383,20 @@ const DrawingLayer = forwardRef(
           />
         )}
 
+        {/* A000-ter. « Texturer une zone rectangulaire » — the rectangles
+            that will be created in the zone being drawn. */}
+        {isRectangleFillZone && (
+          <path
+            ref={previewRectangleFillRef}
+            fill={fillColor || "rgba(92, 92, 236, 0.3)"}
+            fillOpacity={0.6}
+            stroke={fillColor || "#2196f3"}
+            strokeWidth={1}
+            vectorEffect="non-scaling-stroke"
+            style={{ display: "none", pointerEvents: "none" }}
+          />
+        )}
+
         {/* A000-bis. RECTANGLE ghost — the rectangle under the cursor, at the
             template dimensions and the placement rotation. */}
         {drawRectangleGhost && (
@@ -1413,6 +1478,7 @@ const DrawingLayer = forwardRef(
               ref={previewRectRef}
               fill="none"
               {...(!isSelectionRectMode &&
+                !isRectangleFillZone &&
                 isFillShape && {
                   fill: fillColor || "rgba(92, 92, 236, 0.1)",
                 })}

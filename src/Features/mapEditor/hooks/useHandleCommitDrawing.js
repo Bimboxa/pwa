@@ -158,6 +158,7 @@ export default function useHandleCommitDrawing({ annotations } = {}) {
     const handleDrawingCommit = async (rawPoints, options) => {
 
         let _newAnnotation; // created at the end.
+        let bboxSiblingRows = []; // batch of bbox annotations (fill zone)
         let _updatedAnnotation;
 
         // options
@@ -994,6 +995,20 @@ export default function useHandleCommitDrawing({ annotations } = {}) {
                 if (Number.isFinite(options?.rotation)) {
                     _newAnnotation.rotation = options.rotation;
                 }
+                // « Texturer une zone rectangulaire »: the other rectangles
+                // of the batch — same row, their own bbox — written with
+                // this one (useCreateAnnotation `siblingRows`).
+                if (Array.isArray(options?.bboxSiblings)) {
+                    bboxSiblingRows = options.bboxSiblings.map(([p0, p1]) => ({
+                        id: nanoid(),
+                        bbox: {
+                            x: p0.x / width,
+                            y: p0.y / height,
+                            width: (p1.x - p0.x) / width,
+                            height: (p1.y - p0.y) / height,
+                        },
+                    }));
+                }
                 // Photo: its anchor (the numbered badge) is its top-left
                 // corner — the photo stays pinned on it until dragged away.
                 if (_newAnnotation.type === "IMAGE") {
@@ -1310,6 +1325,7 @@ export default function useHandleCommitDrawing({ annotations } = {}) {
             await createAnnotation(_newAnnotation, {
                 pointRowsToSave: pendingPointRows,
                 annotationUpdatesInTx: pendingAnnotationUpdates,
+                siblingRows: bboxSiblingRows,
             });
         }
 

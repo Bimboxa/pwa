@@ -91,6 +91,86 @@ export function getRectangleFromTwoPoints({
   };
 }
 
+// « Texturer une zone rectangulaire » drawing mode (2 clicks: the zone, then
+// one RECTANGLE annotation per cell of the layout below).
+export const RECTANGLE_FILL_ZONE_MODE = "RECTANGLE_FILL_ZONE";
+
+// Drawing modes that place RECTANGLE annotations (when the draft is one):
+// the arrow keys / T rotate the rectangle(s) being placed.
+export const RECTANGLE_PLACEMENT_MODES = [
+  "ONE_CLICK",
+  "RECTANGLE",
+  RECTANGLE_FILL_ZONE_MODE,
+];
+
+// Safety cap of the layout (a huge zone with a tiny rectangle).
+const RECTANGLE_FILL_MAX_COUNT = 2000;
+
+/**
+ * Layout of « Texturer une zone rectangulaire »: the zone is the rectangle of
+ * the two clicks (sides along the frame rotated by `rotation`), filled with
+ * as many `itemWidthPx` × `itemHeightPx` rectangles as fit along each side,
+ * spread evenly — the same gap between two rectangles and between a
+ * rectangle and the zone border.
+ *
+ * Returns { corners (zone: A, B, C, D), centers, countX, countY, truncated }.
+ * `centers` is empty when the zone is smaller than one rectangle.
+ */
+export function getRectangleFillLayout({
+  p1,
+  p2,
+  rotation = 0,
+  itemWidthPx,
+  itemHeightPx,
+  maxCount = RECTANGLE_FILL_MAX_COUNT,
+}) {
+  const zone = getRectangleFromTwoPoints({ p1, p2, rotation });
+  const layout = {
+    corners: zone.corners,
+    centers: [],
+    countX: 0,
+    countY: 0,
+    truncated: false,
+  };
+  if (!(itemWidthPx > 0) || !(itemHeightPx > 0)) return layout;
+
+  // tolerance: a zone drawn at exactly N × the dimension holds N rectangles
+  const EPSILON = 1e-6;
+  let countX = Math.floor(zone.width / itemWidthPx + EPSILON);
+  let countY = Math.floor(zone.height / itemHeightPx + EPSILON);
+  if (countX < 1 || countY < 1) return layout;
+  if (countX * countY > maxCount) {
+    layout.truncated = true;
+    countY = Math.max(1, Math.min(countY, Math.floor(maxCount / countX)));
+    countX = Math.min(countX, maxCount);
+  }
+
+  const gapX = Math.max(0, (zone.width - countX * itemWidthPx) / (countX + 1));
+  const gapY = Math.max(
+    0,
+    (zone.height - countY * itemHeightPx) / (countY + 1)
+  );
+
+  // signed unit vectors of the zone sides, from the first click
+  const [A, B, , D] = zone.corners;
+  const ux = { x: (B.x - A.x) / zone.width, y: (B.y - A.y) / zone.width };
+  const uy = { x: (D.x - A.x) / zone.height, y: (D.y - A.y) / zone.height };
+
+  for (let j = 0; j < countY; j++) {
+    const v = gapY + itemHeightPx / 2 + j * (itemHeightPx + gapY);
+    for (let i = 0; i < countX; i++) {
+      const u = gapX + itemWidthPx / 2 + i * (itemWidthPx + gapX);
+      layout.centers.push({
+        x: A.x + u * ux.x + v * uy.x,
+        y: A.y + u * ux.y + v * uy.y,
+      });
+    }
+  }
+  layout.countX = countX;
+  layout.countY = countY;
+  return layout;
+}
+
 /**
  * The two raw points (unrotated bbox corners, top-left then bottom-right)
  * written by the `drawRectangle` commit for a rectangle of the given centre
