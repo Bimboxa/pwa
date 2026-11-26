@@ -16,11 +16,15 @@ the operator.
 ## Supported data
 
 - Binary little- or big-endian PLY points; RGB or Gaussian DC colors.
+- ASCII PLY points: converted once to binary little-endian at import
+  (`convertAsciiPlyToBinary`, in the worker); the converted file is the one
+  stored and decoded afterwards.
 - Gaussian PLY rendering with pinned Spark 2.4.0, including its SH attributes.
 - Automatic project-local persistence, reopen, replace, delete, frame, axis and scale.
 - Multiple project-level resources; one model displayed at a time.
-- Limits: 40 million points (5 million Gaussians) and 2 GiB per file. No ASCII or triangle meshes
-  in this entry point. Existing mesh imports remain unchanged.
+- Limits: 40 million points (5 million Gaussians) and 2 GiB per binary file. An ASCII source has
+  no size cap of its own: the point limit applies. No triangle meshes in this entry point.
+  Existing mesh imports remain unchanged (binary only).
 
 This milestone is a viewer with optional point inspection and a local RANSAC
 plane estimate. Editable surface extraction, reference-plane heatmaps and

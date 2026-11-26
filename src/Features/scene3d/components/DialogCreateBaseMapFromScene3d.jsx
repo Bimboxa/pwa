@@ -62,6 +62,7 @@ import {
   buildLocalScanZonePreview,
   readLocalScanSample,
 } from "Features/localScans/services/createLocalScanZonePreview";
+import ensureBinaryLocalPly from "Features/localScans/services/ensureBinaryLocalPly";
 import createScanBaseMapFromZoneService from "Features/localScans/services/createScanBaseMapFromZoneService";
 
 const IMPORT_STEP_LABELS = {
@@ -69,6 +70,7 @@ const IMPORT_STEP_LABELS = {
   TEXTURES: "Conversion des textures",
   TOP_VIEW: "Projection sur le plan",
   SAMPLE: "Lecture d’un échantillon du nuage",
+  CONVERT: "Conversion du PLY ASCII en binaire",
 };
 // share of each step in the import progress bar
 const IMPORT_STEP_RANGES = {
@@ -76,6 +78,7 @@ const IMPORT_STEP_RANGES = {
   TEXTURES: [0.2, 0.97],
   TOP_VIEW: [0.97, 1],
   SAMPLE: [0, 1],
+  CONVERT: [0, 1],
 };
 const FINALIZE_STEP_LABELS = {
   CLIP: "Découpe du maillage",
@@ -472,6 +475,7 @@ export default function DialogCreateBaseMapFromScene3d({
           kind: "POINTS",
           sourceFile: plyFile,
           resource: null,
+          isAscii: header.format === "ascii",
           vertexCount:
             header.elements.find((element) => element.name === "vertex")
               ?.count ?? null,
@@ -501,9 +505,30 @@ export default function DialogCreateBaseMapFromScene3d({
     abortRef.current = controller;
     setErrorMessage(null);
     if (current.kind === "POINTS") {
-      setImportProgress({ step: "SAMPLE", ratio: 0 });
       try {
-        const next = await readLocalScanSample(current.sourceFile, {
+        let sourceFile = current.sourceFile;
+        if (current.isAscii) {
+          // converted once: the preview, the stored resource and every
+          // later decode then read the binary file
+          setImportProgress({ step: "CONVERT", ratio: 0 });
+          sourceFile = await ensureBinaryLocalPly(sourceFile, {
+            signal: controller.signal,
+            onProgress: (ratio) =>
+              setImportProgress({ step: "CONVERT", ratio }),
+          });
+          setSelection((previous) =>
+            previous?.sourceFile === current.sourceFile
+              ? {
+                  ...previous,
+                  sourceFile,
+                  isAscii: false,
+                  totalBytes: sourceFile.size,
+                }
+              : previous
+          );
+        }
+        setImportProgress({ step: "SAMPLE", ratio: 0 });
+        const next = await readLocalScanSample(sourceFile, {
           signal: controller.signal,
           onProgress: (ratio) => setImportProgress({ step: "SAMPLE", ratio }),
         });
