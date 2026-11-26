@@ -514,7 +514,9 @@ export default class ClippingManager {
     // Same for the outline of the selected base map.
     if (
       child.userData?.isGridPlaceholder ||
-      child.userData?.isBasemapSelectionOutline
+      child.userData?.isBasemapSelectionOutline ||
+      // faces / edges of the clip box of a base map (ThreedBaseMapClipBoxes)
+      child.userData?.isClipBoxHelper
     )
       return;
     const childPlanes = child.isPoints ? cloudPlanes : planes;

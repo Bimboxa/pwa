@@ -10,7 +10,9 @@ const MAX_CELL_M = 0.02;
 
 // Vectorization of the point clouds cut by a page: the points within
 // `toleranceM` of the page plane (what the plane "prints", same slab as
-// printLocalScanSectionService) are vectorized by vectorizeSliceFootprint.
+// printLocalScanSectionService) — or in `range` ({lower, upper}, signed
+// distances to the plane: a layer in front of / behind it) — are vectorized
+// by vectorizeSliceFootprint.
 // Nothing is written: the caller turns the polylines into annotations
 // (buildVectorizedSectionRows).
 //
@@ -22,17 +24,25 @@ export default async function vectorizeLocalScanSectionService({
   clouds,
   page,
   toleranceM,
+  range = null,
 }) {
   const result = { polylines: [], pointCount: 0, stats: null };
-  if (!clouds?.length || !(toleranceM > 0)) return result;
+  const lower = range ? range.lower : -toleranceM;
+  const upper = range ? range.upper : toleranceM;
+  if (!clouds?.length || !(lower <= upper)) return result;
+  // cell from the slab half thickness; a thick layer keeps the coarse one
+  const cellSize = Math.min(
+    MAX_CELL_M,
+    Math.max(MIN_CELL_M, range ? MAX_CELL_M / 2 : toleranceM)
+  );
 
   const parts = [];
   // One cloud at a time: each job clones its positions into a worker.
   for (const cloud of clouds) {
     const slice = await collectLocalScanSlicePointsInWorker(cloud.data, {
       frame: getLocalScanSectionFrame(cloud.matrixWorld, page),
-      lower: -toleranceM,
-      upper: toleranceM,
+      lower,
+      upper,
     });
     if (slice?.count) parts.push(slice.points);
   }
@@ -47,7 +57,7 @@ export default async function vectorizeLocalScanSectionService({
 
   const { polylines, stats } = vectorizeSliceFootprint({
     points,
-    cellSize: Math.min(MAX_CELL_M, Math.max(MIN_CELL_M, toleranceM)),
+    cellSize,
   });
   console.log(
     `[baseMapClipping] section vectorization: ${total / 2} points, ${stats.chainCount} chain(s), ${polylines.length} polyline(s) kept`,

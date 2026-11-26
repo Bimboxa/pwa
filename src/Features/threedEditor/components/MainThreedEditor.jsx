@@ -19,6 +19,8 @@ import useApplyBaseMapOpacityIn3d from "../hooks/useApplyBaseMapOpacityIn3d";
 import useApplyBaseMapVisibilityIn3d from "../hooks/useApplyBaseMapVisibilityIn3d";
 import useApplyBaseMapsScanModeIn3d from "../hooks/useApplyBaseMapsScanModeIn3d";
 import useApplyBaseMapClippingIn3d from "Features/baseMapClipping/hooks/useApplyBaseMapClippingIn3d";
+import useBaseMapClipBoxDragHandlers from "Features/baseMapClipping/hooks/useBaseMapClipBoxDragHandlers";
+import ThreedBaseMapClipBoxes from "Features/baseMapClipping/components/ThreedBaseMapClipBoxes";
 import useApplyBaseMapTransformsIn3d from "../hooks/useApplyBaseMapTransformsIn3d";
 import useRevolutionSectionIn3d from "../hooks/useRevolutionSectionIn3d";
 import useSyncClippingPlanTo3D from "../hooks/useSyncClippingPlanTo3D";
@@ -1154,6 +1156,7 @@ export default function MainThreedEditor() {
   useApplyBaseMapTransformsIn3d();
 
   useApplyBaseMapClippingIn3d({ rendererIsReady });
+  useBaseMapClipBoxDragHandlers({ rendererIsReady });
 
   useRevolutionSectionIn3d({ rendererIsReady });
 
@@ -3756,6 +3759,7 @@ export default function MainThreedEditor() {
       <BaseMapSelectionOutlineThreed
         enabled={isThreedViewer && rendererIsReady}
       />
+      <ThreedBaseMapClipBoxes enabled={isThreedViewer && rendererIsReady} />
       <SurfacePiecesHighlightThreed
         enabled={isThreedViewer && rendererIsReady}
       />

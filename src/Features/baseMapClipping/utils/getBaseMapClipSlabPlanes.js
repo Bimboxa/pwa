@@ -13,7 +13,8 @@ import getBaseMapClipping3d from "./getBaseMapClipping3d.js";
 //   - back plane keeps d ≥ −backM  :   n·p + (backM − n·P) ≥ 0
 // A null depth leaves that side open (no plane).
 //
-// Returns [{ normal: {x, y, z}, constant }] (0, 1 or 2 planes).
+// Returns [{ side: "front" | "back", normal: {x, y, z}, constant }] (0, 1 or
+// 2 planes).
 export default function getBaseMapClipSlabPlanes(baseMap) {
   const { frontM, backM } = getBaseMapClipping3d(baseMap);
   const n = getBaseMapNormalWorldFromRow(baseMap);
@@ -23,12 +24,14 @@ export default function getBaseMapClipSlabPlanes(baseMap) {
   const planes = [];
   if (frontM !== null) {
     planes.push({
+      side: "front",
       normal: { x: -n.x, y: -n.y, z: -n.z },
       constant: nDotP + frontM,
     });
   }
   if (backM !== null) {
     planes.push({
+      side: "back",
       normal: { x: n.x, y: n.y, z: n.z },
       constant: backM - nDotP,
     });
