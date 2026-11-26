@@ -15,6 +15,19 @@ export function buildRevolutionAxisDraft() {
   };
 }
 
+// Standalone axis — armed with the REVOLUTION_AXIS_SECTION tool (foot, then
+// half base + height) on a VERTICAL base map. Same row type as a placement,
+// but with no `revolutionAxisId`: the commit stores its own `radiusM` /
+// `height` (see isStandaloneRevolutionAxisPlacement).
+export function buildRevolutionAxisSectionDraft() {
+  return {
+    ...getDefaultsForShape("REVOLUTION_AXIS_PLACEMENT"),
+    type: "REVOLUTION_AXIS_PLACEMENT",
+    drawingShape: "REVOLUTION_AXIS_PLACEMENT",
+    halfViewIn3d: true,
+  };
+}
+
 // Placement of an existing axis — armed with the REVOLUTION_AXIS_PLACE tool
 // (one click) on a VERTICAL base map: the click is where the axis centre sits
 // in the elevation, and it poses that base map in 3D. A placement is just a

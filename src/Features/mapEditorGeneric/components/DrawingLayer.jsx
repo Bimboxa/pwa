@@ -372,6 +372,11 @@ const DrawingLayer = forwardRef(
       ["REVOLUTION_AXIS_PLACEMENT", "REPOSITION_REVOLUTION_PLACEMENT"].includes(
         enabledDrawingMode
       ) && Boolean(revolutionPlacementGhostSource);
+    // Standalone axis drawn on a vertical base map: click 1 = foot of the
+    // inverted T, the cursor then drives the half base (|dx|) and the height
+    // (|dy|) — or the typed X / Y of the rectangle tools.
+    const drawRevolutionAxisSection =
+      enabledDrawingMode === "REVOLUTION_AXIS_SECTION";
     // Photo pose (Photos module): same centre→edge gesture; the preview shows
     // the camera view cone opened toward the cursor.
     const drawPhotoPose = enabledDrawingMode === "PHOTO_POSE";
@@ -576,6 +581,63 @@ const DrawingLayer = forwardRef(
             previewFillRef.current.style.display = "none";
           if (previewStripRef.current)
             previewStripRef.current.style.display = "none";
+          return;
+        }
+
+        // ------------------------------------------------
+        // CAS 0 : REVOLUTION_AXIS_SECTION (foot fixed -> cursor = half base
+        // + height). Same inverted T as the placement ghost, anchored on the
+        // first click; the sign of dx / dy is ignored (the bar is symmetric,
+        // the stem always rises).
+        // ------------------------------------------------
+        if (drawRevolutionAxisSection && previewRevPlacementGroupRef.current) {
+          if (previewLineRef.current)
+            previewLineRef.current.style.display = "none";
+          if (previewFillRef.current)
+            previewFillRef.current.style.display = "none";
+
+          const metrics = rectMetricsRef?.current;
+          const mbp = meterByPxRef.current;
+          const mPerPx = Number.isFinite(mbp) && mbp > 0 ? mbp : 1;
+          const halfPx =
+            metrics?.rectX != null
+              ? Math.abs(metrics.rectX) / mPerPx
+              : Math.abs(cursorPos.x - lastPoint.x);
+          const heightPx =
+            metrics?.rectY != null
+              ? Math.abs(metrics.rectY) / mPerPx
+              : Math.abs(cursorPos.y - lastPoint.y);
+          const side = cursorPos.x < lastPoint.x ? -1 : 1;
+          const { x, y } = lastPoint;
+          const top = { x, y: y - heightPx };
+          const barEnd = { x: x + side * halfPx, y };
+          const stem = previewRevPlacementStemRef.current;
+          const bar = previewRevPlacementBarRef.current;
+          if (stem) {
+            stem.setAttribute("x1", x);
+            stem.setAttribute("y1", y);
+            stem.setAttribute("x2", top.x);
+            stem.setAttribute("y2", top.y);
+          }
+          if (bar) {
+            bar.setAttribute("x1", x - halfPx);
+            bar.setAttribute("y1", y);
+            bar.setAttribute("x2", x + halfPx);
+            bar.setAttribute("y2", y);
+          }
+          previewRevPlacementDotRef.current?.setAttribute(
+            "transform",
+            `translate(${x}, ${y})`
+          );
+          // Length badges: X on the half bar on the cursor side, Y on the stem.
+          onRectanglePreviewRef.current?.({
+            center: { x: (x + barEnd.x) / 2, y: (y + top.y) / 2 },
+            sides: [
+              { axis: "y", p: { x, y }, q: top },
+              { axis: "x", p: { x, y }, q: barEnd },
+            ],
+          });
+          previewRevPlacementGroupRef.current.style.display = "block";
           return;
         }
 
@@ -1525,7 +1587,7 @@ const DrawingLayer = forwardRef(
             dashed stem over the axis height, orange plan diameter, centre
             dot (fixed screen size). Translucent, hidden until the first
             mouse move. */}
-        {drawRevolutionAxisPlacement && (
+        {(drawRevolutionAxisPlacement || drawRevolutionAxisSection) && (
           <g
             ref={previewRevPlacementGroupRef}
             opacity={0.7}

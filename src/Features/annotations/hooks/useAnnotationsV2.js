@@ -453,6 +453,7 @@ import {
   isRevolutionHelperType,
   isLegacyRevolutionRecord,
   isLegacyStyleRevolutionHelper,
+  isStandaloneRevolutionAxisPlacement,
 } from "Features/annotations/constants/drawingShapeConfig";
 import {
   isBaseMapLinkAnnotation,
@@ -614,8 +615,13 @@ async function resolveRevolutionAxes(annotations, baseMapById) {
       continue;
     }
 
+    // Axis DRAWN on a vertical base map (standalone placement): it is its own
+    // placement, and only for the arcs of that base map. Never the "own plan"
+    // branch below — that one revolves around the base map NORMAL.
+    const isStandaloneAxis = isStandaloneRevolutionAxisPlacement(axis);
+
     // Arc hosted by the axis's own plan: the axis centre IS the lathe axis.
-    if (arc.baseMapId === axis.baseMapId) {
+    if (!isStandaloneAxis && arc.baseMapId === axis.baseMapId) {
       const planBaseMap = baseMapById[arc.baseMapId];
       const planImageSize =
         planBaseMap?.getImageSize?.() || planBaseMap?.image?.imageSize;
@@ -643,7 +649,11 @@ async function resolveRevolutionAxes(annotations, baseMapById) {
     // A placement of a DIFFERENT axis is not "close enough" (the key
     // carries the axis id): flag it rather than silently revolving
     // around the wrong centre.
-    const placement = placementByBaseMapAndAxisId[`${arc.baseMapId}:${axisId}`];
+    const placement = isStandaloneAxis
+      ? arc.baseMapId === axis.baseMapId
+        ? axis
+        : null
+      : placementByBaseMapAndAxisId[`${arc.baseMapId}:${axisId}`];
     if (!placement) {
       arc.revolutionMissingPlacement = true;
       continue;
@@ -2313,12 +2323,14 @@ export default function useAnnotationsV2(options) {
             a.sourceLinkLabel = source.label ?? null;
             a.sourceLinkBaseMapId = source.baseMapId ?? null;
           } else if (a?.type === "REVOLUTION_AXIS_PLACEMENT") {
+            // An axis DRAWN on this base map (standalone, no linked plan
+            // axis) carries its own radius / height / label.
+            const isStandaloneAxis = isStandaloneRevolutionAxisPlacement(a);
             const axisId = a.revolutionAxisId;
-            if (!axisId) continue;
-            if (!axisRefCache.has(axisId)) {
+            if (!isStandaloneAxis && !axisRefCache.has(axisId)) {
               axisRefCache.set(axisId, await db.annotations.get(axisId));
             }
-            const axis = axisRefCache.get(axisId);
+            const axis = isStandaloneAxis ? a : axisRefCache.get(axisId);
             if (!axis || axis.deletedAt) continue;
             // The inverted-T bar is the plan diameter, and the stem is the axis
             // height — both live on the axis, on another base map.
@@ -2326,7 +2338,9 @@ export default function useAnnotationsV2(options) {
             a.revolutionAxisHeightM = axis.height;
             a.revolutionAxisLabel = axis.label;
             // Plan hosting the axis: target of the « Vue en plan » label.
-            a.revolutionAxisBaseMapId = axis.baseMapId ?? null;
+            a.revolutionAxisBaseMapId = isStandaloneAxis
+              ? null
+              : (axis.baseMapId ?? null);
 
             // The anchors seen edge-on: the centre, both ends of the orange
             // bar (the plan diameter laid flat on the elevation) and the TOP of
@@ -2590,6 +2604,8 @@ export default function useAnnotationsV2(options) {
             axisById.has(axis.id) ||
             rawAxisRows.some((r) => r.id === axis.id) ||
             isLegacyRevolutionRecord(axis) ||
+            // Drawn on a vertical base map: no plan, hence no footprint.
+            isStandaloneRevolutionAxisPlacement(axis) ||
             !axis.point?.id ||
             !isHostAllowed(axis.baseMapId)
           )
@@ -3540,8 +3556,11 @@ export default function useAnnotationsV2(options) {
         result = result.filter((a) => {
           if (a.type === "REVOLUTION_AXIS")
             return !hiddenRevolutionAxisIdSet.has(a.id);
+          // (a standalone placement is its own axis)
           if (a.type === "REVOLUTION_AXIS_PLACEMENT")
-            return !hiddenRevolutionAxisIdSet.has(a.revolutionAxisId);
+            return !hiddenRevolutionAxisIdSet.has(
+              a.revolutionAxisId ?? a.id
+            );
           if (a.isRevolutionFootprint)
             return !hiddenRevolutionAxisIdSet.has(a.revolutionAxisId);
           return true;

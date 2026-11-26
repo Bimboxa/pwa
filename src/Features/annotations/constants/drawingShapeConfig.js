@@ -687,6 +687,17 @@ export function isLegacyStyleRevolutionHelper(annotation) {
   );
 }
 
+// Axis DRAWN on a vertical base map (REVOLUTION_AXIS_SECTION tool): a
+// REVOLUTION_AXIS_PLACEMENT row with no `revolutionAxisId`. It is its own
+// axis — it stores `radiusM` (half base) + `height` itself instead of reading
+// them from a plan axis, and it never poses its base map in 3D.
+export function isStandaloneRevolutionAxisPlacement(annotation) {
+  return (
+    annotation?.type === "REVOLUTION_AXIS_PLACEMENT" &&
+    !annotation.revolutionAxisId
+  );
+}
+
 // Rows written by the PREVIOUS revolution-axis model are ignored everywhere.
 // Their geometry contract is incompatible with the current one:
 //   - the old REVOLUTION_AXIS was an elevation 2-point line (`points`), whereas

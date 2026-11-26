@@ -29,6 +29,8 @@ import stringifyAnnotationData from "../utils/stringifyAnnotationData";
 import useSelectedAnnotation from "../hooks/useSelectedAnnotation";
 import useUpdateAnnotation from "../hooks/useUpdateAnnotation";
 import useRevolutionAxes from "../hooks/useRevolutionAxes";
+import FieldAnnotationHeight from "./FieldAnnotationHeight";
+import { isStandaloneRevolutionAxisPlacement } from "../constants/drawingShapeConfig";
 import resyncRevolutionAxisPlacementsService from "Features/elevation/services/resyncRevolutionAxisPlacementsService";
 
 const REPOSITION_MODE = "REPOSITION_REVOLUTION_PLACEMENT";
@@ -37,6 +39,10 @@ const REPOSITION_MODE = "REPOSITION_REVOLUTION_PLACEMENT";
 // a VERTICAL base map. Since that drop is what POSES the base map in 3D,
 // "Repositionner" is really "move the base map", and re-linking to another axis
 // re-solves the pose too.
+//
+// An axis DRAWN on the vertical base map (standalone, no linked plan axis —
+// isStandaloneRevolutionAxisPlacement) poses nothing: its toolbar only edits
+// its own half base (radius) and height; it is moved by dragging it.
 export default function ToolbarEditRevolutionAxisPlacement({ onDragStart }) {
   const dispatch = useDispatch();
 
@@ -60,6 +66,7 @@ export default function ToolbarEditRevolutionAxisPlacement({ onDragStart }) {
   const currentAxisId = selectedAnnotation.revolutionAxisId ?? null;
   const linkedAxis = revolutionAxes.find((a) => a.id === currentAxisId);
   const isRepositioning = enabledDrawingMode === REPOSITION_MODE;
+  const isStandalone = isStandaloneRevolutionAxisPlacement(selectedAnnotation);
 
   // handlers
 
@@ -72,6 +79,17 @@ export default function ToolbarEditRevolutionAxisPlacement({ onDragStart }) {
     await resyncRevolutionAxisPlacementsService({
       placementId: selectedAnnotation.id,
       dispatch,
+    });
+  }
+
+  // FieldAnnotationHeight echoes back the WHOLE annotation with one field
+  // replaced: pick the field explicitly. Stored rounded to 6 decimals, like
+  // the drawing commit.
+  async function handleScalarChange(field, next) {
+    const raw = next?.[field] ?? null;
+    await updateAnnotation({
+      id: selectedAnnotation.id,
+      [field]: raw == null ? null : Math.round(raw * 1e6) / 1e6,
     });
   }
 
@@ -110,7 +128,9 @@ export default function ToolbarEditRevolutionAxisPlacement({ onDragStart }) {
           <GripIcon sx={{ fontSize: 16, color: "text.disabled" }} />
           <PlacementIcon sx={{ fontSize: 18, color: accentColor }} />
           <Typography variant="body2" sx={{ fontWeight: 600 }}>
-            {"Position de l'axe"}
+            {isStandalone
+              ? (selectedAnnotation.label ?? "Axe de révolution")
+              : "Position de l'axe"}
           </Typography>
           <Box sx={{ flexGrow: 1 }} />
           <Tooltip title="Copy annotation data" arrow>
@@ -129,86 +149,119 @@ export default function ToolbarEditRevolutionAxisPlacement({ onDragStart }) {
           </Tooltip>
         </Box>
 
-        {/* Row 2 - linked axis */}
-        <Box
-          sx={{
-            display: "flex",
-            alignItems: "center",
-            gap: 1,
-            px: 1.25,
-            py: 0.75,
-            borderTop: "1px solid",
-            borderColor: "divider",
-          }}
-        >
-          <Typography variant="caption" color="text.secondary">
-            Axe lié
-          </Typography>
-          <Chip
-            size="small"
-            variant="outlined"
-            label={linkedAxis?.label ?? "Choisir un axe"}
-            onClick={(e) => setAxisAnchorEl(e.currentTarget)}
-            sx={{ height: 24, fontSize: "0.75rem", cursor: "pointer" }}
-          />
-          <Menu
-            open={Boolean(axisAnchorEl)}
-            anchorEl={axisAnchorEl}
-            onClose={() => setAxisAnchorEl(null)}
+        {/* Standalone axis - its own half base + height */}
+        {isStandalone && (
+          <Box
+            sx={{
+              display: "flex",
+              alignItems: "center",
+              gap: 1,
+              px: 1.25,
+              py: 0.75,
+              borderTop: "1px solid",
+              borderColor: "divider",
+            }}
           >
-            {revolutionAxes.length === 0 && (
-              <MenuItem disabled dense>
-                <ListItemText>Aucun axe (vue en plan)</ListItemText>
-              </MenuItem>
-            )}
-            {revolutionAxes.map((axe) => (
-              <MenuItem
-                key={axe.id}
-                onClick={() => handleSelectAxis(axe.id)}
-                dense
-              >
-                {currentAxisId === axe.id && (
-                  <ListItemIcon>
-                    <Check fontSize="small" />
-                  </ListItemIcon>
-                )}
-                <ListItemText inset={currentAxisId !== axe.id}>
-                  {axe.label ?? "Axe"}
-                </ListItemText>
-              </MenuItem>
-            ))}
-          </Menu>
-        </Box>
+            <FieldAnnotationHeight
+              annotation={selectedAnnotation}
+              field="radiusM"
+              label="rayon"
+              displayDecimals={3}
+              onChange={(next) => handleScalarChange("radiusM", next)}
+            />
+            <FieldAnnotationHeight
+              annotation={selectedAnnotation}
+              field="height"
+              label="ht."
+              onChange={(next) => handleScalarChange("height", next)}
+            />
+          </Box>
+        )}
+
+        {/* Row 2 - linked axis */}
+        {!isStandalone && (
+          <Box
+            sx={{
+              display: "flex",
+              alignItems: "center",
+              gap: 1,
+              px: 1.25,
+              py: 0.75,
+              borderTop: "1px solid",
+              borderColor: "divider",
+            }}
+          >
+            <Typography variant="caption" color="text.secondary">
+              Axe lié
+            </Typography>
+            <Chip
+              size="small"
+              variant="outlined"
+              label={linkedAxis?.label ?? "Choisir un axe"}
+              onClick={(e) => setAxisAnchorEl(e.currentTarget)}
+              sx={{ height: 24, fontSize: "0.75rem", cursor: "pointer" }}
+            />
+            <Menu
+              open={Boolean(axisAnchorEl)}
+              anchorEl={axisAnchorEl}
+              onClose={() => setAxisAnchorEl(null)}
+            >
+              {revolutionAxes.length === 0 && (
+                <MenuItem disabled dense>
+                  <ListItemText>Aucun axe (vue en plan)</ListItemText>
+                </MenuItem>
+              )}
+              {revolutionAxes.map((axe) => (
+                <MenuItem
+                  key={axe.id}
+                  onClick={() => handleSelectAxis(axe.id)}
+                  dense
+                >
+                  {currentAxisId === axe.id && (
+                    <ListItemIcon>
+                      <Check fontSize="small" />
+                    </ListItemIcon>
+                  )}
+                  <ListItemText inset={currentAxisId !== axe.id}>
+                    {axe.label ?? "Axe"}
+                  </ListItemText>
+                </MenuItem>
+              ))}
+            </Menu>
+          </Box>
+        )}
 
         {/* Row 3 - reposition */}
-        <Box
-          sx={{
-            px: 1.25,
-            py: 0.75,
-            borderTop: "1px solid",
-            borderColor: "divider",
-          }}
-        >
-          <Button
-            fullWidth
-            size="small"
-            startIcon={<PlaceIcon />}
-            variant={isRepositioning ? "contained" : "outlined"}
-            onClick={handleToggleReposition}
-            sx={{ textTransform: "none" }}
+        {!isStandalone && (
+          <Box
+            sx={{
+              px: 1.25,
+              py: 0.75,
+              borderTop: "1px solid",
+              borderColor: "divider",
+            }}
           >
-            Repositionner
-          </Button>
-          {isRepositioning && (
-            <Typography
-              variant="caption"
-              color="text.secondary"
-              sx={{ display: "block", mt: 0.5, textAlign: "center" }}
+            <Button
+              fullWidth
+              size="small"
+              startIcon={<PlaceIcon />}
+              variant={isRepositioning ? "contained" : "outlined"}
+              onClick={handleToggleReposition}
+              sx={{ textTransform: "none" }}
             >
-              {"Cliquez sur l'élévation pour déplacer l'axe."}
-            </Typography>
-          )}
-        </Box>
+              Repositionner
+            </Button>
+            {isRepositioning && (
+              <Typography
+                variant="caption"
+                color="text.secondary"
+                sx={{ display: "block", mt: 0.5, textAlign: "center" }}
+              >
+                {"Cliquez sur l'élévation pour déplacer l'axe."}
+              </Typography>
+            )}
+          </Box>
+        )}
       </Paper>
     </Box>
   );

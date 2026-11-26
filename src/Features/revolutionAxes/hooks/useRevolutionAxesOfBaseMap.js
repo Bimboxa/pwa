@@ -5,6 +5,7 @@ import db from "App/db/db";
 import {
   isLegacyRevolutionRecord,
   isRevolutionHelperType,
+  isStandaloneRevolutionAxisPlacement,
 } from "Features/annotations/constants/drawingShapeConfig";
 import isRevolutionHelperInScope, {
   getScopeIdByListingId,
@@ -15,8 +16,9 @@ import getRevolutionAxisIdOfAnnotation from "../utils/getRevolutionAxisIdOfAnnot
 const EMPTY = [];
 
 // Revolution axes of the selected scope that concern a base map: the axes
-// DRAWN on it (plan view) and the axes PLACED on it (vertical base map, via a
-// REVOLUTION_AXIS_PLACEMENT). Read straight from Dexie (not from
+// DRAWN on it (plan view, or standalone on a vertical base map — see
+// isStandaloneRevolutionAxisPlacement) and the axes PLACED on it (vertical
+// base map, via a REVOLUTION_AXIS_PLACEMENT). Read straight from Dexie (not from
 // useAnnotationsV2) so an axis hidden from the views keeps its row — which is
 // where its eye lives.
 //
@@ -65,7 +67,10 @@ export default function useRevolutionAxesOfBaseMap(baseMapId) {
     }
 
     return helpersInScope
-      .filter((a) => a.type === "REVOLUTION_AXIS")
+      .filter(
+        (a) =>
+          a.type === "REVOLUTION_AXIS" || isStandaloneRevolutionAxisPlacement(a)
+      )
       .map((axis) => ({
         axis,
         placements: placementsByAxisId.get(axis.id) ?? [],
