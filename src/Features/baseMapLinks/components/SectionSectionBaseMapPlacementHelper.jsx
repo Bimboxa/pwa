@@ -8,10 +8,12 @@ import {
 
 import {
   Box,
+  Checkbox,
   ListSubheader,
   MenuItem,
   Paper,
   Select,
+  Switch,
   TextField,
   ToggleButton,
   ToggleButtonGroup,
@@ -24,6 +26,7 @@ import {
 } from "@mui/icons-material";
 
 import SectionTransformToolHelper from "Features/annotationTransform/components/SectionTransformToolHelper";
+import FieldNumberCompact from "Features/threedMesh/components/FieldNumberCompact";
 
 import {
   FORMATS,
@@ -36,14 +39,16 @@ import useVerticalBaseMapsByListing from "../hooks/useVerticalBaseMapsByListing"
 
 const SHORTCUTS = [
   { key: "Glisser", label: "Déplacer le fond de plan dans le plan de coupe" },
+  { key: "↑ ↓", label: "Avancer / reculer le plan de coupe (10 cm)" },
+  { key: "Shift + ↑ ↓", label: "Avancer / reculer finement (1 cm)" },
   { key: "Espace", label: "Créer le fond de plan" },
   { key: "Esc", label: "Annuler" },
 ];
-const SHORTCUTS_EXISTING = [
-  SHORTCUTS[0],
-  { key: "Espace", label: "Poser le fond de plan" },
-  SHORTCUTS[2],
-];
+const SHORTCUTS_EXISTING = SHORTCUTS.map((shortcut) =>
+  shortcut.key === "Espace"
+    ? { key: "Espace", label: "Poser le fond de plan" }
+    : shortcut
+);
 
 const FORMAT_ICONS = {
   paysage: LandscapeIcon,
@@ -99,12 +104,25 @@ export default function SectionSectionBaseMapPlacementHelper() {
   const noneS =
     "Aucun fond de plan vertical à l'échelle dans ce plan de repérage";
   const noScaleS = "sans échelle";
+  const offsetS = "Décalage du plan";
+  const previewS = "Aperçu de la coupe";
+  const toleranceS = "Nuage de points ±";
+  const printS = "Imprimer le nuage de points";
 
   // data
 
-  const { mode, name, format, size, scale, existingBaseMapId } = useSelector(
-    selectSectionBaseMapPlacement
-  );
+  const {
+    mode,
+    name,
+    format,
+    size,
+    scale,
+    existingBaseMapId,
+    normalOffsetM,
+    sectionPreview,
+    cloudToleranceM,
+    printPointCloud,
+  } = useSelector(selectSectionBaseMapPlacement);
   const { listings, listing } = useSectionBaseMapListing();
   const { groups } = useVerticalBaseMapsByListing();
 
@@ -112,6 +130,10 @@ export default function SectionSectionBaseMapPlacementHelper() {
 
   const isExisting = mode === SECTION_BASE_MAP_MODES.EXISTING;
   const hasVerticalBaseMaps = groups.some((g) => g.baseMaps.some(hasScale));
+  // Float noise of the cm / m conversions never reaches the fields.
+  const offsetValue = Math.round(normalOffsetM * 1000) / 1000;
+  const toleranceCm = Math.round(cloudToleranceM * 1000) / 10;
+  const usesTolerance = sectionPreview || (printPointCloud && !isExisting);
 
   // handlers
 
@@ -127,6 +149,27 @@ export default function SectionSectionBaseMapPlacementHelper() {
       setParams({ [key]: value });
       e.currentTarget?.blur?.();
     };
+  }
+
+  // A switch / checkbox gives the keyboard back as well.
+  function handleCheck(key) {
+    return (e) => {
+      setParams({ [key]: e.target.checked });
+      e.target.blur();
+    };
+  }
+
+  function handleOffsetText(text) {
+    const trimmed = text.trim().replace(",", ".");
+    const parsed = trimmed === "" ? 0 : Number(trimmed);
+    if (Number.isFinite(parsed)) setParams({ normalOffsetM: parsed });
+  }
+
+  function handleToleranceText(text) {
+    const parsed = Number(text.trim().replace(",", "."));
+    if (Number.isFinite(parsed) && parsed > 0) {
+      setParams({ cloudToleranceM: parsed / 100 });
+    }
   }
 
   // Enter in the name field gives the keyboard back too.
@@ -320,6 +363,60 @@ export default function SectionSectionBaseMapPlacementHelper() {
               {noneS}
             </Typography>
           ))}
+      </Paper>
+
+      <Paper
+        variant="outlined"
+        onKeyDownCapture={handleKeyDownCapture}
+        sx={{
+          px: 1,
+          py: 0.5,
+          borderRadius: 1,
+          bgcolor: "background.paper",
+          display: "flex",
+          flexDirection: "column",
+          minWidth: 320,
+        }}
+      >
+        <Box sx={ROW_SX}>
+          <FieldNumberCompact
+            label={offsetS}
+            value={offsetValue}
+            onChangeText={handleOffsetText}
+            unit="m"
+          />
+        </Box>
+        <Box sx={ROW_SX}>
+          <Typography variant="body2" color="text.secondary" sx={{ pl: 0.5 }}>
+            {previewS}
+          </Typography>
+          <Switch
+            size="small"
+            checked={sectionPreview}
+            onChange={handleCheck("sectionPreview")}
+          />
+        </Box>
+        {!isExisting && (
+          <Box sx={ROW_SX}>
+            <Typography variant="body2" color="text.secondary" sx={{ pl: 0.5 }}>
+              {printS}
+            </Typography>
+            <Checkbox
+              size="small"
+              checked={printPointCloud}
+              onChange={handleCheck("printPointCloud")}
+            />
+          </Box>
+        )}
+        <Box sx={ROW_SX}>
+          <FieldNumberCompact
+            label={toleranceS}
+            value={toleranceCm}
+            onChangeText={handleToleranceText}
+            unit="cm"
+            disabled={!usesTolerance}
+          />
+        </Box>
       </Paper>
     </SectionTransformToolHelper>
   );

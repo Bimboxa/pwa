@@ -436,6 +436,23 @@ No global renderer clipping setting, other mesh or source buffer is modified.
 The boundary diagnostic overlay retains its small tolerance. Picking ignores
 centers outside the active slice. Clipping survives tab changes and is reversible.
 
+## Section page (« + fond de plan » of a section mark)
+
+The placement of a section base map (`baseMapLinks`,
+`useSectionBaseMapPlacement`) reads the displayed scan views from
+`localScanViewRegistry`:
+
+- **Aperçu de la coupe**: `ClippingManager.setSectionPreview` gives the
+  `Points` two opposite clipping planes, so only the slab within the tolerance
+  of the page (± 1 cm by default) is drawn. The Scan 3D tool's own cloud is
+  passed as an extra root. Splats are not clipped.
+- **Imprimer le nuage de points** (blank page, off by default):
+  `printLocalScanSectionService` projects each displayed cloud with
+  `projectLocalScanSlice` in the frame of `getLocalScanSectionFrame` — the page
+  raster, with the signed distance to the page plane as slice axis — and the
+  RGB image replaces the white page. The base map carries no `localScan`: it is
+  a plain image. Splats are not printed.
+
 The project-resource unit test verifies project isolation, Blob round trips,
 placement preservation, missing sources, deleted resources and transaction aborts.
 The development harness now exercises the real right drawer with an independent

@@ -16,7 +16,10 @@ import { toggleBaseMapVisibleIn3d } from "Features/threedEditor/threedEditorSlic
 import { setToaster } from "Features/layout/layoutSlice";
 import {
   SECTION_BASE_MAP_MODES,
+  SECTION_BASE_MAP_NORMAL_FINE_STEP_M,
+  SECTION_BASE_MAP_NORMAL_STEP_M,
   selectSectionBaseMapPlacement,
+  shiftSectionBaseMapNormalOffset,
   stopSectionBaseMapPlacement,
 } from "../sectionBaseMapPlacementSlice";
 
@@ -26,6 +29,10 @@ import useCreateBaseMapFromImage from "Features/baseMaps/hooks/useCreateBaseMapF
 import db from "App/db/db";
 import baseMapNormalizedToWorld from "Features/baseMaps/js/baseMapNormalizedToWorld";
 import getBlankBaseMapGeometry from "Features/baseMaps/utils/getBlankBaseMapGeometry";
+import {
+  getLocalScanViews,
+  isLocalScanViewDisplayed,
+} from "Features/localScans/services/localScanViewRegistry";
 import { getActiveThreedEditor } from "Features/threedEditor/services/threedEditorRegistry";
 import { setMesh3dLabelGestureActive } from "Features/threedMesh/services/mesh3dLabelGestureStore";
 
@@ -48,6 +55,7 @@ const MIN_RAY_PLANE_DOT = 0.05;
 // is re-posed until it is there.
 const GROUP_RETRY_MS = 300;
 const GROUP_RETRY_MAX = 20;
+const CUT_PLANE_MARGIN_M = 0.001;
 
 const liveVersions = (baseMapId) =>
   db.baseMapVersions.where("baseMapId").equals(baseMapId).toArray();
@@ -72,11 +80,18 @@ const isEditableTarget = (target) => {
  *   frame, in the vertical plane through the mark
  *   (computeSectionBaseMapPlacement);
  * - drag and drop on the page slides it in that plane (along the mark and in
- *   altitude) — the plane itself never moves. Camera controls are disabled
- *   for the gesture only; anywhere else the camera stays free;
+ *   altitude). Camera controls are disabled for the gesture only; anywhere
+ *   else the camera stays free;
+ * - ↑ / ↓ (Shift: fine step) move the PLANE along its normal
+ *   (`normalOffsetM`, positive = away from the observer). The mark itself
+ *   only moves on validation;
+ * - « Aperçu de la coupe » (`sectionPreview`): the scene is cut at the page
+ *   (ClippingManager.setSectionPreview) — what stands in front is removed,
+ *   and a point cloud only keeps its slab within `cloudToleranceM`;
  * - Space / Enter (outside a field) validate: createSectionBaseMapService
- *   creates the page, locates the mark on it and poses it, then the new base
- *   map is selected. Escape cancels.
+ *   moves the mark, creates the page (the cloud slab printed on it with
+ *   `printPointCloud`), locates the mark on it and poses it, then the new
+ *   base map is selected. Escape cancels.
  *
  * Pointer ownership mirrors useRevolutionAxisHandleDragHandlers:
  * capture-phase pointerdown on the canvas, mesh3dLabelGestureStore flag so
@@ -91,6 +106,9 @@ export default function useSectionBaseMapPlacement({ rendererIsReady }) {
   const nameRequiredS = "Donnez un nom au fond de plan";
   const pickBaseMapS = "Choisissez un fond de plan vertical";
   const failedS = "Le fond de plan n'a pas pu être créé";
+  const noCloudS = "Aucun nuage de points affiché à imprimer";
+  const noCloudPointS =
+    "Aucun point du nuage dans la tranche : page blanche créée";
 
   // data
 
@@ -103,6 +121,10 @@ export default function useSectionBaseMapPlacement({ rendererIsReady }) {
     size,
     scale,
     existingBaseMapId,
+    normalOffsetM,
+    sectionPreview,
+    cloudToleranceM,
+    printPointCloud,
   } = useSelector(selectSectionBaseMapPlacement);
   const projectId = useSelector((s) => s.projects.selectedProjectId);
   const scopeId = useSelector((s) => s.scopes.selectedScopeId);
@@ -193,8 +215,16 @@ export default function useSectionBaseMapPlacement({ rendererIsReady }) {
     existingBaseMapId,
     projectId,
     scopeId,
+    normalOffsetM,
+    cloudToleranceM,
+    printPointCloud,
     ready: Boolean(anchors && pageSpec),
   };
+  // Live options of the preview, read by refresh() without re-running the
+  // preview effect (the frame is not rebuilt per keystroke).
+  const liveRef = useRef(null);
+  liveRef.current = { normalOffsetM, sectionPreview, cloudToleranceM };
+  const refreshRef = useRef(null);
   const createBaseMapFromImageRef = useRef(createBaseMapFromImage);
   createBaseMapFromImageRef.current = createBaseMapFromImage;
   const createAnnotationRef = useRef(createAnnotation);
@@ -237,6 +267,62 @@ export default function useSectionBaseMapPlacement({ rendererIsReady }) {
     let retryTimer = null;
     let retries = 0;
 
+    // The section plane: through the mark, moved along its normal by ↑ / ↓
+    // (refresh re-anchors it).
+    const length = Math.hypot(B.x - A.x, B.z - A.z);
+    const u = new Vector3((B.x - A.x) / length, 0, (B.z - A.z) / length);
+    const planeNormal = new Vector3(-u.z, 0, u.x);
+    const plane = new Plane().setFromNormalAndCoplanarPoint(
+      planeNormal,
+      new Vector3(A.x, A.y, A.z)
+    );
+
+    // « Aperçu de la coupe »: planes owned here, mutated in place. Three.js
+    // keeps n·p + c ≥ 0 — `cutPlane` keeps what stands behind the page
+    // (viewing side), the two `slab` planes keep the cloud within the
+    // tolerance of the page.
+    const clippingManager = sceneManager.clippingManager;
+    const cutPlane = new Plane();
+    const slabPlanes = [new Plane(), new Plane()];
+    const viewDir = new Vector3();
+    const onPlane = new Vector3();
+    let sectionPreviewOn = false;
+
+    function syncSectionPreview(placement) {
+      if (!clippingManager?.setSectionPreview) return;
+      const live = liveRef.current;
+      if (!live.sectionPreview) {
+        if (sectionPreviewOn) clippingManager.setSectionPreview(null);
+        sectionPreviewOn = false;
+        return;
+      }
+      const tolerance = live.cloudToleranceM > 0 ? live.cloudToleranceM : 0.01;
+      viewDir.set(placement.viewDir.x, 0, placement.viewDir.z);
+      onPlane.set(
+        placement.anchors.A.x,
+        placement.anchors.A.y,
+        placement.anchors.A.z
+      );
+      cutPlane.setFromNormalAndCoplanarPoint(viewDir, onPlane);
+      // What lies exactly in the page plane (an existing base map posed
+      // there) stays on the kept side.
+      cutPlane.constant += CUT_PLANE_MARGIN_M;
+      slabPlanes[0].setFromNormalAndCoplanarPoint(viewDir, onPlane);
+      slabPlanes[0].constant += tolerance;
+      slabPlanes[1].setFromNormalAndCoplanarPoint(viewDir.negate(), onPlane);
+      slabPlanes[1].constant += tolerance;
+      if (sectionPreviewOn) return;
+      sectionPreviewOn = true;
+      clippingManager.setSectionPreview({
+        plane: cutPlane,
+        cloudPlanes: slabPlanes,
+        // the Scan 3D tool's own cloud lives outside the base map groups
+        extraRoots: getLocalScanViews()
+          .filter((view) => view.root?.parent === scene)
+          .map((view) => view.root),
+      });
+    }
+
     function refresh() {
       const placement = computeSectionBaseMapPlacement({
         A,
@@ -244,10 +330,24 @@ export default function useSectionBaseMapPlacement({ rendererIsReady }) {
         size: pageSpec.size,
         meterByPx: pageSpec.meterByPx,
         ...getSectionBaseMapOffsets(),
+        normalM: liveRef.current.normalOffsetM,
       });
       if (!placement) return;
       setSectionBaseMapPlacement(placement);
-      preview.update({ placement, veil: Boolean(posedBaseMapId) });
+      plane.setFromNormalAndCoplanarPoint(
+        planeNormal,
+        onPlane.set(
+          placement.anchors.A.x,
+          placement.anchors.A.y,
+          placement.anchors.A.z
+        )
+      );
+      syncSectionPreview(placement);
+      // The white sheet would hide the cut: a veil while it is previewed.
+      preview.update({
+        placement,
+        veil: Boolean(posedBaseMapId) || liveRef.current.sectionPreview,
+      });
       if (posedBaseMapId) {
         const group = sceneManager.imagesManager?.getGroup(posedBaseMapId);
         if (group) {
@@ -268,16 +368,11 @@ export default function useSectionBaseMapPlacement({ rendererIsReady }) {
       editor.renderScene?.();
     }
     refresh();
+    refreshRef.current = refresh;
     preview.startBlink(() => editor.renderScene?.());
 
     // --- drag in the section plane ---
 
-    const length = Math.hypot(B.x - A.x, B.z - A.z);
-    const u = new Vector3((B.x - A.x) / length, 0, (B.z - A.z) / length);
-    const plane = new Plane().setFromNormalAndCoplanarPoint(
-      new Vector3(-u.z, 0, u.x),
-      new Vector3(A.x, A.y, A.z)
-    );
     const raycaster = new Raycaster();
     const ndc = new Vector2();
     let drag = null;
@@ -370,6 +465,8 @@ export default function useSectionBaseMapPlacement({ rendererIsReady }) {
       endDrag();
       dom.style.cursor = "";
       if (retryTimer) clearTimeout(retryTimer);
+      refreshRef.current = null;
+      if (sectionPreviewOn) clippingManager.setSectionPreview(null);
       preview.dispose();
       setSectionBaseMapPlacement(null);
       // The posed group goes back to its stored pose — after a validation
@@ -384,6 +481,12 @@ export default function useSectionBaseMapPlacement({ rendererIsReady }) {
       }
     };
   }, [active, rendererIsReady, anchors, pageSpec]);
+
+  // effects — live options (↑ / ↓ offset, section preview, tolerance)
+
+  useEffect(() => {
+    if (active) refreshRef.current?.();
+  }, [active, normalOffsetM, sectionPreview, cloudToleranceM]);
 
   // effects — keys
 
@@ -407,6 +510,35 @@ export default function useSectionBaseMapPlacement({ rendererIsReady }) {
         dispatch(setToaster({ message: nameRequiredS, severity: "warning" }));
         return;
       }
+      // Point clouds to print on a new page: the ones displayed in 3D.
+      let cloudPrint = null;
+      if (
+        params.printPointCloud &&
+        params.mode !== SECTION_BASE_MAP_MODES.EXISTING
+      ) {
+        const scene = getActiveThreedEditor()?.sceneManager?.scene;
+        const clouds = getLocalScanViews()
+          .filter(
+            (view) =>
+              view.data?.positions && isLocalScanViewDisplayed(view, scene)
+          )
+          .map((view) => {
+            view.root.updateWorldMatrix(true, false);
+            return {
+              data: view.data,
+              matrixWorld: view.root.matrixWorld.clone(),
+            };
+          });
+        if (!clouds.length) {
+          dispatch(setToaster({ message: noCloudS, severity: "warning" }));
+          return;
+        }
+        cloudPrint = {
+          clouds,
+          toleranceM:
+            params.cloudToleranceM > 0 ? params.cloudToleranceM : 0.01,
+        };
+      }
       committingRef.current = true;
       try {
         const created = await createSectionBaseMapService({
@@ -415,6 +547,13 @@ export default function useSectionBaseMapPlacement({ rendererIsReady }) {
           blank: params.blank,
           existingBaseMapId: params.existingBaseMapId,
           cloneNorm: placement.cloneNorm,
+          // the mark follows the page moved along the normal (↑ / ↓)
+          sourceAnchorsWorld: params.normalOffsetM ? placement.anchors : null,
+          pagePose: {
+            position: placement.position,
+            angleDeg: placement.angleDeg,
+          },
+          cloudPrint,
           projectId: params.projectId,
           scopeId: params.scopeId,
           createBaseMapFromImageFn: createBaseMapFromImageRef.current,
@@ -424,6 +563,9 @@ export default function useSectionBaseMapPlacement({ rendererIsReady }) {
         if (!created) {
           dispatch(setToaster({ message: failedS, severity: "error" }));
           return;
+        }
+        if (created.printedPointCount === 0) {
+          dispatch(setToaster({ message: noCloudPointS, severity: "info" }));
         }
         // The new base map becomes the main one, selected like a base map
         // just created from the Fonds de plan panel.
@@ -453,11 +595,24 @@ export default function useSectionBaseMapPlacement({ rendererIsReady }) {
     }
 
     function onKeyDown(e) {
-      if (e.key !== "Escape" && e.key !== " " && e.key !== "Enter") return;
+      const isArrow = e.key === "ArrowUp" || e.key === "ArrowDown";
+      if (e.key !== "Escape" && e.key !== " " && e.key !== "Enter" && !isArrow)
+        return;
       // A field / an open menu of the helper keeps its keys.
       if (isEditableTarget(e.target)) return;
+      if (isArrow && (e.ctrlKey || e.metaKey || e.altKey)) return;
       e.preventDefault();
       e.stopImmediatePropagation();
+      if (isArrow) {
+        // ↑ forward (away from the observer), ↓ backward; Shift = fine step.
+        const step = e.shiftKey
+          ? SECTION_BASE_MAP_NORMAL_FINE_STEP_M
+          : SECTION_BASE_MAP_NORMAL_STEP_M;
+        dispatch(
+          shiftSectionBaseMapNormalOffset(e.key === "ArrowUp" ? step : -step)
+        );
+        return;
+      }
       if (e.key === "Escape") {
         dispatch(stopSectionBaseMapPlacement());
         return;

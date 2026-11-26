@@ -4,7 +4,9 @@ import { createSlice } from "@reduxjs/toolkit";
 // vertical page — a new blank page ("BLANK") or an existing vertical base
 // map ("EXISTING") — is previewed in the 3D editor inside a fluo green
 // frame, slid by drag and drop in the vertical plane of the mark, and
-// created / posed on Space (useSectionBaseMapPlacement).
+// created / posed on Space (useSectionBaseMapPlacement). ↑ / ↓ move the
+// section plane along its normal, a switch previews the cut in 3D and a
+// checkbox prints the point clouds cut by a new page on it.
 //
 // Redux holds the parameters shown in the drawing helper; the live pose of
 // the drag lives in sectionBaseMapPlacementStore (no render per move).
@@ -24,7 +26,20 @@ const initialState = {
   listingId: null,
   // existing vertical base map
   existingBaseMapId: null,
+  // shift of the page (and, once validated, of the mark) along the normal
+  // of the section plane, in metres — positive = in the viewing direction,
+  // away from the observer (↑ / ↓ keys)
+  normalOffsetM: 0,
+  // the 3D scene is cut at the page (ClippingManager.setSectionPreview)
+  sectionPreview: false,
+  // half thickness of the point cloud slab shown / printed around the page
+  cloudToleranceM: 0.01,
+  // blank page only: the cloud slab becomes the image of the base map
+  printPointCloud: false,
 };
+
+export const SECTION_BASE_MAP_NORMAL_STEP_M = 0.1;
+export const SECTION_BASE_MAP_NORMAL_FINE_STEP_M = 0.01;
 
 const sectionBaseMapPlacementSlice = createSlice({
   name: "sectionBaseMapPlacement",
@@ -33,8 +48,11 @@ const sectionBaseMapPlacementSlice = createSlice({
     startSectionBaseMapPlacement(state, action) {
       const { sourceAnnotationId, name } = action.payload ?? {};
       if (!sourceAnnotationId) return;
-      // format / size / scale / folder: kept from the previous run
+      // format / size / scale / folder / cloud options: kept from the
+      // previous run
       state.active = true;
+      state.normalOffsetM = 0;
+      state.sectionPreview = false;
       state.sourceAnnotationId = sourceAnnotationId;
       state.mode = SECTION_BASE_MAP_MODES.BLANK;
       state.name = name ?? "";
@@ -55,9 +73,21 @@ const sectionBaseMapPlacementSlice = createSlice({
         "scale",
         "listingId",
         "existingBaseMapId",
+        "normalOffsetM",
+        "sectionPreview",
+        "cloudToleranceM",
+        "printPointCloud",
       ].forEach((key) => {
         if (params[key] !== undefined) state[key] = params[key];
       });
+    },
+    // ↑ / ↓: one step along the normal of the section plane (mm rounding,
+    // so repeated steps never drift).
+    shiftSectionBaseMapNormalOffset(state, action) {
+      const delta = Number(action.payload);
+      if (!state.active || !Number.isFinite(delta)) return;
+      state.normalOffsetM =
+        Math.round((state.normalOffsetM + delta) * 1000) / 1000;
     },
   },
   extraReducers: (builder) => {
@@ -90,6 +120,7 @@ export const {
   startSectionBaseMapPlacement,
   stopSectionBaseMapPlacement,
   setSectionBaseMapPlacementParams,
+  shiftSectionBaseMapNormalOffset,
 } = sectionBaseMapPlacementSlice.actions;
 
 export const selectSectionBaseMapPlacement = (s) => s.sectionBaseMapPlacement;
