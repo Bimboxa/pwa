@@ -11,6 +11,7 @@ import { setFaceHoverClippingPlanes } from "Features/threedEditor/js/utilsAnnota
 import { getLocalScanViews } from "Features/localScans/services/localScanViewRegistry";
 
 import getBaseMapClipSlabPlanes from "../utils/getBaseMapClipSlabPlanes";
+import { setBaseMapClipPlaneEntries } from "../services/baseMapClipPlanesStore";
 
 // Mirrors the base maps used as clipping planes
 // (threedEditor.clippingBaseMapIdsIn3d) to the 3D scene: the slab planes of
@@ -44,6 +45,7 @@ export default function useApplyBaseMapClippingIn3d({ rendererIsReady }) {
 
     if (!clippingBaseMapIds?.length) {
       clippingManager.setBaseMapClips(null);
+      setBaseMapClipPlaneEntries(null);
       syncHighlights();
       return;
     }
@@ -52,14 +54,27 @@ export default function useApplyBaseMapClippingIn3d({ rendererIsReady }) {
     (async () => {
       const records = await db.baseMaps.bulkGet(clippingBaseMapIds);
       if (cancelled) return;
-      const planes = records
+      const planes = [];
+      // published for the live preview of a clip box handle drag
+      const entries = new Map();
+      records
         // the cut only exists while the feature is enabled on the base map
         .filter((record) => record?.clipping3d?.enabled)
-        .flatMap((record) => getBaseMapClipSlabPlanes(record))
-        .map(
-          ({ normal, constant }) =>
-            new Plane(new Vector3(normal.x, normal.y, normal.z), constant)
-        );
+        .forEach((record) => {
+          const bySide = { front: null, back: null };
+          getBaseMapClipSlabPlanes(record).forEach(
+            ({ side, normal, constant }) => {
+              const plane = new Plane(
+                new Vector3(normal.x, normal.y, normal.z),
+                constant
+              );
+              bySide[side] = plane;
+              planes.push(plane);
+            }
+          );
+          entries.set(record.id, { record, planes: bySide });
+        });
+      setBaseMapClipPlaneEntries(entries);
       clippingManager.setBaseMapClips({
         planes,
         // the Scan 3D tool's own cloud lives outside the base map groups
@@ -81,6 +96,9 @@ export default function useApplyBaseMapClippingIn3d({ rendererIsReady }) {
     if (!rendererIsReady) return;
     const clippingManager =
       getActiveThreedEditor()?.sceneManager?.clippingManager;
-    return () => clippingManager?.setBaseMapClips?.(null);
+    return () => {
+      clippingManager?.setBaseMapClips?.(null);
+      setBaseMapClipPlaneEntries(null);
+    };
   }, [rendererIsReady]);
 }

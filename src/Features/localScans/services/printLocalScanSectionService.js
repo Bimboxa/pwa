@@ -9,22 +9,28 @@ import sliceImageFile from "../utils/sliceImageFile";
 //
 // clouds: [{data: {positions, colors}, matrixWorld: Matrix4}] (the scan
 // views displayed in the 3D scene); page: {position, angleDeg, orientation,
-// width, height (px), meterByPx}.
+// width, height (px), meterByPx}. `range` ({lower, upper}, signed distances
+// to the page plane) replaces the symmetric tolerance: a layer in front of
+// or behind the page.
 // → {file (PNG), pointCount}, or null when no point falls in the slab.
 export default async function printLocalScanSectionService({
   clouds,
   page,
   toleranceM,
+  range = null,
   name = "coupe",
 }) {
-  if (!clouds?.length || !(toleranceM > 0)) return null;
+  const lower = range ? range.lower : -toleranceM;
+  const upper = range ? range.upper : toleranceM;
+  if (!clouds?.length || !(lower <= upper) || (!range && !(toleranceM > 0)))
+    return null;
   let merged = null;
   // One cloud at a time: each job clones its positions into a worker.
   for (const cloud of clouds) {
     const result = await projectLocalScanInWorker(cloud.data, {
       frame: getLocalScanSectionFrame(cloud.matrixWorld, page),
-      lower: -toleranceM,
-      upper: toleranceM,
+      lower,
+      upper,
     });
     if (!result?.pointCount) continue;
     if (!merged) {

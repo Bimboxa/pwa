@@ -186,6 +186,10 @@ const threedEditorInitialState = {
   // annotations and the point clouds are cut to the slab of each of them
   // (depths: baseMap.clipping3d). Session-only, like the 3D opacity.
   clippingBaseMapIdsIn3d: [],
+  // Base maps whose clip box is drawn in the 3D scene (« Afficher la boîte
+  // de coupe » of the panel): the two faces of the slab and their drag
+  // handles. Session-only.
+  clipBoxBaseMapIdsIn3d: [],
   // Per-base-map annotation display mode in the 3D scene, keyed by baseMapId.
   // Value "NORMAL" | "DIMMED"; a missing key means "NONE" (no annotations).
   // Independent from `visibleBaseMapIdsIn3d` (the image-eye toggle): a base
@@ -646,6 +650,13 @@ export const threedEditorSlice = createSlice({
       const i = state.clippingBaseMapIdsIn3d.indexOf(baseMapId);
       if (on && i === -1) state.clippingBaseMapIdsIn3d.push(baseMapId);
       if (!on && i !== -1) state.clippingBaseMapIdsIn3d.splice(i, 1);
+    },
+    // { baseMapId, shown }
+    setBaseMapClipBoxShownIn3d: (state, action) => {
+      const { baseMapId, shown } = action.payload;
+      const i = state.clipBoxBaseMapIdsIn3d.indexOf(baseMapId);
+      if (shown && i === -1) state.clipBoxBaseMapIdsIn3d.push(baseMapId);
+      if (!shown && i !== -1) state.clipBoxBaseMapIdsIn3d.splice(i, 1);
     },
     setVisibleBaseMapIdsIn3d: (state, action) => {
       state.visibleBaseMapIdsIn3d = action.payload ?? [];
@@ -1541,6 +1552,7 @@ export const threedEditorSlice = createSlice({
         const saved = getInitScopeVisibility(action.payload)?.threed;
         state.visibleBaseMapIdsIn3d = saved?.visibleBaseMapIdsIn3d ?? [];
         state.clippingBaseMapIdsIn3d = [];
+        state.clipBoxBaseMapIdsIn3d = [];
         state.hiddenScene3dBaseMapIdsIn3d =
           saved?.hiddenScene3dBaseMapIdsIn3d ?? [];
         state.annotationsModeByBaseMapIdIn3d =
@@ -1596,6 +1608,7 @@ export const {
   toggleBaseMapVisibleIn3d,
   toggleBaseMapClippingIn3d,
   setBaseMapClippingIn3d,
+  setBaseMapClipBoxShownIn3d,
   setVisibleBaseMapIdsIn3d,
   toggleScene3dHiddenIn3d,
   setHiddenScene3dBaseMapIdsIn3d,
