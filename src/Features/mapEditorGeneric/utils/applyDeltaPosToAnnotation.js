@@ -5,6 +5,8 @@ import {
     getImagePinnedBbox,
     isImageDetached,
 } from "Features/imageAnnotations/utils/imageConnector";
+import getRectangleSizeLocks from "Features/rectangles/utils/getRectangleSizeLocks";
+import resizeRectangleBbox from "Features/rectangles/utils/resizeRectangleBbox";
 
 // Fold an angle into (-180, 180].
 const normalizeDeg = (deg) => {
@@ -132,59 +134,27 @@ export default function applyDeltaPosToAnnotation(annotation, deltaPos, partType
         const currentBBox = _annotation.bbox || { x: 0, y: 0, width: 100, height: 100 };
         const currentRotation = _annotation.rotation || 0;
 
-        // Contraintes template
-        const templateSize = _annotation.annotationTemplateProps?.size;
-        const lockedWidth = templateSize?.width != null;
-        const lockedHeight = templateSize?.height != null;
+        // Dimensions locked by the template (per-dimension padlocks)
+        const { lockedWidth, lockedHeight } = getRectangleSizeLocks(
+            _annotation.annotationTemplateProps
+        );
 
         if (partType === "ROTATE") {
             _annotation.rotation = (currentRotation + deltaPos.x) % 360;
         }
 
         else if (partType && partType.startsWith("RESIZE_")) {
-            const handle = partType.replace("RESIZE_", "");
-
-            let nx = currentBBox.x;
-            let ny = currentBBox.y;
-            let nw = currentBBox.width;
-            let nh = currentBBox.height;
-
-            // Appliquer les deltas librement par dimension
-            const dx = lockedWidth ? 0 : deltaPos.x;
-            const dy = lockedHeight ? 0 : deltaPos.y;
-
-            if (handle === "SE") {
-                nw = currentBBox.width + dx;
-                nh = currentBBox.height + dy;
-            }
-            else if (handle === "SW") {
-                nw = currentBBox.width - dx;
-                nh = currentBBox.height + dy;
-                nx = currentBBox.x + dx;
-            }
-            else if (handle === "NE") {
-                nw = currentBBox.width + dx;
-                nh = currentBBox.height - dy;
-                ny = currentBBox.y + dy;
-            }
-            else if (handle === "NW") {
-                nw = currentBBox.width - dx;
-                nh = currentBBox.height - dy;
-                nx = currentBBox.x + dx;
-                ny = currentBBox.y + dy;
-            }
-
-            // Sécurité min 20px
-            if (nw < 20) {
-                nw = 20;
-                if (handle.includes("W")) nx = currentBBox.x + (currentBBox.width - 20);
-            }
-            if (nh < 20) {
-                nh = 20;
-                if (handle.includes("N")) ny = currentBBox.y + (currentBBox.height - 20);
-            }
-
-            _annotation.bbox = { x: nx, y: ny, width: nw, height: nh };
+            // The delta is read in the rectangle's own frame, the opposite
+            // corner stays put, a locked dimension ignores it (same helper
+            // as the commit in MainMapEditorV3).
+            _annotation.bbox = resizeRectangleBbox({
+                bbox: currentBBox,
+                rotation: currentRotation,
+                handle: partType.replace("RESIZE_", ""),
+                deltaPos,
+                lockedWidth,
+                lockedHeight,
+            });
         }
 
         else {

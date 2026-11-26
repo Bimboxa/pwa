@@ -1,3 +1,5 @@
+import applyRectangleLockedSize from "Features/rectangles/utils/applyRectangleLockedSize";
+
 export default function getAnnotationPropsFromAnnotationTemplateProps(annotation, annotationTemplateProps, baseMap) {
     // 1. On crée une copie superficielle (shallow copy) de l'annotation de base
     // pour ne pas muter l'objet original.
@@ -59,7 +61,18 @@ export default function getAnnotationPropsFromAnnotationTemplateProps(annotation
         result.sizeUnit = annotationTemplateProps.sizeUnit;
     }
 
-    if (sizeAllowed && annotationTemplateProps.size) {
+    if (annotation?.type === "RECTANGLE") {
+        // RECTANGLE: per-dimension padlocks (getRectangleSizeLocks). Only a
+        // locked dimension is driven by the template, around the centre of
+        // the stored bbox.
+        if (annotation.bbox) {
+            result.bbox = applyRectangleLockedSize({
+                bbox: annotation.bbox,
+                templateProps: annotationTemplateProps,
+                meterByPx: baseMap?.getMeterByPx?.(),
+            });
+        }
+    } else if (sizeAllowed && annotationTemplateProps.size) {
         const { width, height } = annotationTemplateProps.size;
         const sizeUnit = annotationTemplateProps.sizeUnit;
 

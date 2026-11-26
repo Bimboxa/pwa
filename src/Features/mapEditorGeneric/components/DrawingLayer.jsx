@@ -41,6 +41,12 @@ import getStrokeDasharray from "Features/mapEditorGeneric/utils/getStrokeDasharr
 import useMapZoom from "Features/mapEditorGeneric/hooks/useMapZoom";
 import { getBlockDefId } from "Features/blocks/js/blockDefinitionsStore";
 import { getBlockInstanceTransform } from "Features/blocks/utils/blockInstanceGeometry";
+import getRectangleSizeInPx from "Features/rectangles/utils/getRectangleSizeInPx";
+import {
+  getRectangleDraftConstraints,
+  getRectangleFromTwoPoints,
+  getRectanglePlacementRotation,
+} from "Features/rectangles/utils/rectanglePlacement";
 
 // Number of samples per arc segment — mirrors NodePolylineStatic so the live
 // preview matches the committed render.
@@ -131,6 +137,10 @@ const DrawingLayer = forwardRef(
       // radius / height the inverted T takes (the armed draft, or the
       // selected placement being repositioned). null = no ghost.
       revolutionPlacementGhostSource = null,
+      // RECTANGLE placement: ref of the rotation typed with the arrow keys
+      // (degrees, clockwise), added to the drawing frame
+      // (rectanglePlacement.js).
+      rectanglePlacementRotationRef = null,
     },
     ref
   ) => {
@@ -153,6 +163,7 @@ const DrawingLayer = forwardRef(
     const previewBlockInstanceRef = useRef(null); // block instance ghost
     const previewObject3DRef = useRef(null); // OBJECT_3D top-view ghost under the cursor
     const previewImageRef = useRef(null); // IMAGE ghost under the cursor
+    const previewRectangleGhostRef = useRef(null); // RECTANGLE ghost under the cursor
     // Revolution axis preview — mirrors the NodeRevolutionAxisStatic glyph
     // (orange half-arc + black half-arc + diameter + centre dot).
     const previewRevAxisGroupRef = useRef(null);
@@ -247,6 +258,10 @@ const DrawingLayer = forwardRef(
     // Détection des types
     // DISC previews like a filled circle too (its stroke is the fill colour).
     const isPolygon = type === "POLYGON" || type === "DISC";
+    // RECTANGLE annotation (rigid bbox + rotation): filled like a polygon,
+    // placed in one click (ghost) or with the 2-click rectangle tool.
+    const isRectangleAnnotation = type === "RECTANGLE";
+    const isFillShape = isPolygon || isRectangleAnnotation;
 
     // --- STYLE DE TRAIT (preview) ---
     // POLYLINE / segment previews mirror the annotation's stroke (width,
@@ -303,7 +318,7 @@ const DrawingLayer = forwardRef(
     // Mirror NodePolylineStatic: for POLYGON the visible stroke matches the
     // fillColor, so the live drawing preview must do the same — otherwise the
     // contour color jumps the moment the user finalizes the shape.
-    const effectiveStrokeColor = isPolygon ? fillColor : strokeColor;
+    const effectiveStrokeColor = isFillShape ? fillColor : strokeColor;
     const isStrip = type === "STRIP";
     const isLinearLayout = type === "LINEAR_LAYOUT";
     // RAMP draws a POLYGON (type === "POLYGON") but previews a band centered on
@@ -374,6 +389,15 @@ const DrawingLayer = forwardRef(
     // (getImageAnnotationSizeInBaseMapPx). Fresh picks carry a blob: URL, drafts
     // armed from a template only the persisted thumbnail (dataURL).
     const drawImage = enabledDrawingMode === "ONE_CLICK" && type === "IMAGE";
+    // RECTANGLE placement: the rectangle follows the cursor (centred) at the
+    // template dimensions, rotated by the drawing frame + the arrow keys.
+    const drawRectangleGhost =
+      enabledDrawingMode === "ONE_CLICK" && isRectangleAnnotation;
+    const getRectangleRotation = () =>
+      getRectanglePlacementRotation(
+        orthoSnapAngleOffsetRef.current,
+        rectanglePlacementRotationRef?.current
+      );
     const imageGhostUrl =
       newAnnotation?.image?.imageUrlClient ?? newAnnotation?.image?.thumbnail;
 
@@ -425,6 +449,32 @@ const DrawingLayer = forwardRef(
             previewObject3DRef.current.style.display = "block";
           } else {
             previewObject3DRef.current.style.display = "none";
+          }
+          return;
+        }
+
+        // RECTANGLE: the rectangle centred on the cursor, at the template
+        // dimensions and the placement rotation.
+        if (drawRectangleGhost && previewRectangleGhostRef.current) {
+          const na = newAnnotationRef.current || {};
+          const sizePx = getRectangleSizeInPx({
+            size: na.size,
+            sizeUnit: na.sizeUnit,
+            meterByPx: meterByPxRef.current,
+          });
+          const ghost = previewRectangleGhostRef.current;
+          if (sizePx.width !== null && sizePx.height !== null) {
+            ghost.setAttribute("x", cursorPos.x - sizePx.width / 2);
+            ghost.setAttribute("y", cursorPos.y - sizePx.height / 2);
+            ghost.setAttribute("width", sizePx.width);
+            ghost.setAttribute("height", sizePx.height);
+            ghost.setAttribute(
+              "transform",
+              `rotate(${getRectangleRotation()}, ${cursorPos.x}, ${cursorPos.y})`
+            );
+            ghost.style.display = "block";
+          } else {
+            ghost.style.display = "none";
           }
           return;
         }
@@ -548,7 +598,22 @@ const DrawingLayer = forwardRef(
           let B;
           let C;
           let D;
-          if (angle === 0) {
+          if (isRectangleAnnotation) {
+            // RECTANGLE annotation: sides along the placement rotation, a
+            // locked / typed dimension keeps its length and flips with the
+            // quadrant of the cursor.
+            const rectangle = getRectangleFromTwoPoints({
+              p1: lastPoint,
+              p2: cursorPos,
+              rotation: getRectangleRotation(),
+              ...getRectangleDraftConstraints({
+                newAnnotation: newAnnotationRef.current,
+                meterByPx: mbp,
+                metrics,
+              }),
+            });
+            [A, B, C, D] = rectangle.corners;
+          } else if (angle === 0) {
             // Axis-aligned rectangle (original behavior)
             const cx = forcedDx != null ? lastPoint.x + forcedDx : cursorPos.x;
             const cy = forcedDy != null ? lastPoint.y + forcedDy : cursorPos.y;
@@ -1180,6 +1245,8 @@ const DrawingLayer = forwardRef(
           previewLinearLayoutTicksRef.current.style.display = "none";
         if (previewObject3DRef.current)
           previewObject3DRef.current.style.display = "none";
+        if (previewRectangleGhostRef.current)
+          previewRectangleGhostRef.current.style.display = "none";
         if (previewRampRef.current)
           previewRampRef.current.style.display = "none";
         if (previewCoteGroupRef.current)
@@ -1265,6 +1332,20 @@ const DrawingLayer = forwardRef(
           />
         )}
 
+        {/* A000-bis. RECTANGLE ghost — the rectangle under the cursor, at the
+            template dimensions and the placement rotation. */}
+        {drawRectangleGhost && (
+          <rect
+            ref={previewRectangleGhostRef}
+            fill={fillColor || "rgba(92, 92, 236, 0.3)"}
+            fillOpacity={0.6}
+            stroke={fillColor || "#2196f3"}
+            strokeWidth={1}
+            vectorEffect="non-scaling-stroke"
+            style={{ display: "none", pointerEvents: "none" }}
+          />
+        )}
+
         {/* A0. Strip band — dynamic preview (all points + cursor) */}
         {isStrip && (
           <path
@@ -1332,7 +1413,9 @@ const DrawingLayer = forwardRef(
               ref={previewRectRef}
               fill="none"
               {...(!isSelectionRectMode &&
-                isPolygon && { fill: fillColor || "rgba(92, 92, 236, 0.1)" })}
+                isFillShape && {
+                  fill: fillColor || "rgba(92, 92, 236, 0.1)",
+                })}
               fillOpacity={newAnnotation?.fillOpacity ?? 0.8}
               stroke={
                 isSelectionRectMode

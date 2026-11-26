@@ -1,6 +1,8 @@
 import { memo, useMemo, useRef } from "react";
 import theme from "Styles/theme";
 
+import getRectangleSizeLocks from "Features/rectangles/utils/getRectangleSizeLocks";
+
 // Taille des poignées (pixels écran fixes)
 const HANDLE_SIZE = 10;
 const HALF_HANDLE = HANDLE_SIZE / 2;
@@ -11,16 +13,20 @@ export default memo(function NodeRectangleStatic({
     hovered,
     selected,
     dragged,
+    draggedPartType,
     containerK = 1,
 }) {
     const { bbox, id, fillColor, strokeColor, rotation = 0, fillType = "SOLID", fillOpacity = 1 } = annotation;
     const { x, y, width, height } = bbox ?? {};
 
-    // Contraintes template : dimensions verrouillées par le annotationTemplate
-    const templateSize = annotation.annotationTemplateProps?.size;
-    const lockedWidth = templateSize?.width != null;
-    const lockedHeight = templateSize?.height != null;
-    const resizeLocked = lockedWidth || lockedHeight; // Les coins touchent les 2 dims → grisés si au moins une est contrainte
+    // Template padlocks (one per dimension, see getRectangleSizeLocks). The
+    // corner handles stay as long as one dimension is free — the resize
+    // ignores the locked one — and disappear when both are locked: the
+    // rectangle is then rigid (move + rotate only).
+    const { lockedWidth, lockedHeight } = getRectangleSizeLocks(
+        annotation.annotationTemplateProps
+    );
+    const resizeLocked = lockedWidth && lockedHeight;
 
     // Pattern Id unique
     const patternIdRef = useRef(`hatching-${Math.random().toString(36).substr(2, 9)}`);
@@ -121,6 +127,31 @@ export default memo(function NodeRectangleStatic({
         </g>
     );
 
+    // Angle badge shown while rotating (counter-rotated to stay readable)
+    const renderAngleBadge = () => {
+        const displayedAngle = Math.round(((rotation % 360) + 360) % 360);
+        return (
+            <g
+                transform={`translate(${cx}, ${cy}) rotate(${-rotation})`}
+                style={{ pointerEvents: "none" }}
+            >
+                <g style={{ transform: handleScaleTransform }}>
+                    <rect x={-26} y={-12} width={52} height={24} rx={12} fill="rgba(0,0,0,0.75)" />
+                    <text
+                        x={0}
+                        y={4}
+                        textAnchor="middle"
+                        fill="#fff"
+                        fontSize={12}
+                        fontFamily={theme.typography?.fontFamily}
+                    >
+                        {displayedAngle}°
+                    </text>
+                </g>
+            </g>
+        );
+    };
+
     // Sécurité si pas de bbox
     if (width === undefined || height === undefined) return null;
 
@@ -167,16 +198,22 @@ export default memo(function NodeRectangleStatic({
             {/* Poignées (Uniquement si sélectionné et pas en cours de déplacement global) */}
             {selected && !dragged && (
                 <g>
-                    {/* Resize — grisés si une dimension est contrainte par le template */}
-                    {renderResizeHandle("NW", 0, 0, resizeLocked)}
-                    {renderResizeHandle("NE", width, 0, resizeLocked)}
-                    {renderResizeHandle("SW", 0, height, resizeLocked)}
-                    {renderResizeHandle("SE", width, height, resizeLocked)}
+                    {/* Resize — hidden when both dimensions are locked by the template */}
+                    {!resizeLocked && (
+                        <>
+                            {renderResizeHandle("NW", 0, 0)}
+                            {renderResizeHandle("NE", width, 0)}
+                            {renderResizeHandle("SW", 0, height)}
+                            {renderResizeHandle("SE", width, height)}
+                        </>
+                    )}
 
                     {/* Rotate — toujours disponible */}
                     {renderRotationHandle()}
                 </g>
             )}
+
+            {dragged && draggedPartType === "ROTATE" && renderAngleBadge()}
         </g>
     );
 });

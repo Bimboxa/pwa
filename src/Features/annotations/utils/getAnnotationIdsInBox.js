@@ -3,6 +3,7 @@ import getAnnotationLassoSegments from "./getAnnotationLassoSegments";
 import hitsLassoBox from "./hitsLassoBox";
 import { getRectEdges } from "./segmentCrossesRect";
 import { LASSO_MODE_CROSSING } from "Features/mapEditorGeneric/utils/lassoMode";
+import getRectangleCorners from "Features/rectangles/utils/getRectangleCorners";
 
 // Return the ids of annotations caught by a lasso rectangle (local pixel
 // coords). `context`:
@@ -36,7 +37,15 @@ export default function getAnnotationIdsInBox(
 // else the main ring (closed for POLYGON / closeLine) + cut rings. RULER /
 // COTE ink (offset dimension line, cards) is only caught by its vertices.
 function getAnnotationLassoEdges(annotation) {
-  if (annotation.type === "IMAGE" || annotation.type === "RECTANGLE") {
+  // RECTANGLE: its 4 sides, rotation applied.
+  if (annotation.type === "RECTANGLE") {
+    const corners = getRectangleCorners(annotation) ?? [];
+    return corners.map((corner, i) => [
+      corner,
+      corners[(i + 1) % corners.length],
+    ]);
+  }
+  if (annotation.type === "IMAGE") {
     return annotation.bbox ? getRectEdges(annotation.bbox) : [];
   }
   return getAnnotationLassoSegments(annotation).map((s) => [s.p0, s.p1]);

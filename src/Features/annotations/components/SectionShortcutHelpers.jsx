@@ -39,6 +39,15 @@ export default function SectionShortcutHelpers({ shortcuts: shortcutsProp }) {
         ...(newAnnotationType === "STRIP"
             ? [{ key: "S", label: "Inverser le sens de la bande" }]
             : []),
+        // RECTANGLE annotation being placed (1-click or 2-click tool): the
+        // arrows rotate it instead of panning (InteractionLayer).
+        ...(newAnnotationType === "RECTANGLE" &&
+            ["ONE_CLICK", "RECTANGLE"].includes(enabledDrawingMode)
+            ? [
+                { key: "← →", label: "Tourner le rectangle de 10°" },
+                { key: "⇧ ← →", label: "Tourner le rectangle de 1°" },
+            ]
+            : []),
         ...([
             "POLYLINE_CLICK",
             "POLYGON_CLICK",

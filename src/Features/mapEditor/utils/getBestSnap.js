@@ -1,3 +1,5 @@
+import getRectangleCorners from "../../rectangles/utils/getRectangleCorners.js";
+
 // utils/getBestSnap.js
 
 // --- GEOMETRY HELPERS ---
@@ -156,6 +158,15 @@ const getBestSnap = (mousePos, annotations, threshold, { vertex = true, midpoint
                 pointArraysToCheck.push({ list: ann.points, cutIndex: undefined, source: undefined });
             }
 
+            // A'. RECTANGLE (bbox + rotation, no db.points): its 4 corners,
+            // id-less — snapping onto them creates an INDEPENDENT point.
+            if (ann.type === 'RECTANGLE') {
+                const corners = getRectangleCorners(ann);
+                if (corners) {
+                    pointArraysToCheck.push({ list: corners, cutIndex: undefined, source: "RECTANGLE" });
+                }
+            }
+
             // B. Cut points (with cutIndex)
             if (ann.cuts && Array.isArray(ann.cuts)) {
                 ann.cuts.forEach((cut, index) => {
@@ -263,6 +274,10 @@ const getBestSnap = (mousePos, annotations, threshold, { vertex = true, midpoint
 
     // Helper: process a snap candidate on a segment
     const processSegmentSnap = (projSnap, ann, segIndex, startPt, endPt, cutIdx, midSnap) => {
+        // A RECTANGLE has no stored points: a snap on one of its sides only
+        // gives a position, the new point is never inserted into it (no
+        // previewAnnotationId → no snapSegment at commit).
+        const insertableId = ann.type === 'RECTANGLE' ? undefined : ann.id;
         // MIDPOINT: within threshold
         if (midpoint && midSnap) {
             const midD2 = dist2(mousePos, { x: midSnap.x, y: midSnap.y });
@@ -270,7 +285,7 @@ const getBestSnap = (mousePos, annotations, threshold, { vertex = true, midpoint
                 minDistSq = midD2;
                 bestSnap = {
                     x: midSnap.x, y: midSnap.y, type: 'MIDPOINT',
-                    previewAnnotationId: ann.id,
+                    previewAnnotationId: insertableId,
                     previewSegmentIndex: segIndex,
                     segmentStartId: startPt.id,
                     segmentEndId: endPt.id,
@@ -284,7 +299,7 @@ const getBestSnap = (mousePos, annotations, threshold, { vertex = true, midpoint
             minFallbackProjDistSq = projSnap.d2;
             bestFallbackProj = {
                 x: projSnap.x, y: projSnap.y, type: 'PROJECTION',
-                previewAnnotationId: ann.id,
+                previewAnnotationId: insertableId,
                 previewSegmentIndex: segIndex,
                 segmentStartId: startPt.id,
                 segmentEndId: endPt.id,
@@ -325,7 +340,9 @@ const getBestSnap = (mousePos, annotations, threshold, { vertex = true, midpoint
         const contoursToCheck = [];
 
         // A. Main contour
-        const mainPts = ann.points || ann.polyline?.points || ann.rectangle?.points;
+        const mainPts = ann.type === 'RECTANGLE'
+            ? getRectangleCorners(ann)
+            : ann.points || ann.polyline?.points || ann.rectangle?.points;
         if (mainPts) {
             contoursToCheck.push({
                 points: mainPts,

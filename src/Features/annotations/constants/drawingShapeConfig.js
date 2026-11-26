@@ -238,6 +238,42 @@ const DRAWING_SHAPE_CONFIG = {
     },
     shapeCategory: "rectangle",
   },
+  // RECTANGLE — a rigid rectangle stored as an inline normalized `bbox` +
+  // `rotation` (degrees around the bbox centre, BBOX geometry family like
+  // IMAGE / OBJECT_3D — no db.points). The template carries its dimensions
+  // in `size {width, height}` (Lx / Ly, metres) and one padlock per
+  // dimension in `overrideFields` ("sizeWidth" / "sizeHeight", see
+  // getRectangleSizeLocks): a locked dimension is driven by the template at
+  // read time, an unlocked one is only the default at placement. Drawn in
+  // one click (ghost centred on the cursor, ← → rotate it) or with the
+  // 2-click rectangle tool.
+  RECTANGLE: {
+    label: "Rectangle",
+    annotationType: "RECTANGLE",
+    tools: ["ONE_CLICK", "RECTANGLE"],
+    configurableProps: [
+      "fillColor",
+      "fillOpacity",
+      "fillType",
+      "size",
+      "sizeUnit",
+      "height",
+      "color3D",
+      "opacity3D",
+      "material3d",
+    ],
+    defaults: {
+      fillColor: secondary,
+      fillOpacity: 0.8,
+      fillType: "SOLID",
+      strokeColor: secondary,
+      strokeWidth: 2,
+      strokeOpacity: 1,
+      size: { width: 1, height: 1 },
+      sizeUnit: "M",
+    },
+    shapeCategory: "rectangle",
+  },
   // DISC — a disc (or a sector of it) stored as a CENTRE (`point`, a
   // db.points ref) + scalars: `radiusM`, `partialRevolution` and the two
   // sector bounds `revolutionAngleStartDeg` / `revolutionAngleEndDeg` (plan
@@ -701,7 +737,7 @@ const TYPE_TO_SHAPE = {
   POLYLINE: "POLYLINE",
   STRIP: "POLYLINE",
   POLYGON: "POLYGON",
-  RECTANGLE: "POLYGON",
+  RECTANGLE: "RECTANGLE",
   OBJECT_3D: "OBJECT_3D",
   LINEAR_LAYOUT: "LINEAR_LAYOUT",
   BASE_MAP_LINK: "BASE_MAP_LINK",

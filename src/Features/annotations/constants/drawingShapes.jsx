@@ -174,6 +174,15 @@ const DRAWING_SHAPES = [
     ),
   },
   {
+    key: "RECTANGLE",
+    label: "Rectangle",
+    icon: (
+      <SvgIcon fontSize="small" viewBox="0 0 20 20">
+        <rect x="2" y="5" width="16" height="10" fill="currentColor" />
+      </SvgIcon>
+    ),
+  },
+  {
     key: "OPENING",
     label: "Ouverture",
     icon: (

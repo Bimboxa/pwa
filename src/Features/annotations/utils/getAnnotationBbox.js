@@ -3,6 +3,7 @@ import {
     getBlockInstanceAnchorPx,
     getBlockInstanceBoundsPx,
 } from "../../blocks/utils/blockInstanceGeometry.js";
+import getRectangleCorners from "../../rectangles/utils/getRectangleCorners.js";
 
 // Features/geometry/utils/getAnnotationBBox.js
 
@@ -38,8 +39,24 @@ export default function getAnnotationBBox(annotation) {
         });
     }
 
-    // 1. Cas IMAGE / RECTANGLE (Bbox explicite)
-    if (annotation.type === 'IMAGE' || annotation.type === 'RECTANGLE') {
+    // RECTANGLE: axis-aligned bounds of its 4 corners, rotation applied.
+    if (annotation.type === 'RECTANGLE') {
+        const corners = getRectangleCorners(annotation);
+        if (!corners) return null;
+        const xs = corners.map((c) => c.x);
+        const ys = corners.map((c) => c.y);
+        const minX = Math.min(...xs);
+        const minY = Math.min(...ys);
+        return {
+            x: minX,
+            y: minY,
+            width: Math.max(...xs) - minX,
+            height: Math.max(...ys) - minY,
+        };
+    }
+
+    // 1. Cas IMAGE (Bbox explicite)
+    if (annotation.type === 'IMAGE') {
         const bbox = annotation.bbox;
         if (!bbox) return null;
         // Note: Si l'objet est tourné, la BBox Axis-Aligned (AABB) est plus complexe.

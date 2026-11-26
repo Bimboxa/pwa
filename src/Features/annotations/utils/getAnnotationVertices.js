@@ -4,6 +4,7 @@ import {
   getBlockInstanceAnchorPx,
   getBlockInstanceCornersPx,
 } from "Features/blocks/utils/blockInstanceGeometry";
+import getRectangleCorners from "Features/rectangles/utils/getRectangleCorners";
 
 // Return the list of vertices of an annotation, in the same local pixel
 // coordinate space as the resolved annotation.points (the space consumed by
@@ -36,8 +37,13 @@ export default function getAnnotationVertices(annotation, context = {}) {
     ];
   }
 
-  // 1. IMAGE / RECTANGLE: the 4 corners of the explicit bbox.
-  if (annotation.type === "IMAGE" || annotation.type === "RECTANGLE") {
+  // RECTANGLE: its 4 corners, rotation applied.
+  if (annotation.type === "RECTANGLE") {
+    return getRectangleCorners(annotation) ?? [];
+  }
+
+  // 1. IMAGE: the 4 corners of the explicit bbox.
+  if (annotation.type === "IMAGE") {
     const bbox = annotation.bbox;
     if (!bbox) return [];
     return [

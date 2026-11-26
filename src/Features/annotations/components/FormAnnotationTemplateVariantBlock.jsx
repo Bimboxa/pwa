@@ -16,6 +16,7 @@ import FieldAnnotationTemplatePathArray from "Features/pathArray/components/Fiel
 import FieldIcon from "Features/form/components/FieldIcon";
 import FieldAnnotationTemplateFill from "./FieldAnnotationTemplateFill";
 import FieldAnnotationTemplatePoint from "./FieldAnnotationTemplatePoint";
+import FieldAnnotationTemplateRectangleSize from "./FieldAnnotationTemplateRectangleSize";
 import FieldAnnotationTemplateStroke from "./FieldAnnotationTemplateStroke";
 import FieldAnnotationTemplateStrokeWidth from "./FieldAnnotationTemplateStrokeWidth";
 import FieldAnnotationTemplateRender3d from "./FieldAnnotationTemplateRender3d";
@@ -271,6 +272,11 @@ export default function FormAnnotationTemplateVariantBlock({
 
   function handleHeightChange(height) {
     onChange({ ...annotationTemplate, height });
+  }
+
+  // RECTANGLE: Lx / Ly are always stored in metres.
+  function handleRectangleSizeChange(size) {
+    onChange({ ...annotationTemplate, size, sizeUnit: "M" });
   }
 
   function handleWidthChange(width) {
@@ -540,6 +546,17 @@ export default function FormAnnotationTemplateVariantBlock({
               overrideFields={overrideFields}
               onOverrideFieldsChange={handleOverrideFieldsChange}
               variantOptions={pointVariants}
+            />
+          )}
+
+          {/* Rectangle dimensions (RECTANGLE) — Lx / Ly, one padlock each */}
+          {drawingShape === "RECTANGLE" && (
+            <FieldAnnotationTemplateRectangleSize
+              templateId={annotationTemplate?.id}
+              size={size}
+              onChange={handleRectangleSizeChange}
+              overrideFields={overrideFields}
+              onToggleOverride={handleToggleOverride}
             />
           )}
 
