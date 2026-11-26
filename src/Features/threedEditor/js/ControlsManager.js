@@ -16,6 +16,10 @@ import CameraControls from "camera-controls";
 
 import { loadNavigationPreset } from "Features/threedEditor/services/navigationPresetLocalStorage";
 import { isObjectChainVisible } from "Features/threedEditor/js/utilsAnnotationsManager/visibilityPick";
+import {
+  filterIntersectionsByClipping,
+  getActiveClippingPlane,
+} from "Features/threedEditor/js/utilsAnnotationsManager/clippingPick";
 import intersectScene3d from "Features/scene3d/services/intersectScene3d";
 import intersectLocalScanPoints from "Features/localScans/services/intersectLocalScanPoints";
 
@@ -1320,7 +1324,13 @@ export default class ControlsManager {
     const scene = this.sceneManager.scene;
     let meshHit = null;
     if (scene) {
-      const intersects = ray.intersectObjects(scene.children, true);
+      // What the clipping planes cut away (global plane, clipping box of a
+      // base map — annotations and the Zmap relief of a clipped cloud) is
+      // not displayed: it must not catch the orbit point either.
+      const intersects = filterIntersectionsByClipping(
+        ray.intersectObjects(scene.children, true),
+        getActiveClippingPlane(this.sceneManager)
+      );
       for (const i of intersects) {
         if (
           isPivotCandidate(i.object) &&

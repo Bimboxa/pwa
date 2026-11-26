@@ -69,7 +69,12 @@ export default function intersectScene3d(editor, ndc, camera, { ray } = {}) {
   if (ray) _raycaster.ray.copy(ray);
   else _raycaster.setFromCamera(ndc, camera);
   const worldRay = _raycaster.ray;
-  const clippingPlane = getActiveClippingPlane(sceneManager);
+  // A GLB scene is cut by the global plane only, never by the clipping box
+  // of a base map (annotations and point clouds).
+  const activeClipping = getActiveClippingPlane(sceneManager);
+  const clippingPlane = activeClipping?.isClipSet
+    ? activeClipping.globalPlane
+    : activeClipping;
 
   let best = null;
   let pending = false;

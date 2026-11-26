@@ -525,7 +525,10 @@ export default class ClippingManager {
       child.userData?.isClipBoxHelper
     )
       return;
-    const childPlanes = child.isPoints ? cloudPlanes : planes;
+    // The Zmap of a scan base map is the relief of its cloud: cut like it.
+    const isCloud =
+      child.isPoints || child.userData?.kind === "baseMapLocalScanZMap";
+    const childPlanes = isCloud ? cloudPlanes : planes;
     const count = childPlanes?.length ?? 0;
     const mats = Array.isArray(child.material)
       ? child.material

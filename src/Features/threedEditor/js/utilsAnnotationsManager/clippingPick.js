@@ -38,8 +38,11 @@ export function getActiveClippingPlane(sceneManager) {
 }
 
 // The base map slabs clip the annotations and the point clouds only: the
-// content of a base map itself (image plane, GLB scene, scan carrier, Zmap)
-// stays whole, and so stays pickable.
+// content of a base map itself (image plane, GLB scene, scan carrier) stays
+// whole, and so stays pickable. The Zmap of a scan base map is NOT part of
+// it: that relief mesh stands for the point cloud (it answers the raycasts
+// the cloud cannot), so it is cut like the cloud — a hit on the relief of
+// points that are not displayed must not be picked.
 function isBaseMapOwnContent(object) {
   for (let o = object; o?.parent; o = o.parent) {
     const group = o.parent;
@@ -49,7 +52,8 @@ function isBaseMapOwnContent(object) {
       o === meshWrap ||
       o === scanWrap ||
       o === localScanWrap ||
-      Boolean(o.userData?.isDecor)
+      (Boolean(o.userData?.isDecor) &&
+        o.userData?.kind !== "baseMapLocalScanZMap")
     );
   }
   return false;
