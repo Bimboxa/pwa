@@ -8,11 +8,12 @@ import Close from "@mui/icons-material/Close";
 import ContentCutIcon from "@mui/icons-material/ContentCut";
 import DragIndicatorIcon from "@mui/icons-material/DragIndicator";
 import LayersIcon from "@mui/icons-material/Layers";
+import ViewInArIcon from "@mui/icons-material/ViewInAr";
 
 // ---------------------------------------------------------------------------
 // RowBaseMapInList — one base map of the "Fonds de plan" list, left to right:
 // drag handle | name (+ version chip) | « Scan » button | annotations badge
-// | clipping plane button | image eye | actions. The handle (shown on hover, `canDrag`) reorders the
+// | clip box button | clipping plane button | image eye | actions. The handle (shown on hover, `canDrag`) reorders the
 // row inside its listing — the row must live in a dnd-kit SortableContext.
 // The name wraps on several lines rather than being truncated.
 // Presentational: SectionBaseMapsList resolves the states (main / 2D / 3D)
@@ -35,6 +36,7 @@ export default function RowBaseMapInList({
   annotationsBadge, // null | { count, on, onToggle } — onToggle null = plain
   scanButton, // null | { on, disabled, disabledTooltip?, onToggle }
   clipButton = null, // null | { on, onToggle } — cut by this base map (3D)
+  clipBoxButton = null, // null | { on, onToggle } — clip box shown (3D)
   versionChip, // null | { label, onOpen }
   actions = null, // null | ReactNode
   renaming = null, // null | { value, onChange, onConfirm, onCancel }
@@ -51,6 +53,8 @@ export default function RowBaseMapInList({
   const showScanS = "Afficher la 3D du fond de plan (scan ou maillage)";
   const scanOffS = "3D non affichée (Affichage 3D : projection / masqué)";
   const versionS = "Changer de version";
+  const clipBoxOnS = "Masquer la boîte de coupe";
+  const clipBoxOffS = "Afficher la boîte de coupe";
   const clipOnS = "Désactiver la coupe par ce fond de plan";
   const clipOffS =
     "Activer la coupe par ce fond de plan (masque les annotations et le nuage de points hors de sa tranche)";
@@ -357,46 +361,61 @@ export default function RowBaseMapInList({
         </Tooltip>
       )}
 
-      {/* Clipping plane (3D): same chip as the image eye, scissors icon */}
-      {clipButton && (
-        <Tooltip title={clipButton.on ? clipOnS : clipOffS} disableInteractive>
-          <Box
-            role="button"
-            onClick={(e) => stop(e, clipButton.onToggle)}
-            sx={{
-              display: "inline-flex",
-              alignItems: "center",
-              justifyContent: "center",
-              width: 20,
-              height: 20,
-              flexShrink: 0,
-              borderRadius: "50%",
-              border: "1px solid",
-              borderColor:
-                clipButton.on || isMain ? "transparent" : "panel.border",
-              bgcolor: clipButton.on
-                ? "secondary.main"
-                : isMain
-                  ? "grey.700"
-                  : "transparent",
-              color: clipButton.on
-                ? "secondary.contrastText"
-                : isMain
-                  ? "grey.400"
-                  : "text.disabled",
-              cursor: "pointer",
-              transition: "0.2s",
-              "&:hover": {
-                filter: "brightness(1.15)",
-                borderColor:
-                  clipButton.on || isMain ? "transparent" : "text.secondary",
-              },
-            }}
-          >
-            <ContentCutIcon sx={{ fontSize: 12 }} />
-          </Box>
-        </Tooltip>
-      )}
+      {/* Clipping plane (3D): same chips as the image eye — the clip box
+          toggle (only while the cut is on), then the scissors (the cut) */}
+      {[
+        clipBoxButton && {
+          ...clipBoxButton,
+          key: "clipBox",
+          title: clipBoxButton.on ? clipBoxOnS : clipBoxOffS,
+          icon: <ViewInArIcon sx={{ fontSize: 13 }} />,
+        },
+        clipButton && {
+          ...clipButton,
+          key: "clip",
+          title: clipButton.on ? clipOnS : clipOffS,
+          icon: <ContentCutIcon sx={{ fontSize: 12 }} />,
+        },
+      ]
+        .filter(Boolean)
+        .map((chip) => (
+          <Tooltip key={chip.key} title={chip.title} disableInteractive>
+            <Box
+              role="button"
+              onClick={(e) => stop(e, chip.onToggle)}
+              sx={{
+                display: "inline-flex",
+                alignItems: "center",
+                justifyContent: "center",
+                width: 20,
+                height: 20,
+                flexShrink: 0,
+                borderRadius: "50%",
+                border: "1px solid",
+                borderColor: chip.on || isMain ? "transparent" : "panel.border",
+                bgcolor: chip.on
+                  ? "secondary.main"
+                  : isMain
+                    ? "grey.700"
+                    : "transparent",
+                color: chip.on
+                  ? "secondary.contrastText"
+                  : isMain
+                    ? "grey.400"
+                    : "text.disabled",
+                cursor: "pointer",
+                transition: "0.2s",
+                "&:hover": {
+                  filter: "brightness(1.15)",
+                  borderColor:
+                    chip.on || isMain ? "transparent" : "text.secondary",
+                },
+              }}
+            >
+              {chip.icon}
+            </Box>
+          </Tooltip>
+        ))}
 
       {/* Image eye — far right slot (empty when it does not apply) */}
       <Box
