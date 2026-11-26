@@ -7,12 +7,17 @@ import useEditorGrid from "../hooks/useEditorGrid";
 
 import getGridFrame from "../utils/getGridFrame";
 import buildGridPath from "../utils/buildGridPath";
+import { getGridAxes } from "../utils/gridAxes";
 
 // main grid: 1 px line; secondary grid: thinner and lighter
 const MAJOR_STROKE = "rgba(110, 120, 135, 0.5)";
 const MINOR_STROKE = "rgba(120, 130, 145, 0.32)";
 const MAJOR_WIDTH = 1;
 const MINOR_WIDTH = 0.5;
+// centre axes (dynamic grid): same grey family as the grid, a bit darker to
+// tell them apart from the grid lines
+const CENTER_AXES_STROKE = "rgba(80, 90, 105, 0.85)";
+const CENTER_AXES_WIDTH = 1;
 
 // Editor grid (« Grille » command): light-grey metric grid over the current
 // base map of the 2D editor — a main grid and a thinner secondary grid, in
@@ -26,6 +31,10 @@ const MINOR_WIDTH = 0.5;
 // (mapEditor.orthoSnapAngleOffset): its lines are parallel to the directions
 // the Shift ortho constraint snaps to. A rotated grid is clipped to the base
 // map extent.
+//
+// In dynamic mode a horizontal and a vertical darker grey axis cross at the centre
+// of the base map (turned with the grid): a fixed landmark while the cell
+// size changes with the zoom.
 //
 // Follows the LIVE camera (useMapCameraSelector): the dynamic cell size
 // switches during the zoom gesture, not after it. It still re-renders only
@@ -63,9 +72,25 @@ function LayerEditorGrid({ imageSize, meterByPx, basePose }) {
     });
   }, [frame, meterByPx, width, height, angleDeg]);
 
+  // centre axes: through the middle of the base map, parallel to the grid
+  // lines. Long enough to cross the whole base map at any angle — the clip
+  // path trims a rotated pair.
+  const centerAxesPath = useMemo(() => {
+    if (!dynamic || !(width > 0) || !(height > 0)) return null;
+    const cx = width / 2;
+    const cy = height / 2;
+    if (!angleDeg) return `M0 ${cy}L${width} ${cy}M${cx} 0L${cx} ${height}`;
+    const axes = getGridAxes({ imageSize: { width, height }, angleDeg });
+    const half = Math.hypot(width, height) / 2;
+    const line = (dx, dy) =>
+      `M${cx - dx * half} ${cy - dy * half}L${cx + dx * half} ${cy + dy * half}`;
+    return line(axes.ux, axes.uy) + line(axes.vx, axes.vy);
+  }, [dynamic, width, height, angleDeg]);
+
   // render
 
-  if (!paths?.minor && !paths?.major) return null;
+  if (!frame) return null;
+  if (!paths?.minor && !paths?.major && !centerAxesPath) return null;
 
   return (
     <g
@@ -79,7 +104,7 @@ function LayerEditorGrid({ imageSize, meterByPx, basePose }) {
           <rect x={0} y={0} width={width} height={height} />
         </clipPath>
       )}
-      {paths.minor && (
+      {paths?.minor && (
         <path
           d={paths.minor}
           stroke={MINOR_STROKE}
@@ -87,11 +112,20 @@ function LayerEditorGrid({ imageSize, meterByPx, basePose }) {
           vectorEffect="non-scaling-stroke"
         />
       )}
-      {paths.major && (
+      {paths?.major && (
         <path
           d={paths.major}
           stroke={MAJOR_STROKE}
           strokeWidth={MAJOR_WIDTH}
+          vectorEffect="non-scaling-stroke"
+          shapeRendering="crispEdges"
+        />
+      )}
+      {centerAxesPath && (
+        <path
+          d={centerAxesPath}
+          stroke={CENTER_AXES_STROKE}
+          strokeWidth={CENTER_AXES_WIDTH}
           vectorEffect="non-scaling-stroke"
           shapeRendering="crispEdges"
         />

@@ -9,8 +9,8 @@ const EMPTY = { minor: "", major: "" };
 
 // SVG paths of the editor grid in base-map local px, covering the base map
 // extent ∩ the region to draw (`viewBox`: {x, y, width, height}, null = no
-// culling). Same frame as getGridSnap (utils/gridAxes.js): bottom-left corner
-// of the base map, turned by `angleDeg` (ortho snap angle).
+// culling). Same frame as getGridSnap (utils/gridAxes.js): centre of the
+// base map, turned by `angleDeg` (ortho snap angle).
 // One line out of `majorEvery` (counted from the grid origin) goes to the
 // `major` path — the main grid —, the others to `minor`.
 //
