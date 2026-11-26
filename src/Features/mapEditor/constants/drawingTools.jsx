@@ -162,32 +162,6 @@ const DRAWING_TOOLS = [
     // No 3-point flow in the 3D editor (T turns the last point into an arc).
     editor: "2D",
   },
-  // « Détection de frontière auto »: the highlighter gesture (same as
-  // « Vectoriser au surligneur ») marks a zone; Enter creates the polyline
-  // that follows the frontier between the blank and the inked part of the
-  // base map inside it (detectRegionBoundary). Reads the raster: 2D editor
-  // only.
-  {
-    key: BOUNDARY_DETECT_MODE,
-    label: "Détection de frontière auto",
-    Icon: IconPolylineBoundaryDetect,
-    annotationType: "POLYLINE",
-    behavior: "BOUNDARY_DETECT",
-    editor: "2D",
-    neverDefaultTool: true,
-  },
-  // « Vectoriser au surligneur »: a drag highlights the pixels to follow
-  // (disc of fixed screen size); the release commits the polyline fitted
-  // through them (vectorizeHighlightStroke). Reads the raster: 2D editor only.
-  {
-    key: HIGHLIGHT_VECTORIZE_MODE,
-    label: "Vectoriser au surligneur",
-    Icon: IconPolylineHighlightVectorize,
-    annotationType: "POLYLINE",
-    behavior: "HIGHLIGHT_VECTORIZE",
-    editor: "2D",
-    neverDefaultTool: true,
-  },
   {
     key: "POLYGON_CIRCLE",
     label: "Cercle (surface)",
@@ -713,6 +687,34 @@ const DRAWING_TOOLS = [
     annotationType: null,
     behavior: "MESH_BRUSH",
     requiresTemplate: true,
+    neverDefaultTool: true,
+  },
+  // Raster vectorization tools of the POLYLINE group. The toolbar follows
+  // the order of this array: kept after the strips and the « Pinceau ».
+  // « Détection de frontière auto »: the highlighter gesture (same as
+  // « Vectoriser au surligneur ») marks a zone; Enter creates the polyline
+  // that follows the frontier between the blank and the inked part of the
+  // base map inside it (detectRegionBoundary). Reads the raster: 2D editor
+  // only.
+  {
+    key: BOUNDARY_DETECT_MODE,
+    label: "Détection de frontière auto",
+    Icon: IconPolylineBoundaryDetect,
+    annotationType: "POLYLINE",
+    behavior: "BOUNDARY_DETECT",
+    editor: "2D",
+    neverDefaultTool: true,
+  },
+  // « Vectoriser au surligneur »: a drag highlights the pixels to follow
+  // (disc of fixed screen size); the release commits the polyline fitted
+  // through them (vectorizeHighlightStroke). Reads the raster: 2D editor only.
+  {
+    key: HIGHLIGHT_VECTORIZE_MODE,
+    label: "Vectoriser au surligneur",
+    Icon: IconPolylineHighlightVectorize,
+    annotationType: "POLYLINE",
+    behavior: "HIGHLIGHT_VECTORIZE",
+    editor: "2D",
     neverDefaultTool: true,
   },
 ];
