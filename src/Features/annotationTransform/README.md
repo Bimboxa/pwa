@@ -84,6 +84,12 @@ Réutilisées depuis `threedAnnotationMove/utils/` :
   `wrapperBbox`). Jamais par `commitWrapperTransform` (son `clearRotation`
   effacerait l'orientation).
   **En 2D** (`utils/transform2dTypes.js`, `isTransformable2dType`) s'y
+  ajoute RECTANGLE (rectangle rigide : même stockage `bbox` + `rotation`
+  qu'un objet 3D, même écriture `getObject3DTransformUpdates`, même aperçu
+  par `applyDeltaPosToAnnotation` ; il s'aimante par son centre et ses coins,
+  ou se saisit par un clic dans son emprise — un aimant sur un de ses côtés
+  n'a pas d'id d'annotation, `handleWorldClick` prend alors le nœud sous le
+  curseur). La liste 3D ne le porte pas. S'y
   ajoutent COTE et RULER (leurs sommets sont aussi des `db.points`, le
   pipeline d'écriture est le même, les offsets de cotation suivent) pour
   « Déplacer » et « Tourner », et FREE_TEXT pour « Déplacer » seulement :

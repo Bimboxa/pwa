@@ -2037,7 +2037,8 @@ const InteractionLayer = forwardRef(({
       )
       .map((a) => {
         // A block instance (zero-size anchor bbox) offers its insertion point.
-        if ((a.type === "OBJECT_3D" || a.type === "BLOCK_INSTANCE") && a.bbox) {
+        // A RECTANGLE (bbox + rotation) offers the same centre + corners.
+        if (["OBJECT_3D", "BLOCK_INSTANCE", "RECTANGLE"].includes(a.type) && a.bbox) {
           const { x, y, width, height } = a.bbox;
           const cx = x + width / 2;
           const cy = y + height / 2;
@@ -6628,21 +6629,26 @@ const InteractionLayer = forwardRef(({
     if (isTransformToolMode(enabledDrawingMode)) {
       const transformLocalPos = toLocalCoords(worldPos);
       let transformSnap = transformToolSnapRef.current;
-      // A FREE_TEXT box / an OBJECT_3D footprint is grabbable anywhere
-      // (no vertices of its own): a click that landed on its node, away
-      // from any snap, grabs it at the clicked point (same contract as a
-      // snap: x / y + annotationId).
-      if (!transformSnap) {
+      // A FREE_TEXT box / an OBJECT_3D or RECTANGLE footprint is grabbable
+      // anywhere (no vertices of its own): a click that landed on its node,
+      // away from any snap, grabs it at the clicked point (same contract as
+      // a snap: x / y + annotationId). A snap that names no annotation (the
+      // id-less side of a RECTANGLE, see getBestSnap) keeps its position and
+      // takes the node under the cursor.
+      if (
+        !transformSnap ||
+        !(transformSnap.annotationId ?? transformSnap.previewAnnotationId)
+      ) {
         const target = event?.target ?? event?.evt?.target;
         const bodyNode = target?.closest?.(
-          '[data-node-type="ANNOTATION"][data-annotation-type="FREE_TEXT"], [data-node-type="ANNOTATION"][data-annotation-type="OBJECT_3D"], [data-node-type="ANNOTATION"][data-annotation-type="BLOCK_INSTANCE"]'
+          '[data-node-type="ANNOTATION"][data-annotation-type="FREE_TEXT"], [data-node-type="ANNOTATION"][data-annotation-type="OBJECT_3D"], [data-node-type="ANNOTATION"][data-annotation-type="BLOCK_INSTANCE"], [data-node-type="ANNOTATION"][data-annotation-type="RECTANGLE"]'
         );
         const bodyId = bodyNode?.dataset?.nodeId;
         if (bodyId) {
           transformSnap = {
-            x: transformLocalPos.x,
-            y: transformLocalPos.y,
-            type: "NODE",
+            x: transformSnap?.x ?? transformLocalPos.x,
+            y: transformSnap?.y ?? transformLocalPos.y,
+            type: transformSnap?.type ?? "NODE",
             annotationId: bodyId,
             annotationType: bodyNode.dataset.annotationType,
           };

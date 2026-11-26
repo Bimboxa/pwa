@@ -57,7 +57,10 @@ export default function getObject3DTransformUpdates({
   });
 
   for (const ann of annotations ?? []) {
-    if (!isBboxPlacedAnnotationType(ann?.type)) continue;
+    // RECTANGLE shares the bbox + rotation storage (2D tools and align).
+    if (!isBboxPlacedAnnotationType(ann?.type) && ann?.type !== "RECTANGLE") {
+      continue;
+    }
     const bbox = ann.bbox;
     if (
       !bbox ||

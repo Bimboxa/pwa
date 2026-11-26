@@ -7,6 +7,10 @@ import {
 } from "Features/imageAnnotations/utils/imageConnector";
 import getRectangleSizeLocks from "Features/rectangles/utils/getRectangleSizeLocks";
 import resizeRectangleBbox from "Features/rectangles/utils/resizeRectangleBbox";
+import {
+    getRectangleCenter,
+    rotatePointAround,
+} from "Features/rectangles/utils/getRectangleCorners";
 
 // Fold an angle into (-180, 180].
 const normalizeDeg = (deg) => {
@@ -141,6 +145,25 @@ export default function applyDeltaPosToAnnotation(annotation, deltaPos, partType
 
         if (partType === "ROTATE") {
             _annotation.rotation = (currentRotation + deltaPos.x) % 360;
+            // « Tourner » (pivot = wrapperBbox centre, same rule as the
+            // OBJECT_3D branch below): the bbox centre orbits the pivot. The
+            // node's own rotation handle passes no wrapperBbox and turns
+            // about the bbox centre only.
+            if (wrapperBbox) {
+                const center = rotatePointAround(
+                    getRectangleCenter(currentBBox),
+                    {
+                        x: wrapperBbox.x + wrapperBbox.width / 2,
+                        y: wrapperBbox.y + wrapperBbox.height / 2,
+                    },
+                    deltaPos.x
+                );
+                _annotation.bbox = {
+                    ...currentBBox,
+                    x: center.x - currentBBox.width / 2,
+                    y: center.y - currentBBox.height / 2,
+                };
+            }
         }
 
         else if (partType && partType.startsWith("RESIZE_")) {

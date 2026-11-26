@@ -1,7 +1,8 @@
 // Annotation types whose geometry lives in db.points rows (same list as the
 // 2D wrapper — POINT_BASED_TYPES in EditedObjectLayer.jsx / the wrapper
 // branch of MainMapEditorV3): written through commitWrapperTransform by the
-// move / rotate tools. RECTANGLE, IMAGE and POINT are out of scope.
+// move / rotate tools. IMAGE and POINT are out of scope; RECTANGLE (bbox +
+// rotation) is carried by the 2D tools only (transform2dTypes.js).
 export const POINT_BASED_ANNOTATION_TYPES = [
   "POLYLINE",
   "POLYGON",

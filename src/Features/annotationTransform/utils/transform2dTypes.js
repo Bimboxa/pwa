@@ -14,6 +14,8 @@ import {
 //   - OBJECT_3D (imported GLB): bbox + rotation rewritten by a dedicated
 //     write (getObject3DTransformUpdates), moved AND turned — in 3D too.
 //   - BLOCK_INSTANCE (Features/blocks): same bbox-placed model as OBJECT_3D.
+//   - RECTANGLE (rigid bbox + rotation): same storage as OBJECT_3D, same
+//     write. 2D only — the 3D tools do not carry it.
 //   - BASE_MAP_LINK (section mark, Features/baseMapLinks — the mark on its
 //     plan, or its clone located on a vertical base map): two db.points,
 //     moved through the point pipeline; the commit then re-poses the
@@ -26,6 +28,7 @@ export const MOVE_2D_EXTRA_TYPES = [
   "FREE_TEXT",
   "OBJECT_3D",
   "BLOCK_INSTANCE",
+  "RECTANGLE",
   "BASE_MAP_LINK",
 ];
 export const ROTATE_2D_EXTRA_TYPES = [
@@ -33,6 +36,7 @@ export const ROTATE_2D_EXTRA_TYPES = [
   "RULER",
   "OBJECT_3D",
   "BLOCK_INSTANCE",
+  "RECTANGLE",
 ];
 
 // kind: "MOVE" | "ROTATE"
@@ -58,6 +62,9 @@ export function isFreeTextType(type) {
   return type === "FREE_TEXT";
 }
 
+// Types written through the bbox branch of the commit
+// (getObject3DTransformUpdates): bbox + rotation, no db.points — the
+// bbox-placed types shared with the 3D tools, plus RECTANGLE in 2D.
 export function isObject3DType(type) {
-  return isBboxPlacedAnnotationType(type);
+  return isBboxPlacedAnnotationType(type) || type === "RECTANGLE";
 }

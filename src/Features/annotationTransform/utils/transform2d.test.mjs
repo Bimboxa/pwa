@@ -109,7 +109,7 @@ test("MOVE accepts point tracings, COTE / RULER and FREE_TEXT; ROTATE refuses FR
   assert.ok(!isTransformable2dType("ROTATE", "FREE_TEXT"));
   assert.ok(!isPointHolderType("FREE_TEXT"));
   assert.ok(isFreeTextType("FREE_TEXT"));
-  for (const type of ["LABEL", "IMAGE", "RECTANGLE", "POINT", "MARKER"]) {
+  for (const type of ["LABEL", "IMAGE", "POINT", "MARKER"]) {
     assert.ok(!isTransformable2dType("MOVE", type), type);
     assert.ok(!isTransformable2dType("ROTATE", type), type);
   }
@@ -175,4 +175,40 @@ test("getFreeTextMoveUpdates is empty without a usable image size or delta", () 
       .size,
     0
   );
+});
+
+test("RECTANGLE is moved and turned in 2D only, through the bbox write", () => {
+  for (const kind of ["MOVE", "ROTATE"]) {
+    assert.ok(isTransformable2dType(kind, "RECTANGLE"), kind);
+    assert.ok(!isTransformable3dType(kind, "RECTANGLE"), kind);
+  }
+  assert.ok(!isPointHolderType("RECTANGLE"));
+  assert.ok(isObject3DType("RECTANGLE"));
+
+  const rectangle = {
+    id: "r1",
+    type: "RECTANGLE",
+    bbox: { x: 40, y: 45, width: 20, height: 10 },
+    rotation: 30,
+  };
+  const imageSize = { width: 100, height: 100 };
+
+  const moved = getObject3DTransformUpdates({
+    annotations: [rectangle],
+    transform: { kind: "MOVE", deltaPx: { x: 10, y: -5 } },
+    imageSize,
+  }).get("r1");
+  assert.deepEqual(moved.fields, {
+    bbox: { x: 0.5, y: 0.4, width: 0.2, height: 0.1 },
+  });
+
+  // quarter turn about (50, 80): the centre (50, 50) orbits to (80, 80)
+  const turned = getObject3DTransformUpdates({
+    annotations: [rectangle],
+    transform: { kind: "ROTATE", pivotPx: { x: 50, y: 80 }, angleDeg: 90 },
+    imageSize,
+  }).get("r1");
+  assert.ok(Math.abs(turned.fields.bbox.x - 0.7) < 1e-9);
+  assert.ok(Math.abs(turned.fields.bbox.y - 0.75) < 1e-9);
+  assert.equal(turned.fields.rotation, 120);
 });
