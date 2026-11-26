@@ -38,7 +38,6 @@ import theme from "Styles/theme";
 import useObject3DTopView from "Features/object3D/hooks/useObject3DTopView";
 import getImageAnnotationSizeInBaseMapPx from "Features/imageAnnotations/utils/getImageAnnotationSizeInBaseMapPx";
 import getStrokeDasharray from "Features/mapEditorGeneric/utils/getStrokeDasharray";
-import { BOUNDARY_DETECT_MODE } from "Features/mapEditor/constants/boundaryDetectMode";
 import useMapZoom from "Features/mapEditorGeneric/hooks/useMapZoom";
 import { getBlockDefId } from "Features/blocks/js/blockDefinitionsStore";
 import { getBlockInstanceTransform } from "Features/blocks/utils/blockInstanceGeometry";
@@ -267,9 +266,6 @@ const DrawingLayer = forwardRef(
     // placed in one click (ghost) or with the 2-click rectangle tool.
     const isRectangleAnnotation = type === "RECTANGLE";
     const isFillShape = isPolygon || isRectangleAnnotation;
-    // « Détection de frontière auto »: the clicks draw the REGION to analyse
-    // (closed, thin dashed guide, light fill), not the future polyline.
-    const isBoundaryRegion = enabledDrawingMode === BOUNDARY_DETECT_MODE;
 
     // --- STYLE DE TRAIT (preview) ---
     // POLYLINE / segment previews mirror the annotation's stroke (width,
@@ -284,8 +280,7 @@ const DrawingLayer = forwardRef(
       // LINEAR_LAYOUT: strokeWidth is the bar thickness (cm), not a line
       // style — the rubber band must stay a thin fixed helper (like STRIP).
       type !== "LINEAR_LAYOUT" &&
-      enabledDrawingMode !== "RAMP" &&
-      !isBoundaryRegion;
+      enabledDrawingMode !== "RAMP";
     const previewIsCmUnit =
       previewUsesAnnotationStyle && strokeWidthUnit === "CM" && meterByPx > 0;
     const previewScalesWithZoom = previewUsesAnnotationStyle && previewIsCmUnit;
@@ -319,9 +314,8 @@ const DrawingLayer = forwardRef(
       : "5,5";
     // Dash pattern of the already-validated segments (static stroke): solid,
     // unless the POLYLINE / segment annotation style is DASHED.
-    const previewStaticDashArray = isBoundaryRegion
-      ? "5,5"
-      : previewUsesAnnotationStyle && strokeType === "DASHED"
+    const previewStaticDashArray =
+      previewUsesAnnotationStyle && strokeType === "DASHED"
         ? getStrokeDasharray(previewStrokeWidth)
         : undefined;
 
@@ -1321,7 +1315,7 @@ const DrawingLayer = forwardRef(
         }
 
         // 2. Mise à jour du remplissage dynamique (Polygone uniquement)
-        if ((isPolygon || isBoundaryRegion) && previewFillRef.current) {
+        if (isPolygon && previewFillRef.current) {
           const fillPts = expandArcsInPath(
             [...currentPoints, cursorPos],
             ARC_SAMPLES,
@@ -1534,17 +1528,13 @@ const DrawingLayer = forwardRef(
         )}
 
         {/* A. Dynamic Fill (Polygon) — suppressed for RAMP (band shown instead) */}
-        {(isPolygon || isBoundaryRegion) && !isRamp && (
+        {isPolygon && !isRamp && (
           <path
             ref={previewFillRef}
-            fill={
-              isBoundaryRegion
-                ? strokeColor || "blue"
-                : fillColor || "rgba(0, 0, 255, 0.1)"
-            }
+            fill={fillColor || "rgba(0, 0, 255, 0.1)"}
             fillRule="evenodd"
             stroke="none"
-            opacity={isBoundaryRegion ? 0.12 : 0.5}
+            opacity={0.5}
             style={{ display: "none", pointerEvents: "none" }}
           />
         )}

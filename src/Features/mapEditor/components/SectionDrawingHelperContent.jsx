@@ -206,6 +206,15 @@ const HIGHLIGHT_VECTORIZE_SHORTCUTS = [
   { key: "Esc", label: "Vectoriser / Quitter" },
 ];
 
+// Shortcuts of the « Détection de frontière auto » tool (same gesture; Z / W
+// are shown in its options card).
+const BOUNDARY_DETECT_SHORTCUTS = [
+  { key: "Clic", label: "Démarrer / arrêter le surlignage" },
+  { key: "Shift", label: "Verrouiller la direction du geste" },
+  { key: "Entrée", label: "Détecter la frontière surlignée" },
+  { key: "Esc", label: "Détecter / Quitter" },
+];
+
 // Shortcuts of the « Pinceau » armed in the 2D editor (template brush:
 // InteractionLayer MESH_BRUSH branch + useTemplateBrushClick).
 const TEMPLATE_BRUSH_2D_SHORTCUTS = [
@@ -319,7 +328,9 @@ export default function SectionDrawingHelperContent() {
   const templateBrushHiddenS =
     "Le modèle actif est masqué : les annotations converties ou dupliquées ne seront pas visibles.";
   const boundaryDetectS =
-    "Détourez la zone à cheval sur la frontière, puis Entrée : la ligne suit la limite entre le vide et le plan.";
+    "Clic : surlignez la frontière à cheval sur le vide et le plan, clic pour arrêter. Entrée : la ligne suit la limite entre les deux.";
+  const boundaryDetectBrushHintS =
+    "Largeur du trait à l'écran, quel que soit le zoom : la frontière est cherchée sous le trait uniquement.";
   const highlightVectorizeS =
     "Clic : surlignez les points à suivre, clic pour arrêter (autant de zones que nécessaire). Entrée : la ligne passe par les points surlignés.";
   const surfaceCutS =
@@ -1017,6 +1028,12 @@ export default function SectionDrawingHelperContent() {
       {enabledDrawingMode === HIGHLIGHT_VECTORIZE_MODE && (
         <SectionHighlightVectorizeOptions />
       )}
+      {enabledDrawingMode === BOUNDARY_DETECT_MODE && (
+        <SectionHighlightVectorizeOptions
+          showShape={false}
+          hint={boundaryDetectBrushHintS}
+        />
+      )}
       {/* « Ne pas découper » of the opening / surface cut tools — null
           otherwise. */}
       {!isThreedToggledEditor && <SectionHeightCutDrawingOptions />}
@@ -1122,7 +1139,9 @@ export default function SectionDrawingHelperContent() {
                   ? SECTION_MARK_SHORTCUTS
                   : enabledDrawingMode === HIGHLIGHT_VECTORIZE_MODE
                     ? HIGHLIGHT_VECTORIZE_SHORTCUTS
-                    : undefined
+                    : enabledDrawingMode === BOUNDARY_DETECT_MODE
+                      ? BOUNDARY_DETECT_SHORTCUTS
+                      : undefined
         }
       />
     </Box>

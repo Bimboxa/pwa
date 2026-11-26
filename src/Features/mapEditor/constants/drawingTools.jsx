@@ -162,10 +162,11 @@ const DRAWING_TOOLS = [
     // No 3-point flow in the 3D editor (T turns the last point into an arc).
     editor: "2D",
   },
-  // « Détection de frontière auto »: the clicks draw a REGION (like a
-  // polygon); Enter creates the polyline that follows the frontier between
-  // the blank and the inked part of the base map inside that region
-  // (detectRegionBoundary). Reads the raster: 2D editor only.
+  // « Détection de frontière auto »: the highlighter gesture (same as
+  // « Vectoriser au surligneur ») marks a zone; Enter creates the polyline
+  // that follows the frontier between the blank and the inked part of the
+  // base map inside it (detectRegionBoundary). Reads the raster: 2D editor
+  // only.
   {
     key: BOUNDARY_DETECT_MODE,
     label: "Détection de frontière auto",

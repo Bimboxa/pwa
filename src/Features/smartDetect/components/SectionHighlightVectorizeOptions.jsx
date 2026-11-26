@@ -42,15 +42,20 @@ const SECTION_TITLE_SX = {
   display: "block",
 };
 
-// Options of the « Vectoriser au surligneur » drawing tool, shown in the
-// drawing helper: shape fitted through the highlighted points (F cycles)
-// and width of the highlighter (Z / W), in screen px.
-export default function SectionHighlightVectorizeOptions() {
+// Options of the highlighter drawing tools, shown in the drawing helper:
+// shape fitted through the highlighted points (F cycles; « Vectoriser au
+// surligneur » only — `showShape`) and width of the highlighter (Z / W), in
+// screen px.
+export default function SectionHighlightVectorizeOptions({
+  showShape = true,
+  hint,
+}) {
   // strings
 
   const shapeTitleS = "Type de ligne";
   const brushTitleS = "Surligneur";
   const hintS =
+    hint ??
     "Largeur du trait à l'écran, quel que soit le zoom : seuls les points sous le trait sont pris en compte.";
 
   // data
@@ -73,51 +78,55 @@ export default function SectionHighlightVectorizeOptions() {
 
   return (
     <WhiteSectionGeneric>
-      <Typography variant="caption" sx={SECTION_TITLE_SX}>
-        {shapeTitleS}
-      </Typography>
-      <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 1 }}>
-        <ToggleButtonGroup
-          value={shape}
-          exclusive
-          size="small"
-          onChange={handleShapeChange}
-          sx={{ flexGrow: 1 }}
-        >
-          {HIGHLIGHT_VECTORIZE_SHAPES.map((key) => {
-            const isActive = key === shape;
-            return (
-              <Tooltip key={key} title={isActive ? "" : SHAPES[key].label}>
-                <ToggleButton
-                  value={key}
-                  aria-label={SHAPES[key].label}
-                  sx={{
-                    py: 0.25,
-                    px: 0.75,
-                    gap: 0.5,
-                    fontSize: "0.7rem",
-                    textTransform: "none",
-                    whiteSpace: "nowrap",
-                  }}
-                >
-                  <SvgIcon fontSize="small" viewBox="0 0 24 24">
-                    <path
-                      d={SHAPES[key].path}
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth="2"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                    />
-                  </SvgIcon>
-                  {isActive && SHAPES[key].label}
-                </ToggleButton>
-              </Tooltip>
-            );
-          })}
-        </ToggleButtonGroup>
-        <ShortcutBadge>F</ShortcutBadge>
-      </Box>
+      {showShape && (
+        <>
+          <Typography variant="caption" sx={SECTION_TITLE_SX}>
+            {shapeTitleS}
+          </Typography>
+          <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 1 }}>
+            <ToggleButtonGroup
+              value={shape}
+              exclusive
+              size="small"
+              onChange={handleShapeChange}
+              sx={{ flexGrow: 1 }}
+            >
+              {HIGHLIGHT_VECTORIZE_SHAPES.map((key) => {
+                const isActive = key === shape;
+                return (
+                  <Tooltip key={key} title={isActive ? "" : SHAPES[key].label}>
+                    <ToggleButton
+                      value={key}
+                      aria-label={SHAPES[key].label}
+                      sx={{
+                        py: 0.25,
+                        px: 0.75,
+                        gap: 0.5,
+                        fontSize: "0.7rem",
+                        textTransform: "none",
+                        whiteSpace: "nowrap",
+                      }}
+                    >
+                      <SvgIcon fontSize="small" viewBox="0 0 24 24">
+                        <path
+                          d={SHAPES[key].path}
+                          fill="none"
+                          stroke="currentColor"
+                          strokeWidth="2"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                        />
+                      </SvgIcon>
+                      {isActive && SHAPES[key].label}
+                    </ToggleButton>
+                  </Tooltip>
+                );
+              })}
+            </ToggleButtonGroup>
+            <ShortcutBadge>F</ShortcutBadge>
+          </Box>
+        </>
+      )}
       <Typography variant="caption" sx={SECTION_TITLE_SX}>
         {brushTitleS}
       </Typography>

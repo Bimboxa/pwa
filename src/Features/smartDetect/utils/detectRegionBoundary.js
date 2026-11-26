@@ -1,28 +1,30 @@
 /**
  * Detect the frontier between the blank (white / transparent) part and the
- * inked part of a raster base map inside a user-drawn region — « Détection
- * de frontière auto » tool.
+ * inked part of a raster base map inside the zone highlighted by the user —
+ * « Détection de frontière auto » tool. The zone is the union of the
+ * highlighter strokes (a polyline swept by a disc each).
  *
  * Deterministic, pure (no import, node-testable). Works on noisy rasters
  * (point-cloud scans): the frontier is the iso-line of the BLURRED ink
  * density, not a pixel edge.
  *
- *   1. The bounding box of the region (plus a margin for the blur) is read
+ *   1. The bounding box of the zone (plus a margin for the blur) is read
  *      as an "ink" field (255 - luminance, composited over white), averaged
  *      by blocks when the box is larger than `maxAnalysisSize`.
  *   2. The field is blurred (two box passes) to absorb the speckle.
- *   3. The values inside the region are split in two classes (Otsu). The
+ *   3. The values inside the zone are split in two classes (Otsu). The
  *      frontier level is halfway between the class means: the 50 % crossing
  *      of a blurred step sits on the original step.
  *   4. Marching squares trace the iso-line at that level (sub-pixel), in the
- *      cells that lie entirely inside the region. The chains are open where
- *      they leave the region.
+ *      cells that lie entirely inside the zone. The chains are open where
+ *      they leave the zone.
  *   5. The longest chain is returned, densely sampled.
  *
  * @param {Object} params
  * @param {{width:number,height:number,data:Uint8ClampedArray}} params.imageData
- * @param {Array<{x:number,y:number}>} params.regionPoints Region polygon,
- *   source-image px.
+ * @param {Array<{points:Array<{x:number,y:number}>, radius:number}>}
+ *   params.strokes Highlighter strokes (axis and half-width), source-image
+ *   px.
  * @param {number} [params.maxAnalysisSize=1200] Longest side of the analysed
  *   grid (cells).
  * @param {number} [params.blurRadius=3] Box radius, in grid cells.
@@ -35,16 +37,21 @@
  */
 export default function detectRegionBoundary({
   imageData,
-  regionPoints,
+  strokes,
   maxAnalysisSize = 1200,
   blurRadius = 3,
   minContrast = 20,
   minLengthCells = 10,
 } = {}) {
-  const region = (regionPoints ?? []).filter(
-    (p) => p && Number.isFinite(p.x) && Number.isFinite(p.y)
-  );
-  if (!imageData?.data || region.length < 3) {
+  const zone = (strokes ?? [])
+    .map((stroke) => ({
+      radius: stroke?.radius,
+      points: (stroke?.points ?? []).filter(
+        (p) => p && Number.isFinite(p.x) && Number.isFinite(p.y)
+      ),
+    }))
+    .filter(({ points, radius }) => points.length > 0 && radius > 0);
+  if (!imageData?.data || zone.length === 0) {
     return { points: null, reason: "INVALID_REGION" };
   }
   const { width: imgW, height: imgH, data } = imageData;
@@ -55,11 +62,13 @@ export default function detectRegionBoundary({
   let minY = Infinity;
   let maxX = -Infinity;
   let maxY = -Infinity;
-  for (const p of region) {
-    if (p.x < minX) minX = p.x;
-    if (p.y < minY) minY = p.y;
-    if (p.x > maxX) maxX = p.x;
-    if (p.y > maxY) maxY = p.y;
+  for (const { points, radius } of zone) {
+    for (const p of points) {
+      if (p.x - radius < minX) minX = p.x - radius;
+      if (p.y - radius < minY) minY = p.y - radius;
+      if (p.x + radius > maxX) maxX = p.x + radius;
+      if (p.y + radius > maxY) maxY = p.y + radius;
+    }
   }
   const regionSide = Math.max(maxX - minX, maxY - minY);
   if (!(regionSide > 0)) return { points: null, reason: "INVALID_REGION" };
@@ -81,7 +90,8 @@ export default function detectRegionBoundary({
       for (let dy = 0; dy < cellSize; dy++) {
         let i = ((y0 + gy * cellSize + dy) * imgW + x0 + gx * cellSize) * 4;
         for (let dx = 0; dx < cellSize; dx++, i += 4) {
-          const lum = 0.299 * data[i] + 0.587 * data[i + 1] + 0.114 * data[i + 2];
+          const lum =
+            0.299 * data[i] + 0.587 * data[i + 1] + 0.114 * data[i + 2];
           sum += ((255 - lum) * data[i + 3]) / 255;
         }
       }
@@ -93,9 +103,20 @@ export default function detectRegionBoundary({
 
   const field = boxBlur(boxBlur(ink, W, H, blurRadius), W, H, blurRadius);
 
-  // --- 3. region mask (grid nodes = cell centres) and frontier level ---
+  // --- 3. zone mask (grid nodes = cell centres) and frontier level ---
 
-  const mask = rasterizePolygon(region, W, H, (gx) => x0 + (gx + 0.5) * cellSize, (gy) => y0 + (gy + 0.5) * cellSize);
+  // strokes in grid coordinates
+  const mask = rasterizeStrokes(
+    zone.map(({ points, radius }) => ({
+      radius: radius / cellSize,
+      points: points.map((p) => ({
+        x: (p.x - x0) / cellSize - 0.5,
+        y: (p.y - y0) / cellSize - 0.5,
+      })),
+    })),
+    W,
+    H
+  );
 
   const histogram = new Float64Array(256);
   let count = 0;
@@ -182,27 +203,43 @@ function boxBlur(src, W, H, radius) {
   return out;
 }
 
-// Even-odd scanline fill: mask[gy * W + gx] = 1 when the node lies inside
-// the polygon. `toX` / `toY` give the polygon-space position of a node.
-function rasterizePolygon(polygon, W, H, toX, toY) {
+// mask[gy * W + gx] = 1 when the node lies within `radius` of the axis of
+// one of the strokes (grid coordinates).
+function rasterizeStrokes(strokes, W, H) {
   const mask = new Uint8Array(W * H);
-  const n = polygon.length;
-  const crossings = [];
-  for (let gy = 0; gy < H; gy++) {
-    const y = toY(gy);
-    crossings.length = 0;
-    for (let i = 0; i < n; i++) {
-      const a = polygon[i];
-      const b = polygon[(i + 1) % n];
-      if (a.y <= y === b.y <= y) continue;
-      crossings.push(a.x + ((y - a.y) / (b.y - a.y)) * (b.x - a.x));
-    }
-    crossings.sort((u, v) => u - v);
-    for (let c = 0; c + 1 < crossings.length; c += 2) {
-      for (let gx = 0; gx < W; gx++) {
-        const x = toX(gx);
-        if (x >= crossings[c] && x < crossings[c + 1]) mask[gy * W + gx] = 1;
+  const fillCapsule = (a, b, radius) => {
+    const gx0 = Math.max(0, Math.ceil(Math.min(a.x, b.x) - radius));
+    const gx1 = Math.min(W - 1, Math.floor(Math.max(a.x, b.x) + radius));
+    const gy0 = Math.max(0, Math.ceil(Math.min(a.y, b.y) - radius));
+    const gy1 = Math.min(H - 1, Math.floor(Math.max(a.y, b.y) + radius));
+    const dx = b.x - a.x;
+    const dy = b.y - a.y;
+    const lengthSq = dx * dx + dy * dy;
+    for (let gy = gy0; gy <= gy1; gy++) {
+      for (let gx = gx0; gx <= gx1; gx++) {
+        const t =
+          lengthSq > 0
+            ? Math.max(
+                0,
+                Math.min(1, ((gx - a.x) * dx + (gy - a.y) * dy) / lengthSq)
+              )
+            : 0;
+        const ex = gx - a.x - t * dx;
+        const ey = gy - a.y - t * dy;
+        if (ex * ex + ey * ey <= radius * radius) mask[gy * W + gx] = 1;
       }
+    }
+  };
+  for (const { points, radius } of strokes) {
+    // the samples closer than half a cell add nothing to the mask
+    let last = points[0];
+    fillCapsule(last, last, radius);
+    for (let i = 1; i < points.length; i++) {
+      const p = points[i];
+      const isLast = i === points.length - 1;
+      if (!isLast && Math.hypot(p.x - last.x, p.y - last.y) < 0.5) continue;
+      fillCapsule(last, p, radius);
+      last = p;
     }
   }
   return mask;
