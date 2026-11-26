@@ -207,6 +207,8 @@ import getRectangleSizeInPx from "Features/rectangles/utils/getRectangleSizeInPx
 import getRectangleSizeLocks from "Features/rectangles/utils/getRectangleSizeLocks";
 import resizeRectangleBbox from "Features/rectangles/utils/resizeRectangleBbox";
 import {
+  RECTANGLE_FILL_ZONE_MODE,
+  getRectangleFillLayout,
   getRectangleFromTwoPoints,
   getRectanglePlacementRotation,
   getRectangleRawPoints,
@@ -1211,7 +1213,7 @@ export default function MainMapEditorV3({ forViewerKey = "MAP" }) {
       options = { ...(options ?? {}), drawRectangle: true };
     }
 
-    deferredCommit.commit(rawPoints, options);
+    return deferredCommit.commit(rawPoints, options);
   };
 
   // handler - commit points from drop_fill
@@ -1496,6 +1498,71 @@ export default function MainMapEditorV3({ forViewerKey = "MAP" }) {
     }
     handleCommitDrawing(points, options);
   };
+  // « Texturer une zone rectangulaire »: the two clicks are the zone; one
+  // RECTANGLE annotation per cell of the layout, written by ONE commit (the
+  // first rectangle goes through the regular pipeline, the others are its
+  // `bboxSiblings`) — one transaction, one undo step.
+  const handleCommitRectangleFillZone = async (points) => {
+    if (type !== "RECTANGLE" || points?.length !== 2) return;
+    const sizePx = getRectangleSizeInPx({
+      size: newAnnotation.size,
+      sizeUnit: newAnnotation.sizeUnit,
+      meterByPx: baseMap?.getMeterByPx?.(),
+    });
+    if (sizePx.width === null || sizePx.height === null) {
+      dispatch(
+        setToaster({
+          message:
+            "Impossible de texturer la zone : le fond de plan n'a pas d'échelle ou le modèle n'a pas de dimensions.",
+          severity: "warning",
+        })
+      );
+      return;
+    }
+    const rotation = getRectanglePlacementRotation(
+      orthoSnapAngleOffset,
+      rectanglePlacementRotationRef.current
+    );
+    const layout = getRectangleFillLayout({
+      p1: points[0],
+      p2: points[1],
+      rotation,
+      itemWidthPx: sizePx.width,
+      itemHeightPx: sizePx.height,
+    });
+    if (!layout.centers.length) {
+      dispatch(
+        setToaster({
+          message: "La zone est plus petite qu'un rectangle du modèle.",
+          severity: "info",
+        })
+      );
+      return;
+    }
+    const [first, ...others] = layout.centers.map((center) =>
+      getRectangleRawPoints({
+        center,
+        width: sizePx.width,
+        height: sizePx.height,
+      })
+    );
+    await withUndoGroup(() =>
+      handleCommitDrawing(first, {
+        drawRectangle: true,
+        rotation,
+        bboxSiblings: others,
+      })
+    );
+    if (layout.truncated) {
+      dispatch(
+        setToaster({
+          message: `Zone très grande : création limitée à ${layout.centers.length} rectangles.`,
+          severity: "warning",
+        })
+      );
+    }
+  };
+
   // handlers - circle
 
   const handleCommitDrawingFromCircle = (points) => {
@@ -2877,6 +2944,8 @@ export default function MainMapEditorV3({ forViewerKey = "MAP" }) {
                   return handleMeasureCommit(points, event);
                 } else if (enabledDrawingMode === "IMAGE_SCALE") {
                   return handleImageScaleCommit(points, event);
+                } else if (enabledDrawingMode === RECTANGLE_FILL_ZONE_MODE) {
+                  return handleCommitRectangleFillZone(points);
                 } else if (
                   [
                     "RECTANGLE",

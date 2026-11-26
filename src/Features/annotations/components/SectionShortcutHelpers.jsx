@@ -5,6 +5,8 @@ import KeyboardReturnIcon from '@mui/icons-material/KeyboardReturn';
 
 import KeyChip from './KeyChip';
 
+import { RECTANGLE_PLACEMENT_MODES } from "Features/rectangles/utils/rectanglePlacement";
+
 // `shortcuts` prop overrides the drawing-mode-derived list (e.g. the 3D
 // OBJECT_3D placement mode shows its own rotation shortcuts).
 export default function SectionShortcutHelpers({ shortcuts: shortcutsProp }) {
@@ -42,7 +44,7 @@ export default function SectionShortcutHelpers({ shortcuts: shortcutsProp }) {
         // RECTANGLE annotation being placed (1-click or 2-click tool): the
         // arrows rotate it instead of panning (InteractionLayer).
         ...(newAnnotationType === "RECTANGLE" &&
-            ["ONE_CLICK", "RECTANGLE"].includes(enabledDrawingMode)
+            RECTANGLE_PLACEMENT_MODES.includes(enabledDrawingMode)
             ? [
                 { key: "← →", label: "Tourner le rectangle de 10°" },
                 { key: "⇧ ← →", label: "Tourner le rectangle de 1°" },

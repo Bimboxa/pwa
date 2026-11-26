@@ -34,7 +34,9 @@ function parseMappingCategory(entry) {
 import useSelectedListing from "Features/listings/hooks/useSelectedListing";
 import useCreateEntity from "Features/entities/hooks/useCreateEntity";
 import { isTemplatelessAnnotation } from "../utils/templatelessAnnotations";
-import getNextAutoNumberLabelAsync from "../services/getNextAutoNumberLabelAsync";
+import getNextAutoNumberLabelAsync, {
+  createAutoNumberLabelAllocator,
+} from "../services/getNextAutoNumberLabelAsync";
 import requestSubtractOnContactSync from "../services/requestSubtractOnContactSync";
 
 // Annotations whose label is owned by another mechanism: never auto-numbered.
@@ -68,6 +70,15 @@ export default function useCreateAnnotation() {
       // annotation add, so the liveQueries re-run once per commit.
       const pointRowsToSave = options?.pointRowsToSave ?? [];
       const annotationUpdatesInTx = options?.annotationUpdatesInTx ?? [];
+      // Batch of one drawing commit (« Texturer une zone rectangulaire »):
+      // `siblingRows` are { id, ...own fields } of extra annotations that
+      // are otherwise identical to this one. They are added in the SAME
+      // transaction, each with its own auto-number label and mapping rels.
+      const siblingRows = options?.siblingRows ?? [];
+      const allocateAutoLabel = siblingRows.length
+        ? createAutoNumberLabelAllocator()
+        : null;
+      const siblingLabelById = new Map();
 
       // main
       const _annotation = {
@@ -108,10 +119,15 @@ export default function useCreateAnnotation() {
       // ALWAYS_COPY_KEYS), like the entity label used to at read time.
       // Read OUTSIDE the transaction below.
       if (!options?.skipAutoNumber && !isAutoNumberExempt(_annotation)) {
-        const autoLabel = await getNextAutoNumberLabelAsync(
-          _annotation.listingId
-        );
+        // A batch numbers its rows sequentially from one allocator.
+        const autoLabel = allocateAutoLabel
+          ? await allocateAutoLabel(_annotation.listingId)
+          : await getNextAutoNumberLabelAsync(_annotation.listingId);
         if (autoLabel) _annotation.label = autoLabel;
+        for (const sibling of siblingRows) {
+          const siblingLabel = await allocateAutoLabel(_annotation.listingId);
+          if (siblingLabel) siblingLabelById.set(sibling.id, siblingLabel);
+        }
       }
 
       // ── relAnnotationMappingCategory ────────────────────────────────────
@@ -162,13 +178,41 @@ export default function useCreateAnnotation() {
             if (rels.length > 0) {
               await db.relAnnotationMappingCategory.bulkAdd(rels);
             }
+            if (siblingRows.length > 0) {
+              // Cloned from the row just added (same transaction), so they
+              // carry exactly what the entity pipeline stored.
+              const stored = await db.annotations.get(_annotation.id);
+              await db.annotations.bulkAdd(
+                siblingRows.map((sibling) => ({
+                  ...stored,
+                  ...sibling,
+                  ...(siblingLabelById.has(sibling.id)
+                    ? { label: siblingLabelById.get(sibling.id) }
+                    : {}),
+                }))
+              );
+              if (rels.length > 0) {
+                await db.relAnnotationMappingCategory.bulkAdd(
+                  siblingRows.flatMap((sibling) =>
+                    rels.map((rel) => ({
+                      ...rel,
+                      id: nanoid(),
+                      annotationId: sibling.id,
+                    }))
+                  )
+                );
+              }
+            }
           },
         },
       });
 
       // « Soustraire au contact »: a no-op unless the annotation (or its
       // template) carries the option.
-      requestSubtractOnContactSync([_annotation.id]);
+      requestSubtractOnContactSync([
+        _annotation.id,
+        ...siblingRows.map((sibling) => sibling.id),
+      ]);
 
       // skipTriggers: a batch creating several annotations dispatches the
       // two triggers itself, once, after its last write.

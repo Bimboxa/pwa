@@ -18,6 +18,7 @@ import {
   NorthEast as RampIcon,
   AutoFixHigh as LocalizedRepairIcon,
   Adjust as RevolutionPlacementIcon,
+  GridView as RectangleFillZoneIcon,
 } from "@mui/icons-material";
 
 import IconPolylineClick from "Features/icons/IconPolylineClick";
@@ -118,6 +119,18 @@ const DRAWING_TOOLS = [
     Icon: Rectangle,
     annotationType: null,
     behavior: "RECTANGLE",
+  },
+  // RECTANGLE template: 2 clicks draw a zone, filled with as many rectangles
+  // (template dimensions) as fit, spread evenly — one annotation each
+  // (getRectangleFillLayout). Never a default tool: a row click places one
+  // rectangle.
+  {
+    key: "RECTANGLE_FILL_ZONE",
+    label: "Texturer une zone rectangulaire",
+    Icon: RectangleFillZoneIcon,
+    annotationType: null,
+    behavior: "RECTANGLE_FILL_ZONE",
+    neverDefaultTool: true,
   },
   {
     key: "POLYLINE_CIRCLE",
