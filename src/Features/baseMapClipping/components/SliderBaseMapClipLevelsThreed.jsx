@@ -22,6 +22,9 @@ import setBaseMapClipDepthService from "../services/setBaseMapClipDepthService";
 
 const TRACK_HEIGHT_PX = 300;
 const THUMB_PX = 16;
+const TRACK_WIDTH_PX = 2;
+// x of the track in the slider: one thumb fits on each side of it
+const TRACK_X_PX = THUMB_PX;
 const KINDS = ["top", "z", "bottom"];
 
 const roundMm = (v) => Math.round(v * 1e3) / 1e3;
@@ -39,7 +42,9 @@ function parseNumber(text) {
 /**
  * Vertical slider of the clip levels of the selected base map, on the left
  * of the 3D editor — shown when the selected base map is HORIZONTAL and has
- * its « Plan de coupe » enabled. Three thumbs on one altitude scale:
+ * its « Plan de coupe » enabled. Three thumbs on one altitude scale (« Z »
+ * on the left of the track, the box faces on its right, so they never hide
+ * each other):
  *   - « Z »: the altitude of the base map. Its clipping box is defined
  *     relative to it, so the two other thumbs follow in parallel;
  *   - « Haut » / « Bas »: the top / bottom faces of the box, as offsets
@@ -364,8 +369,10 @@ function ClipLevelsSlider({ record }) {
     <Box
       sx={{
         position: "absolute",
-        left: 24,
+        // room on the left for the « Z » value
+        left: 116,
         top: "50%",
+        width: TRACK_X_PX * 2 + TRACK_WIDTH_PX,
         height: TRACK_HEIGHT_PX,
         transform: "translateY(-50%)",
         zIndex: 2,
@@ -378,10 +385,10 @@ function ClipLevelsSlider({ record }) {
       <Box
         sx={{
           position: "absolute",
-          left: THUMB_PX / 2 - 1,
+          left: TRACK_X_PX,
           top: 0,
           bottom: 0,
-          width: 2,
+          width: TRACK_WIDTH_PX,
           borderRadius: 1,
           bgcolor: "text.disabled",
         }}
@@ -391,8 +398,8 @@ function ClipLevelsSlider({ record }) {
         ref={barRef}
         sx={{
           position: "absolute",
-          left: THUMB_PX / 2 - 3,
-          width: 6,
+          left: TRACK_X_PX - 2,
+          width: TRACK_WIDTH_PX + 4,
           borderRadius: 1,
           bgcolor: "secondary.main",
           opacity: 0.35,
@@ -407,11 +414,19 @@ function ClipLevelsSlider({ record }) {
           }}
           sx={{
             position: "absolute",
-            left: 0,
             top: 0,
             height: 0,
             display: "flex",
             alignItems: "center",
+            // « Z »: thumb and value LEFT of the track; « Haut » / « Bas »:
+            // right of it — a box face 1 cm from the base map stays
+            // readable and grabbable next to the « Z » thumb.
+            ...(kind === "z"
+              ? {
+                  right: TRACK_X_PX + TRACK_WIDTH_PX,
+                  flexDirection: "row-reverse",
+                }
+              : { left: TRACK_X_PX + TRACK_WIDTH_PX }),
             gap: 0.75,
             pointerEvents: "auto",
           }}
