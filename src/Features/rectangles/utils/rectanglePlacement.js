@@ -26,13 +26,20 @@ export function getRectanglePlacementRotation(orthoSnapAngleOffset, deltaDeg) {
  * Forced side lengths (pixels, magnitudes) of the 2-click tool: a dimension
  * locked by the template wins, else the value typed in the X / Y buffers
  * (`metrics.rectX / rectY`, metres). `null` = free, follows the cursor.
+ *
+ * `ignoreLocks`: the rectangle being drawn is not an annotation of the
+ * template but the ZONE of « Texturer une zone rectangulaire » — only the
+ * typed values constrain it.
  */
 export function getRectangleDraftConstraints({
   newAnnotation,
   meterByPx,
   metrics,
+  ignoreLocks = false,
 }) {
-  const { lockedWidth, lockedHeight } = getRectangleSizeLocks(newAnnotation);
+  const { lockedWidth, lockedHeight } = ignoreLocks
+    ? { lockedWidth: false, lockedHeight: false }
+    : getRectangleSizeLocks(newAnnotation);
   const lockedPx = getRectangleSizeInPx({
     size: newAnnotation?.size,
     sizeUnit: newAnnotation?.sizeUnit,
@@ -113,6 +120,9 @@ const RECTANGLE_FILL_MAX_COUNT = 2000;
  * spread evenly — the same gap between two rectangles and between a
  * rectangle and the zone border.
  *
+ * `zoneWidthPx` / `zoneHeightPx` (optional): side lengths typed by the user
+ * (X / Y), the cursor then only picks the quadrant.
+ *
  * Returns { corners (zone: A, B, C, D), centers, countX, countY, truncated }.
  * `centers` is empty when the zone is smaller than one rectangle.
  */
@@ -122,9 +132,17 @@ export function getRectangleFillLayout({
   rotation = 0,
   itemWidthPx,
   itemHeightPx,
+  zoneWidthPx = null,
+  zoneHeightPx = null,
   maxCount = RECTANGLE_FILL_MAX_COUNT,
 }) {
-  const zone = getRectangleFromTwoPoints({ p1, p2, rotation });
+  const zone = getRectangleFromTwoPoints({
+    p1,
+    p2,
+    rotation,
+    widthPx: zoneWidthPx,
+    heightPx: zoneHeightPx,
+  });
   const layout = {
     corners: zone.corners,
     centers: [],
@@ -138,6 +156,7 @@ export function getRectangleFillLayout({
   const EPSILON = 1e-6;
   let countX = Math.floor(zone.width / itemWidthPx + EPSILON);
   let countY = Math.floor(zone.height / itemHeightPx + EPSILON);
+  if (!(zone.width > 0) || !(zone.height > 0)) return layout;
   if (countX < 1 || countY < 1) return layout;
   if (countX * countY > maxCount) {
     layout.truncated = true;
