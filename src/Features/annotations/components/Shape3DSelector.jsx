@@ -46,7 +46,11 @@ export default function Shape3DSelector({ annotation }) {
   // data
 
   const updateAnnotation = useUpdateAnnotation();
-  const revolutionAxes = useRevolutionAxes();
+  // Scope plan axes + the standalone axis drawn on the annotation's own
+  // (vertical) base map.
+  const revolutionAxes = useRevolutionAxes({
+    standaloneBaseMapId: annotation?.baseMapId,
+  });
   const profiles = useProfileAnnotations({
     excludeIds: annotation?.id ? [annotation.id] : [],
   });
