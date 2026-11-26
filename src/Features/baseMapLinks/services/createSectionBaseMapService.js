@@ -6,7 +6,11 @@ import getBlankBaseMapGeometry, {
   getBlankBaseMapPrintZone,
 } from "Features/baseMaps/utils/getBlankBaseMapGeometry";
 
+import worldToBaseMapNormalized from "Features/baseMaps/js/worldToBaseMapNormalized";
+import printLocalScanSectionService from "Features/localScans/services/printLocalScanSectionService";
+
 import { SECTION_BASE_MAP_MODES } from "../sectionBaseMapPlacementSlice";
+import { createGeometryBaseMap } from "./getHydratedBaseMap";
 import { isBaseMapLinkSource } from "../utils/baseMapLinkPredicates";
 import { buildBaseMapLinkCloneDraft } from "../utils/startBaseMapLinkTools";
 import resyncBaseMapLinkPlacementsService from "./resyncBaseMapLinkPlacementsService";
@@ -25,15 +29,31 @@ import resyncBaseMapLinkPlacementsService from "./resyncBaseMapLinkPlacementsSer
 //    the vertical base maps driven by a section mark — poses it: the clone
 //    encodes the previewed pose, so the base map lands where it was shown.
 //
+//
+// Two options of the placement come first:
+//
+// 0a. `sourceAnchorsWorld` ({ A, B } in world metres): the page was moved
+//     along the normal of the section plane (↑ / ↓), so the MARK itself is
+//     moved there — its two db.points rows, normalized on the plan base map.
+//     The solver of step 3 reads the mark: it must move before the pose.
+// 0b. `cloudPrint` ({ toleranceM, clouds }, blank page only) with `pagePose`
+//     ({ position, angleDeg }, the previewed pose): the point clouds within
+//     the tolerance of the page are printed on it
+//     (printLocalScanSectionService) and that image replaces the white page.
+//     No point in the slab → the white page, as without the option.
+//
 // `createBaseMapFromImageFn` = useCreateBaseMapFromImage, `createAnnotationFn`
-// = useCreateAnnotation. Returns { baseMapId, listingId }, or null when
-// nothing was created.
+// = useCreateAnnotation. Returns { baseMapId, listingId, printedPointCount
+// (null when nothing was asked) }, or null when nothing was created.
 export default async function createSectionBaseMapService({
   sourceAnnotationId,
   mode,
   blank,
   existingBaseMapId,
   cloneNorm,
+  sourceAnchorsWorld = null,
+  pagePose = null,
+  cloudPrint = null,
   projectId,
   scopeId,
   createBaseMapFromImageFn,
@@ -44,9 +64,35 @@ export default async function createSectionBaseMapService({
   const source = await db.annotations.get(sourceAnnotationId);
   if (!source || source.deletedAt || !isBaseMapLinkSource(source)) return null;
 
+  // --- 0a. the mark follows the page along the normal ---
+
+  let markUpdates = null;
+  if (sourceAnchorsWorld?.A && sourceAnchorsWorld?.B) {
+    if (source.points?.length !== 2) return null;
+    const planRecord = await db.baseMaps.get(source.baseMapId);
+    if (!planRecord || planRecord.deletedAt) return null;
+    const planBaseMap = createGeometryBaseMap(
+      planRecord,
+      await db.baseMapVersions
+        .where("baseMapId")
+        .equals(planRecord.id)
+        .toArray()
+    );
+    const norms = [sourceAnchorsWorld.A, sourceAnchorsWorld.B].map((world) =>
+      worldToBaseMapNormalized(world, planBaseMap)
+    );
+    if (norms.some((n) => !Number.isFinite(n?.x) || !Number.isFinite(n?.y)))
+      return null;
+    markUpdates = norms.map((n, i) => ({
+      key: source.points[i].id,
+      changes: { x: n.x, y: n.y },
+    }));
+  }
+
   // --- 1. the vertical base map ---
 
   let baseMapId = null;
+  let printedPointCount = null;
   if (mode === SECTION_BASE_MAP_MODES.EXISTING) {
     const record = existingBaseMapId
       ? await db.baseMaps.get(existingBaseMapId)
@@ -63,9 +109,29 @@ export default async function createSectionBaseMapService({
       size,
       scale,
     });
+    // --- 0b. the point clouds cut by the page, printed on it ---
+    let printed = null;
+    if (cloudPrint?.clouds?.length && pagePose?.position) {
+      printed = await printLocalScanSectionService({
+        clouds: cloudPrint.clouds,
+        toleranceM: cloudPrint.toleranceM,
+        name,
+        page: {
+          orientation: "VERTICAL",
+          angleDeg: pagePose.angleDeg,
+          position: pagePose.position,
+          width: pixelWidth,
+          height: pixelHeight,
+          meterByPx,
+        },
+      });
+    }
+    if (cloudPrint) printedPointCount = printed?.pointCount ?? 0;
     const entity = await createBaseMapFromImageFn({
-      // no image file: the white page is synthesized at hydration
-      whitePage: { width: pixelWidth, height: pixelHeight },
+      ...(printed
+        ? { file: printed.file }
+        : // no image file: the white page is synthesized at hydration
+          { whitePage: { width: pixelWidth, height: pixelHeight } }),
       name,
       listing: blank.listing,
       meterByPx,
@@ -83,6 +149,10 @@ export default async function createSectionBaseMapService({
     baseMapId = entity?.id ?? null;
   }
   if (!baseMapId) return null;
+
+  // The mark moves once the page exists (nothing to undo on a failure
+  // above), and before the clone is solved against it.
+  if (markUpdates) await db.points.bulkUpdate(markUpdates);
 
   // --- 2. locate the mark on it (keep-scale clone) ---
 
@@ -134,5 +204,9 @@ export default async function createSectionBaseMapService({
   dispatch?.(triggerAnnotationsUpdate());
 
   const record = await db.baseMaps.get(baseMapId);
-  return { baseMapId, listingId: record?.listingId ?? null };
+  return {
+    baseMapId,
+    listingId: record?.listingId ?? null,
+    printedPointCount,
+  };
 }

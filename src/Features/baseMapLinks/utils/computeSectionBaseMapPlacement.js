@@ -7,6 +7,11 @@
 // observer side of the mark. Two scalars place the page in that plane:
 //   - alongM: shift of the page centre along A → B, from the mark's middle;
 //   - upM:    vertical shift of the page centre, from the plan altitude.
+// A third one, `normalM`, moves the PLANE itself: the mark A → B is shifted
+// along the viewing direction d = (uz, 0, -ux) — the opposite of the front
+// normal, i.e. away from the observer when positive. Everything else is
+// computed from the shifted mark (returned as `anchors`): the caller moves
+// the stored mark there on validation, so the clone still encodes the pose.
 //
 // Same frame as computeVerticalBaseMapPlacementFromLink (keepScale): local
 // +X of the page follows A → B (u = (cos a, 0, -sin a)), local +Y is world
@@ -18,18 +23,36 @@
 // Inputs: A, B in world metres ({x, y, z}, same altitude), `size` =
 // { width, height } of the page reference frame in px, `meterByPx`.
 // Returns { angleDeg, position, cloneNorm: { q1, q2 }, widthM, heightM,
-// axisU: { x, z } }, or null when the inputs are unusable.
+// axisU: { x, z }, viewDir: { x, z }, anchors: { A, B } }, or null when the
+// inputs are unusable.
 const EPS = 1e-9;
 
 export default function computeSectionBaseMapPlacement({
-  A,
-  B,
+  A: markA,
+  B: markB,
   size,
   meterByPx,
   alongM = 0,
   upM = 0,
+  normalM = 0,
 }) {
-  if (!A || !B) return null;
+  if (!markA || !markB) return null;
+  const markDx = markB.x - markA.x;
+  const markDz = markB.z - markA.z;
+  const markL = Math.hypot(markDx, markDz);
+  if (markL < EPS) return null;
+  const viewDir = { x: markDz / markL, z: -markDx / markL };
+  const shift = Number.isFinite(normalM) ? normalM : 0;
+  const A = {
+    x: markA.x + shift * viewDir.x,
+    y: markA.y,
+    z: markA.z + shift * viewDir.z,
+  };
+  const B = {
+    x: markB.x + shift * viewDir.x,
+    y: markB.y,
+    z: markB.z + shift * viewDir.z,
+  };
   const W = size?.width;
   const H = size?.height;
   if (!(W > 0) || !(H > 0) || !(meterByPx > 0)) return null;
@@ -64,5 +87,7 @@ export default function computeSectionBaseMapPlacement({
     widthM: W * meterByPx,
     heightM: H * meterByPx,
     axisU: { x: ux, z: uz },
+    viewDir,
+    anchors: { A, B },
   };
 }
