@@ -108,6 +108,7 @@ export default function SectionSectionBaseMapPlacementHelper() {
   const previewS = "Aperçu de la coupe";
   const toleranceS = "Nuage de points ±";
   const printS = "Imprimer le nuage de points";
+  const vectorizeS = "Vectoriser le nuage de points";
 
   // data
 
@@ -122,6 +123,7 @@ export default function SectionSectionBaseMapPlacementHelper() {
     sectionPreview,
     cloudToleranceM,
     printPointCloud,
+    vectorizePointCloud,
   } = useSelector(selectSectionBaseMapPlacement);
   const { listings, listing } = useSectionBaseMapListing();
   const { groups } = useVerticalBaseMapsByListing();
@@ -133,7 +135,8 @@ export default function SectionSectionBaseMapPlacementHelper() {
   // Float noise of the cm / m conversions never reaches the fields.
   const offsetValue = Math.round(normalOffsetM * 1000) / 1000;
   const toleranceCm = Math.round(cloudToleranceM * 1000) / 10;
-  const usesTolerance = sectionPreview || (printPointCloud && !isExisting);
+  const usesTolerance =
+    sectionPreview || ((printPointCloud || vectorizePointCloud) && !isExisting);
 
   // handlers
 
@@ -405,6 +408,18 @@ export default function SectionSectionBaseMapPlacementHelper() {
               size="small"
               checked={printPointCloud}
               onChange={handleCheck("printPointCloud")}
+            />
+          </Box>
+        )}
+        {!isExisting && (
+          <Box sx={ROW_SX}>
+            <Typography variant="body2" color="text.secondary" sx={{ pl: 0.5 }}>
+              {vectorizeS}
+            </Typography>
+            <Checkbox
+              size="small"
+              checked={vectorizePointCloud}
+              onChange={handleCheck("vectorizePointCloud")}
             />
           </Box>
         )}

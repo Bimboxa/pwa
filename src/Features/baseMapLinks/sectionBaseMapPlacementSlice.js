@@ -36,6 +36,9 @@ const initialState = {
   cloudToleranceM: 0.01,
   // blank page only: the cloud slab becomes the image of the base map
   printPointCloud: false,
+  // blank page only: the cloud slab is vectorized into templateless
+  // polylines drawn on the new base map (with or without the print)
+  vectorizePointCloud: false,
 };
 
 export const SECTION_BASE_MAP_NORMAL_STEP_M = 0.1;
@@ -77,6 +80,7 @@ const sectionBaseMapPlacementSlice = createSlice({
         "sectionPreview",
         "cloudToleranceM",
         "printPointCloud",
+        "vectorizePointCloud",
       ].forEach((key) => {
         if (params[key] !== undefined) state[key] = params[key];
       });

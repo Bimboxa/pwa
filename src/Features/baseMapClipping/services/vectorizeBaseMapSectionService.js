@@ -12,18 +12,12 @@ import {
   getLocalScanViews,
   isLocalScanViewDisplayed,
 } from "Features/localScans/services/localScanViewRegistry";
-import { collectLocalScanSlicePointsInWorker } from "Features/localScans/services/projectLocalScanInWorker";
-import getLocalScanSectionFrame from "Features/localScans/utils/getLocalScanSectionFrame";
 import { getLocalScanWorldMatrix } from "Features/localScans/utils/getLocalScanMatrixInBaseMap";
 import isLocalScanResource from "Features/localScans/utils/isLocalScanResource";
 
 import buildVectorizedSectionRows from "../utils/buildVectorizedSectionRows";
-import vectorizeSliceFootprint from "../utils/vectorizeSliceFootprint";
 
-// Grid cell of the vectorization, from the slice half thickness: a thinner
-// slice is a thinner ribbon, worth a finer grid.
-const MIN_CELL_M = 0.005;
-const MAX_CELL_M = 0.02;
+import vectorizeLocalScanSectionService from "./vectorizeLocalScanSectionService";
 
 // Point clouds to cut: the ones displayed in the 3D scene (what the user
 // sees cut), or — nothing displayed (« Affichage 3D : Masqué ») — the scans
@@ -96,41 +90,21 @@ export default async function vectorizeBaseMapSectionService({
   }
   const page = { ...getBaseMapTransform(baseMap), width, height, meterByPx };
 
-  // slice points of every cloud, in metres from the image top-left corner
   const { clouds, release } = await collectClouds(baseMap.projectId);
-  const parts = [];
+  let vectorized;
   try {
     if (!clouds.length) return { ...result, status: "NO_CLOUD" };
-    // One cloud at a time: each job clones its positions into a worker.
-    for (const cloud of clouds) {
-      const slice = await collectLocalScanSlicePointsInWorker(cloud.data, {
-        frame: getLocalScanSectionFrame(cloud.matrixWorld, page),
-        lower: -toleranceM,
-        upper: toleranceM,
-      });
-      if (slice?.count) parts.push(slice.points);
-    }
+    vectorized = await vectorizeLocalScanSectionService({
+      clouds,
+      page,
+      toleranceM,
+    });
   } finally {
     release();
   }
-  const total = parts.reduce((sum, part) => sum + part.length, 0);
-  if (!total) return { ...result, status: "NO_POINT" };
-  const points = new Float32Array(total);
-  let offset = 0;
-  parts.forEach((part) => {
-    points.set(part, offset);
-    offset += part.length;
-  });
-  result.pointCount = total / 2;
-
-  const { polylines, stats } = vectorizeSliceFootprint({
-    points,
-    cellSize: Math.min(MAX_CELL_M, Math.max(MIN_CELL_M, toleranceM)),
-  });
-  console.log(
-    `[baseMapClipping] section of base map ${baseMap.id}: ${result.pointCount} points, ${stats.chainCount} chain(s), ${polylines.length} polyline(s) kept`,
-    stats
-  );
+  const { polylines } = vectorized;
+  result.pointCount = vectorized.pointCount;
+  if (!result.pointCount) return { ...result, status: "NO_POINT" };
   if (!polylines.length) return { ...result, status: "NO_LINE" };
 
   const { newPoints, newAnnotations } = buildVectorizedSectionRows({
