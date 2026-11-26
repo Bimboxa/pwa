@@ -617,12 +617,22 @@ const DrawingLayer = forwardRef(
               sizeUnit: na.sizeUnit,
               meterByPx: mbp,
             });
+            // Zone sides typed by the user (X / Y), never the template
+            // padlocks: those size the rectangles, not the zone.
+            const zoneConstraints = getRectangleDraftConstraints({
+              newAnnotation: na,
+              meterByPx: mbp,
+              metrics,
+              ignoreLocks: true,
+            });
             const layout = getRectangleFillLayout({
               p1: lastPoint,
               p2: cursorPos,
               rotation,
               itemWidthPx: sizePx.width,
               itemHeightPx: sizePx.height,
+              zoneWidthPx: zoneConstraints.widthPx,
+              zoneHeightPx: zoneConstraints.heightPx,
             });
             [A, B, C, D] = layout.corners;
             if (previewRectangleFillRef.current) {

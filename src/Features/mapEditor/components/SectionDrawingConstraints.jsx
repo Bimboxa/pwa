@@ -27,6 +27,8 @@ const RECTANGLE_DRAWING_MODES = [
   "POLYGON_RECTANGLE",
   "CUT_RECTANGLE",
   "FACE_CUT_RECTANGLE",
+  // « Texturer une zone rectangulaire »: X / Y of the zone
+  "RECTANGLE_FILL_ZONE",
 ];
 
 // "Coupe face" axis cuts (3D editor) — cut distance display + typed

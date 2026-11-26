@@ -3373,6 +3373,9 @@ const InteractionLayer = forwardRef(({
         newAnnotation: newAnnotationRef.current,
         meterByPx: meterByPxRef.current,
         metrics: rectMetricsRef.current,
+        // « Texturer une zone »: the drawn rectangle is the zone, only its
+        // typed X / Y constrain it (the padlocks size the rectangles).
+        ignoreLocks: enabledDrawingModeRef.current === RECTANGLE_FILL_ZONE_MODE,
       }),
     }).corners[2];
   useEffect(() => {
@@ -4158,6 +4161,7 @@ const InteractionLayer = forwardRef(({
       "POLYLINE_RECTANGLE",
       "POLYGON_RECTANGLE",
       "CUT_RECTANGLE",
+      RECTANGLE_FILL_ZONE_MODE,
     ].includes(enabledDrawingMode);
     setRectHasFirstPoint(isRect && drawingPoints.length === 1);
   }, [enabledDrawingMode, drawingPoints.length, setRectHasFirstPoint]);
@@ -4947,14 +4951,16 @@ const InteractionLayer = forwardRef(({
       // otherwise duplicate viewers (e.g. main + BASE_MAPS) double-capture each key.
       const isRectangleSecondPhase =
         isActiveViewerRef.current &&
-        ["RECTANGLE", "POLYLINE_RECTANGLE", "POLYGON_RECTANGLE", "CUT_RECTANGLE"].includes(enabledDrawingMode) &&
+        ["RECTANGLE", "POLYLINE_RECTANGLE", "POLYGON_RECTANGLE", "CUT_RECTANGLE", RECTANGLE_FILL_ZONE_MODE].includes(enabledDrawingMode) &&
         drawingPointsRef.current?.length === 1;
 
       if (isRectangleSecondPhase && e.key !== "Escape") {
         // RECTANGLE annotation: a dimension locked by the template cannot be
         // typed.
+        // (not the zone of « Texturer une zone »: its sides are free)
         const rectLocks =
-          newAnnotationRef.current?.type === "RECTANGLE"
+          newAnnotationRef.current?.type === "RECTANGLE" &&
+          enabledDrawingMode !== RECTANGLE_FILL_ZONE_MODE
             ? getRectangleSizeLocks(newAnnotationRef.current)
             : null;
         // Axis switching (also resets the targeted buffer)
@@ -6889,7 +6895,7 @@ const InteractionLayer = forwardRef(({
       }
 
       // Apply rectangle X/Y typed-dimensions override for the second point
-      const isRectangleMode = ["RECTANGLE", "POLYLINE_RECTANGLE", "POLYGON_RECTANGLE", "CUT_RECTANGLE"].includes(enabledDrawingMode);
+      const isRectangleMode = ["RECTANGLE", "POLYLINE_RECTANGLE", "POLYGON_RECTANGLE", "CUT_RECTANGLE", RECTANGLE_FILL_ZONE_MODE].includes(enabledDrawingMode);
       if (
         isRectangleMode &&
         drawingPoints.length === 1 &&
