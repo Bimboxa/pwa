@@ -59,7 +59,18 @@ export default function Shape3DBatchSelector({ annotations }) {
   // data
 
   const updateAnnotations = useUpdateAnnotations();
-  const revolutionAxes = useRevolutionAxes();
+  // Scope plan axes + the standalone axis of the base map, offered only when
+  // every revolving annotation of the selection sits on that same base map
+  // (a standalone axis revolves nothing else).
+  const revolvingBaseMapIds = new Set(
+    (annotations ?? [])
+      .filter((a) => TYPES_SUPPORTING_REVOLUTION.includes(a.type))
+      .map((a) => a.baseMapId)
+  );
+  const revolutionAxes = useRevolutionAxes({
+    standaloneBaseMapId:
+      revolvingBaseMapIds.size === 1 ? [...revolvingBaseMapIds][0] : null,
+  });
   const profiles = useProfileAnnotations({
     excludeIds: (annotations ?? []).map((a) => a.id),
   });

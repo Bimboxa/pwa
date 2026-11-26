@@ -2,7 +2,10 @@ import { useLiveQuery } from "dexie-react-hooks";
 import { useSelector } from "react-redux";
 
 import db from "App/db/db";
-import { isLegacyRevolutionRecord } from "Features/annotations/constants/drawingShapeConfig";
+import {
+  isLegacyRevolutionRecord,
+  isStandaloneRevolutionAxisPlacement,
+} from "Features/annotations/constants/drawingShapeConfig";
 import isRevolutionHelperInScope, {
   getScopeIdByListingId,
 } from "Features/annotations/utils/isRevolutionHelperInScope";
@@ -15,7 +18,13 @@ import useSelectedScope from "Features/scopes/hooks/useSelectedScope";
 // REVOLUTION_AXIS_PLACEMENT of it — but scope-filtered: every consumer is a
 // current-scope picker, and another scope's axes must not be offered (nor
 // counted as duplicates).
-export default function useRevolutionAxes() {
+//
+// `standaloneBaseMapId` (optional): also returns the STANDALONE axis drawn on
+// that vertical base map (REVOLUTION_AXIS_PLACEMENT without revolutionAxisId,
+// its own axis). It only revolves the annotations of its own base map, so it
+// is offered to the shape3D pickers of that base map and to nothing else
+// (never to "place an existing axis" / "linked axis" pickers).
+export default function useRevolutionAxes({ standaloneBaseMapId } = {}) {
   const projectId = useSelector((s) => s.projects.selectedProjectId);
   const annotationsUpdatedAt = useSelector(
     (s) => s.annotations.annotationsUpdatedAt
@@ -31,18 +40,21 @@ export default function useRevolutionAxes() {
       .toArray();
     // Axes of the previous model are skipped: they carry no radius/orientation,
     // so they can neither be drawn nor placed (see isLegacyRevolutionRecord).
-    const allAxes = rows.filter(
-      (a) =>
-        !a.deletedAt &&
-        a.type === "REVOLUTION_AXIS" &&
-        !isLegacyRevolutionRecord(a)
-    );
+    const allAxes = rows.filter((a) => {
+      if (a.deletedAt) return false;
+      if (a.type === "REVOLUTION_AXIS") return !isLegacyRevolutionRecord(a);
+      return (
+        Boolean(standaloneBaseMapId) &&
+        a.baseMapId === standaloneBaseMapId &&
+        isStandaloneRevolutionAxisPlacement(a)
+      );
+    });
 
     const scopeIdByListingId = await getScopeIdByListingId(allAxes);
     return allAxes.filter((a) =>
       isRevolutionHelperInScope(a, { scopeId, scopeIdByListingId })
     );
-  }, [projectId, annotationsUpdatedAt, scopeId]);
+  }, [projectId, annotationsUpdatedAt, scopeId, standaloneBaseMapId]);
 
   return axes ?? [];
 }
