@@ -450,10 +450,11 @@ export default function SectionBaseMapsList({
 
     const scanButton = getScanButton(map);
 
-    // Scissors: the base map as a clipping plane of the 3D scene (depths in
-    // its properties panel, « Plan de coupe »).
+    // Scissors: cut the 3D scene by the base map — only for the base maps
+    // whose « Plan de coupe » is enabled in their properties panel (which
+    // also holds the depths). The button is the cut itself, on / off.
     const clipButton =
-      isThreedDisplayed && !map.isPhoto
+      isThreedDisplayed && !map.isPhoto && map.clipping3d?.enabled
         ? {
             on: clippingIds.includes(map.id),
             onToggle: () => dispatch(toggleBaseMapClippingIn3d(map.id)),
