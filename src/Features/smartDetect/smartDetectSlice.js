@@ -10,6 +10,17 @@ export const ROOM_SHAPES = ["AUTO", "RECTANGLE", "L"];
 export const ROOM_WINDOW_MIN_M = 2;
 export const ROOM_WINDOW_MAX_M = 60;
 const ROOM_WINDOW_STEP = 1.25;
+// Shapes the « Vectoriser au surligneur » tool can fit (F cycles), see
+// utils/vectorizeHighlightStroke.js.
+export const HIGHLIGHT_VECTORIZE_SHAPES = [
+  "ARC",
+  "LINE",
+  "RIGHT_ANGLE",
+  "FREE",
+];
+export const HIGHLIGHT_BRUSH_MIN_PX = 12;
+export const HIGHLIGHT_BRUSH_MAX_PX = 240;
+const HIGHLIGHT_BRUSH_STEP = 1.25;
 
 const smartDetectInitialState = {
   //
@@ -43,6 +54,14 @@ const smartDetectInitialState = {
   //     detection is limited to (Z enlarges, W shrinks). A room must fit in
   //     it; the smaller, the faster.
   roomWindowSizeM: 10,
+  // « Vectoriser au surligneur » tool (POLYLINE_HIGHLIGHT_VECTORIZE): width
+  // of the highlighter, in SCREEN px whatever the zoom (Z enlarges, W
+  // shrinks).
+  highlightBrushSizePx: 48,
+  //   - highlightVectorizeShape: what is fitted through the highlighted
+  //     pixels — "ARC" (one arc), "LINE" (one segment), "RIGHT_ANGLE"
+  //     (segments at right angles) or "FREE" (polyline, free bends).
+  highlightVectorizeShape: "FREE",
   visibleAreaOnly: true,
   //
   simplifyPolynomial: true,
@@ -103,6 +122,28 @@ export const smartDetectSlice = createSlice({
         Math.min(ROOM_WINDOW_MAX_M, size)
       );
     },
+    setHighlightVectorizeShape: (state, action) => {
+      state.highlightVectorizeShape = action.payload;
+    },
+    cycleHighlightVectorizeShape: (state) => {
+      const index = HIGHLIGHT_VECTORIZE_SHAPES.indexOf(
+        state.highlightVectorizeShape
+      );
+      state.highlightVectorizeShape =
+        HIGHLIGHT_VECTORIZE_SHAPES[
+          (index + 1) % HIGHLIGHT_VECTORIZE_SHAPES.length
+        ];
+    },
+    // payload: +1 (larger) / -1 (smaller)
+    stepHighlightBrushSize: (state, action) => {
+      const factor =
+        action.payload > 0 ? HIGHLIGHT_BRUSH_STEP : 1 / HIGHLIGHT_BRUSH_STEP;
+      const size = Math.round(state.highlightBrushSizePx * factor);
+      state.highlightBrushSizePx = Math.max(
+        HIGHLIGHT_BRUSH_MIN_PX,
+        Math.min(HIGHLIGHT_BRUSH_MAX_PX, size)
+      );
+    },
     setVisibleAreaOnly: (state, action) => {
       state.visibleAreaOnly = action.payload;
     },
@@ -134,6 +175,9 @@ export const {
   cycleRoomShape,
   setRoomIgnoreColoredLines,
   stepRoomWindowSize,
+  stepHighlightBrushSize,
+  setHighlightVectorizeShape,
+  cycleHighlightVectorizeShape,
   setVisibleAreaOnly,
   setSimplifyPolynomial,
   setSimplifyOuterContour,

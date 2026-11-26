@@ -17,6 +17,8 @@ export const DRAWING_TOOL_HOTKEYS = {
   a: "ARC", // "Arc de cercle" — only resolves for shapes that have an ARC tool
   // (POLYLINE). "A" also doubles as the global smart-detect trigger; the hook
   // yields A to smart-detect when that switch is active (see useDrawingToolHotkeys).
+  h: "HIGHLIGHT_VECTORIZE", // « Surligneur » (highlighter) — only resolves for
+  // shapes that have the tool (POLYLINE).
   p: "MESH_BRUSH", // « Pinceau » (3D: paints parts; 2D: converts / duplicates
   // the clicked annotation). Like A, the letter yields to the smart detect
   // when that switch is on (useDrawingToolHotkeys): P then keeps resizing the

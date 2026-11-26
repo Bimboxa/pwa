@@ -32,6 +32,8 @@ import IconPolygonCircle from "Features/icons/IconPolygonCircle";
 import IconPolylineCircleRadius from "Features/icons/IconPolylineCircleRadius";
 import IconPolygonCircleRadius from "Features/icons/IconPolygonCircleRadius";
 import IconPolylineArc from "Features/icons/IconPolylineArc";
+import IconPolylineBoundaryDetect from "Features/icons/IconPolylineBoundaryDetect";
+import IconPolylineHighlightVectorize from "Features/icons/IconPolylineHighlightVectorize";
 import IconCutSegment from "Features/icons/IconCutSegment";
 import IconIsolateSegment from "Features/icons/IconIsolateSegment";
 import IconSplitPolygon from "Features/icons/IconSplitPolygon";
@@ -60,6 +62,9 @@ import IconOpeningStripSegment from "Features/icons/IconOpeningStripSegment";
 
 import { getToolsForShape } from "Features/annotations/constants/drawingShapeConfig";
 import { MESH_BRUSH_TOOL_KEY } from "Features/meshPaint/constants/meshPaintConstants";
+
+import { BOUNDARY_DETECT_MODE } from "./boundaryDetectMode";
+import { HIGHLIGHT_VECTORIZE_MODE } from "./highlightVectorizeMode";
 
 import filterDrawingToolsForEditor from "../utils/filterDrawingToolsForEditor";
 
@@ -156,6 +161,31 @@ const DRAWING_TOOLS = [
     behavior: "ARC",
     // No 3-point flow in the 3D editor (T turns the last point into an arc).
     editor: "2D",
+  },
+  // « Détection de frontière auto »: the clicks draw a REGION (like a
+  // polygon); Enter creates the polyline that follows the frontier between
+  // the blank and the inked part of the base map inside that region
+  // (detectRegionBoundary). Reads the raster: 2D editor only.
+  {
+    key: BOUNDARY_DETECT_MODE,
+    label: "Détection de frontière auto",
+    Icon: IconPolylineBoundaryDetect,
+    annotationType: "POLYLINE",
+    behavior: "BOUNDARY_DETECT",
+    editor: "2D",
+    neverDefaultTool: true,
+  },
+  // « Vectoriser au surligneur »: a drag highlights the pixels to follow
+  // (disc of fixed screen size); the release commits the polyline fitted
+  // through them (vectorizeHighlightStroke). Reads the raster: 2D editor only.
+  {
+    key: HIGHLIGHT_VECTORIZE_MODE,
+    label: "Vectoriser au surligneur",
+    Icon: IconPolylineHighlightVectorize,
+    annotationType: "POLYLINE",
+    behavior: "HIGHLIGHT_VECTORIZE",
+    editor: "2D",
+    neverDefaultTool: true,
   },
   {
     key: "POLYGON_CIRCLE",
