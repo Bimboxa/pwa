@@ -5,6 +5,7 @@ import { getDrawingToolByKey } from "Features/mapEditor/constants/drawingTools.j
 import {
   buildRevolutionAxisDraft,
   buildRevolutionAxisPlacementDraft,
+  buildRevolutionAxisSectionDraft,
 } from "Features/revolutionAxes/utils/buildRevolutionAxisDrafts";
 
 // Drawing tools of the two axis commands: « Axe de révolution » draws a new
@@ -12,6 +13,7 @@ import {
 // one on a vertical base map (REVOLUTION_AXIS_PLACE).
 export const REVOLUTION_AXIS_DRAW_TOOL_KEY = "REVOLUTION_AXIS_PLAN";
 export const REVOLUTION_AXIS_PLACE_TOOL_KEY = "REVOLUTION_AXIS_PLACE";
+export const REVOLUTION_AXIS_SECTION_TOOL_KEY = "REVOLUTION_AXIS_SECTION";
 
 function armTool(dispatch, toolKey, draft) {
   const tool = getDrawingToolByKey(toolKey);
@@ -41,6 +43,17 @@ export function startPlaceRevolutionAxis(dispatch, axis) {
   );
 }
 
+// Arms the drawing of a standalone axis on the current (vertical) base map:
+// foot of the inverted T, then half base + height. No plan axis involved, the
+// base map keeps its 3D pose.
+export function startDrawRevolutionAxisOnSection(dispatch) {
+  armTool(
+    dispatch,
+    REVOLUTION_AXIS_SECTION_TOOL_KEY,
+    buildRevolutionAxisSectionDraft()
+  );
+}
+
 // Whether the armed drawing mode is the axis drawing tool.
 export function isRevolutionAxisDrawDrawingMode(drawingMode) {
   return isDrawingModeOfTool(drawingMode, REVOLUTION_AXIS_DRAW_TOOL_KEY);
@@ -49,4 +62,9 @@ export function isRevolutionAxisDrawDrawingMode(drawingMode) {
 // Whether the armed drawing mode is the axis placement tool.
 export function isRevolutionAxisPlaceDrawingMode(drawingMode) {
   return isDrawingModeOfTool(drawingMode, REVOLUTION_AXIS_PLACE_TOOL_KEY);
+}
+
+// Whether the armed drawing mode is the standalone section axis tool.
+export function isRevolutionAxisSectionDrawingMode(drawingMode) {
+  return isDrawingModeOfTool(drawingMode, REVOLUTION_AXIS_SECTION_TOOL_KEY);
 }

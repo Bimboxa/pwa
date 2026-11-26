@@ -14,8 +14,10 @@ export default function getRevolutionAxisIdOfAnnotation(annotation) {
   if (annotation.isRevolutionFootprint)
     return annotation.revolutionAxisId ?? null;
   if (annotation.type === "REVOLUTION_AXIS") return annotation.id ?? null;
+  // A placement with no linked axis is an axis DRAWN on a vertical base map
+  // (isStandaloneRevolutionAxisPlacement): it is its own axis.
   if (annotation.type === "REVOLUTION_AXIS_PLACEMENT")
-    return annotation.revolutionAxisId ?? null;
+    return annotation.revolutionAxisId ?? annotation.id ?? null;
   const shape3D = annotation.shape3D;
   const key = typeof shape3D === "string" ? shape3D : shape3D?.key;
   if (key === "REVOLUTION") return shape3D?.axisAnnotationId ?? null;

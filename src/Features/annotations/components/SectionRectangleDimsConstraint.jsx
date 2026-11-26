@@ -26,6 +26,7 @@ export default function SectionRectangleDimsConstraint({
   // strings
 
   const firstCornerS = "Cliquez pour créer le 1er angle.";
+  const axisFootS = "Cliquez à la base de l'axe.";
   const targetS = "Cibler un côté";
   const signS = "Signe";
   const validateS = "Valider";
@@ -42,6 +43,10 @@ export default function SectionRectangleDimsConstraint({
   const rectCurrentAxis = useSelector((s) => s.mapEditor.rectCurrentAxis);
   const rectSideAxes = useSelector((s) => s.mapEditor.rectSideAxes);
   const rectHasFirstPoint = useSelector((s) => s.mapEditor.rectHasFirstPoint);
+  // Axis drawn on a vertical base map: X = half base, Y = height.
+  const isRevolutionAxisSection = useSelector(
+    (s) => s.mapEditor.enabledDrawingMode === "REVOLUTION_AXIS_SECTION"
+  );
 
   // helpers
 
@@ -59,7 +64,7 @@ export default function SectionRectangleDimsConstraint({
         variant="body2"
         sx={{ color: "text.secondary", fontSize: "0.85rem", px: 0.5 }}
       >
-        {firstCornerS}
+        {isRevolutionAxisSection ? axisFootS : firstCornerS}
       </Typography>
     );
   }

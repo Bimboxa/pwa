@@ -46,7 +46,10 @@ import deriveOpeningContourAnchor from "Features/mapEditor/utils/deriveOpeningCo
 import getAnnotationAsPolygons from "Features/geometry/utils/getAnnotationAsPolygons";
 import useDrawingRevolutionAxis from "Features/revolutionAxes/hooks/useDrawingRevolutionAxis";
 import { getShape3DKey, TYPES_SUPPORTING_REVOLUTION } from "Features/annotations/constants/shape3DConfig";
-import { isRevolutionHelperType } from "Features/annotations/constants/drawingShapeConfig";
+import {
+    isRevolutionHelperType,
+    isStandaloneRevolutionAxisPlacement,
+} from "Features/annotations/constants/drawingShapeConfig";
 import { isTemplatelessAnnotation } from "Features/annotations/utils/templatelessAnnotations";
 import resyncRevolutionAxisPlacementsService from "Features/elevation/services/resyncRevolutionAxisPlacementsService";
 import resyncBaseMapLinkPlacementsService from "Features/baseMapLinks/services/resyncBaseMapLinkPlacementsService";
@@ -1043,7 +1046,12 @@ export default function useHandleCommitDrawing({ annotations } = {}) {
             // copies template.label (the template NAME) onto template-driven
             // drafts, and it must not become the axis name. Placements are not
             // concerned: their draft label is the linked axis's label.
-            if (newAnnotation?.type === "REVOLUTION_AXIS") {
+            // An axis DRAWN on a vertical base map (standalone placement) is
+            // an axis of its own: same numbering, shared with the plan axes.
+            if (
+                newAnnotation?.type === "REVOLUTION_AXIS" ||
+                isStandaloneRevolutionAxisPlacement(newAnnotation)
+            ) {
                 // Numbered within the current SCOPE only: each scope has its
                 // own axes, so its first axis must be "Axe 1" even when other
                 // scopes already carry axes on the project.
@@ -1052,7 +1060,12 @@ export default function useHandleCommitDrawing({ annotations } = {}) {
                         .where("projectId")
                         .equals(projectId)
                         .toArray()
-                ).filter((a) => a.type === "REVOLUTION_AXIS" && !a.deletedAt);
+                ).filter(
+                    (a) =>
+                        !a.deletedAt &&
+                        (a.type === "REVOLUTION_AXIS" ||
+                            isStandaloneRevolutionAxisPlacement(a))
+                );
                 const scopeIdByListingId = await getScopeIdByListingId(axisRows);
                 const existingAxesCount = axisRows.filter((a) =>
                     isRevolutionHelperInScope(a, {
@@ -1374,9 +1387,12 @@ export default function useHandleCommitDrawing({ annotations } = {}) {
         // — replace any earlier one of the current scope so two axes can't
         // fight over the same pose, but leave other scopes' placements alone
         // (each scope poses its own axis on the shared base map).
+        // An axis DRAWN on the base map (standalone, no `revolutionAxisId`)
+        // follows the same one-per-base-map-per-scope rule but poses nothing:
+        // the base map keeps its pose, the axis is the vertical through its
+        // foot in that plane.
         if (
             _newAnnotation?.type === "REVOLUTION_AXIS_PLACEMENT" &&
-            _newAnnotation?.revolutionAxisId &&
             _newAnnotation?.id
         ) {
             try {
@@ -1401,10 +1417,12 @@ export default function useHandleCommitDrawing({ annotations } = {}) {
                 // Soft delete (db.js middleware) — keeps undo working.
                 for (const p of previous) await db.annotations.delete(p.id);
 
-                await resyncRevolutionAxisPlacementsService({
-                    placementId: _newAnnotation.id,
-                    dispatch,
-                });
+                if (_newAnnotation.revolutionAxisId) {
+                    await resyncRevolutionAxisPlacementsService({
+                        placementId: _newAnnotation.id,
+                        dispatch,
+                    });
+                }
                 dispatch(triggerAnnotationsUpdate());
                 // One placement per axis and base map: the tool is a one-shot
                 // entry (armed from the axis row / the drawing tool row).

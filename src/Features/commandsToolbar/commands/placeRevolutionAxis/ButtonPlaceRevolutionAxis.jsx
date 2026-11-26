@@ -1,17 +1,28 @@
 import { useState } from "react";
 import { useDispatch } from "react-redux";
 
-import { ListItemText, Menu, MenuItem } from "@mui/material";
+import {
+  Divider,
+  ListItemText,
+  ListSubheader,
+  Menu,
+  MenuItem,
+  Tooltip,
+} from "@mui/material";
 
 import useRevolutionAxes from "Features/annotations/hooks/useRevolutionAxes";
+import useMainBaseMap from "Features/mapEditor/hooks/useMainBaseMap";
 
 import CommandButton from "../../components/CommandButton";
-import { startPlaceRevolutionAxis } from "../revolutionAxis/startRevolutionAxisTools";
+import {
+  startDrawRevolutionAxisOnSection,
+  startPlaceRevolutionAxis,
+} from "../revolutionAxis/startRevolutionAxisTools";
 
-// Toolbar button of « Axe sur plan de coupe »: a menu of the revolution axes
-// of the scope (always a menu, even with a single axis); picking one arms the
-// placement click on the current vertical base map. Disabled with a reason
-// while the scope has no axis yet.
+// Toolbar button of « Axe sur plan de coupe »: always a menu. First entry:
+// draw a NEW axis on the current vertical base map (two clicks: foot, then
+// half base + height — needs a scale); then the revolution axes of the scope,
+// picking one arms its placement click (which poses the base map in 3D).
 export default function ButtonPlaceRevolutionAxis({
   command,
   state,
@@ -21,29 +32,33 @@ export default function ButtonPlaceRevolutionAxis({
 
   // strings
 
-  const placeS = "Poser un axe de révolution existant sur ce plan de coupe";
-  const noAxisS = "Créez d'abord un axe sur un fond de plan horizontal";
+  const tooltipS =
+    "Dessiner ou poser un axe de révolution sur ce plan de coupe";
+  const drawS = "Dessiner un nouvel axe";
+  const drawHintS = "2 clics : base, puis demi-largeur et hauteur";
+  const noScaleS = "Fond de plan sans échelle";
+  const placeS = "Poser un axe existant";
 
   // data
 
   const revolutionAxes = useRevolutionAxes();
+  const baseMap = useMainBaseMap();
+  const meterByPx = baseMap?.getMeterByPx?.() ?? baseMap?.meterByPx;
+  const hasScale = Number.isFinite(meterByPx) && meterByPx > 0;
 
   // state
 
   const [menuAnchor, setMenuAnchor] = useState(null);
 
-  // helpers
-
-  let finalState = state;
-  if (state.enabled && revolutionAxes.length === 0) {
-    finalState = { enabled: false, reason: noAxisS };
-  }
-
   // handlers
 
   function handleClick(event, anchor) {
-    if (revolutionAxes.length === 0) return;
     setMenuAnchor(anchor);
+  }
+
+  function handleDrawAxis() {
+    setMenuAnchor(null);
+    startDrawRevolutionAxisOnSection(dispatch);
   }
 
   function handleSelectAxis(axis) {
@@ -57,10 +72,10 @@ export default function ButtonPlaceRevolutionAxis({
     <>
       <CommandButton
         commandKey={command.key}
-        label={`${command.label} — ${placeS}`}
+        label={`${command.label} — ${tooltipS}`}
         Icon={command.Icon}
         hotkeyLabel={hotkeyLabel}
-        state={finalState}
+        state={state}
         onClick={handleClick}
       />
       <Menu
@@ -70,6 +85,26 @@ export default function ButtonPlaceRevolutionAxis({
         anchorOrigin={{ vertical: "bottom", horizontal: "left" }}
         transformOrigin={{ vertical: "top", horizontal: "left" }}
       >
+        <Tooltip title={hasScale ? "" : noScaleS} placement="right" arrow>
+          <span>
+            <MenuItem dense disabled={!hasScale} onClick={handleDrawAxis}>
+              <ListItemText
+                primary={drawS}
+                secondary={drawHintS}
+                slotProps={{
+                  primary: { variant: "body2" },
+                  secondary: { variant: "caption" },
+                }}
+              />
+            </MenuItem>
+          </span>
+        </Tooltip>
+        {revolutionAxes.length > 0 && <Divider />}
+        {revolutionAxes.length > 0 && (
+          <ListSubheader sx={{ lineHeight: "28px", fontSize: "0.7rem" }}>
+            {placeS}
+          </ListSubheader>
+        )}
         {revolutionAxes.map((axis) => (
           <MenuItem key={axis.id} dense onClick={() => handleSelectAxis(axis)}>
             <ListItemText

@@ -648,6 +648,17 @@ const DRAWING_TOOLS = [
     behavior: "ONE_CLICK",
     drawingMode: "REVOLUTION_AXIS_PLACEMENT",
   },
+  // Standalone axis drawn on a VERTICAL base map (no plan axis behind it):
+  // click 1 = foot of the inverted T, click 2 = half base (X) + height (Y),
+  // riding the rectangle two-click interaction and its typed X / Y sides.
+  {
+    key: "REVOLUTION_AXIS_SECTION",
+    label: "Axe sur plan de coupe",
+    Icon: RevolutionPlacementIcon,
+    annotationType: "REVOLUTION_AXIS_PLACEMENT",
+    behavior: "RECTANGLE",
+    drawingMode: "REVOLUTION_AXIS_SECTION",
+  },
   // MESH_BRUSH tool (« Pinceau », Dessin module), one key for both editors:
   //   - 3D editor: a click on a 3D annotation object paints the clicked facet
   //     side (Surface template) or edge (Ligne template) with the armed

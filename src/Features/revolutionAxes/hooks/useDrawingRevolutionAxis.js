@@ -6,6 +6,7 @@ import { selectEffectiveViewerKey } from "Features/viewers/utils/effectiveViewer
 import db from "App/db/db";
 import useMainBaseMap from "Features/mapEditor/hooks/useMainBaseMap";
 import { TYPES_SUPPORTING_REVOLUTION } from "Features/annotations/constants/shape3DConfig";
+import { isStandaloneRevolutionAxisPlacement } from "Features/annotations/constants/drawingShapeConfig";
 import isRevolutionHelperInScope, {
   getScopeIdByListingId,
 } from "Features/annotations/utils/isRevolutionHelperInScope";
@@ -13,7 +14,7 @@ import { isThreedFamilyViewerKey } from "Features/viewers/utils/threedViewerKeys
 
 // Revolution axis a 2D drawing may be revolved around: the axis PLACED on the
 // main base map (its inverted-T clone, REVOLUTION_AXIS_PLACEMENT of the
-// selected scope), while the armed draft is of a type that revolves
+// selected scope) or DRAWN on it (standalone placement, its own axis), while the armed draft is of a type that revolves
 // (POLYLINE profile, POINT circle) and is not an opening.
 //
 // Returns { axis: { id, label } | null, enabled } — `enabled`: the
@@ -51,12 +52,7 @@ export default function useDrawingRevolutionAxis() {
     const placements = await db.annotations
       .where("baseMapId")
       .equals(baseMapId)
-      .filter(
-        (a) =>
-          a.type === "REVOLUTION_AXIS_PLACEMENT" &&
-          a.revolutionAxisId &&
-          !a.deletedAt
-      )
+      .filter((a) => a.type === "REVOLUTION_AXIS_PLACEMENT" && !a.deletedAt)
       .toArray();
     if (!placements.length) return null;
     const scopeIdByListingId = await getScopeIdByListingId(placements);
@@ -64,6 +60,8 @@ export default function useDrawingRevolutionAxis() {
       isRevolutionHelperInScope(a, { scopeId, scopeIdByListingId })
     );
     if (!placement) return null;
+    if (isStandaloneRevolutionAxisPlacement(placement))
+      return { id: placement.id, label: placement.label ?? null };
     const row = await db.annotations.get(placement.revolutionAxisId);
     if (!row || row.deletedAt) return null;
     return { id: row.id, label: row.label ?? null };

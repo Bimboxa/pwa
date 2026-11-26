@@ -275,6 +275,7 @@ const REVOLUTION_AXIS_DRAWING_MODES = [
   "REVOLUTION_AXIS_PLAN",
   "REVOLUTION_AXIS_PLACEMENT",
   "REPOSITION_REVOLUTION_PLACEMENT",
+  "REVOLUTION_AXIS_SECTION",
 ];
 
 // Multi-point drawing modes (one point per click). With Shift held, their
@@ -317,7 +318,7 @@ const TRANSFORM_PROJECTION_SNAP_MAX_PX = 10;
 // last point): the modes of the drawing preview, also the only ones — with
 // the move tool destination — where the editor grid snaps the cursor. Pick /
 // fill / paste modes are left out: their click targets what is under it.
-const POINT_PLACEMENT_DRAWING_MODES = ['CLICK', 'POLYLINE_CLICK', 'POLYGON_CLICK', 'CUT_CLICK', 'SPLIT_CLICK', 'STRIP', 'ONE_CLICK', "MEASURE", "IMAGE_SCALE", "SEGMENT", "POLYLINE_SEGMENT", "STRIP_SEGMENT", "RECTANGLE", "POLYLINE_RECTANGLE", "POLYGON_RECTANGLE", "CUT_RECTANGLE", RECTANGLE_FILL_ZONE_MODE, "LOCALIZED_REPAIR", "JOIN_ANNOTATIONS", "CHAT_REPAIR", "CIRCLE", "POLYLINE_CIRCLE", "POLYGON_CIRCLE", "CUT_CIRCLE", "POLYLINE_CIRCLE_RADIUS", "POLYGON_CIRCLE_RADIUS", "REVOLUTION_AXIS_PLAN", "REVOLUTION_AXIS_PLACEMENT", "REPOSITION_REVOLUTION_PLACEMENT", "PHOTO_POSE", "ARC", "POLYLINE_ARC", "COMPLETE_ANNOTATION", "COTE_TWO_CLICK", "ADD_GUIDE_LINE", "ADD_ISO_HEIGHT_LINE", "ADD_PROFILE_LINE", "ADD_LAYOUT_LINE", "RAMP"];
+const POINT_PLACEMENT_DRAWING_MODES = ['CLICK', 'POLYLINE_CLICK', 'POLYGON_CLICK', 'CUT_CLICK', 'SPLIT_CLICK', 'STRIP', 'ONE_CLICK', "MEASURE", "IMAGE_SCALE", "SEGMENT", "POLYLINE_SEGMENT", "STRIP_SEGMENT", "RECTANGLE", "POLYLINE_RECTANGLE", "POLYGON_RECTANGLE", "CUT_RECTANGLE", RECTANGLE_FILL_ZONE_MODE, "LOCALIZED_REPAIR", "JOIN_ANNOTATIONS", "CHAT_REPAIR", "CIRCLE", "POLYLINE_CIRCLE", "POLYGON_CIRCLE", "CUT_CIRCLE", "POLYLINE_CIRCLE_RADIUS", "POLYGON_CIRCLE_RADIUS", "REVOLUTION_AXIS_PLAN", "REVOLUTION_AXIS_PLACEMENT", "REPOSITION_REVOLUTION_PLACEMENT", "REVOLUTION_AXIS_SECTION", "PHOTO_POSE", "ARC", "POLYLINE_ARC", "COMPLETE_ANNOTATION", "COTE_TWO_CLICK", "ADD_GUIDE_LINE", "ADD_ISO_HEIGHT_LINE", "ADD_PROFILE_LINE", "ADD_LAYOUT_LINE", "RAMP"];
 const DRAG_THRESHOLD_PX = 3; // Seuil de déplacement pour activer le drag
 const SCREEN_BRUSH_RADIUS_PX = 12; // Rayon fixe à l'écran
 const LOUPE_SIZE = 200; // Taille écran de la loupe
@@ -4162,6 +4163,7 @@ const InteractionLayer = forwardRef(({
       "POLYGON_RECTANGLE",
       "CUT_RECTANGLE",
       RECTANGLE_FILL_ZONE_MODE,
+      "REVOLUTION_AXIS_SECTION",
     ].includes(enabledDrawingMode);
     setRectHasFirstPoint(isRect && drawingPoints.length === 1);
   }, [enabledDrawingMode, drawingPoints.length, setRectHasFirstPoint]);
@@ -4951,7 +4953,7 @@ const InteractionLayer = forwardRef(({
       // otherwise duplicate viewers (e.g. main + BASE_MAPS) double-capture each key.
       const isRectangleSecondPhase =
         isActiveViewerRef.current &&
-        ["RECTANGLE", "POLYLINE_RECTANGLE", "POLYGON_RECTANGLE", "CUT_RECTANGLE", RECTANGLE_FILL_ZONE_MODE].includes(enabledDrawingMode) &&
+        ["RECTANGLE", "POLYLINE_RECTANGLE", "POLYGON_RECTANGLE", "CUT_RECTANGLE", RECTANGLE_FILL_ZONE_MODE, "REVOLUTION_AXIS_SECTION"].includes(enabledDrawingMode) &&
         drawingPointsRef.current?.length === 1;
 
       if (isRectangleSecondPhase && e.key !== "Escape") {
@@ -5010,7 +5012,11 @@ const InteractionLayer = forwardRef(({
             const hasScale = Number.isFinite(mbp) && mbp > 0;
             const mPerPx = hasScale ? mbp : 1;
             const fallbackPos = lastPreviewPosRef.current || lastPoint;
-            const angleDeg = orthoSnapAngleOffsetRef.current || 0;
+            // Section axis: X / Y are the half base / height, never rotated.
+            const angleDeg =
+              enabledDrawingMode === "REVOLUTION_AXIS_SECTION"
+                ? 0
+                : orthoSnapAngleOffsetRef.current || 0;
             let finalPos;
             if (newAnnotationRef.current?.type === "RECTANGLE") {
               finalPos = getRectangleSecondCorner(lastPoint, fallbackPos);
@@ -5495,7 +5501,7 @@ const InteractionLayer = forwardRef(({
                 commitPoint();
               }
 
-              else if (["RECTANGLE", "POLYLINE_RECTANGLE", "POLYGON_RECTANGLE", "CUT_RECTANGLE"].includes(enabledDrawingMode) && newPoints.length === 2) {
+              else if (["RECTANGLE", "POLYLINE_RECTANGLE", "POLYGON_RECTANGLE", "CUT_RECTANGLE", "REVOLUTION_AXIS_SECTION"].includes(enabledDrawingMode) && newPoints.length === 2) {
                 commitPolyline();
               }
 
@@ -6873,7 +6879,7 @@ const InteractionLayer = forwardRef(({
     }
 
     // --- CASE 3: MEASURE / SEGMENT (Auto-commit after 2 points) ---
-    else if (["MEASURE", "IMAGE_SCALE", "SEGMENT", "POLYLINE_SEGMENT", "STRIP_SEGMENT", "RECTANGLE", "POLYLINE_RECTANGLE", "POLYGON_RECTANGLE", "CUT_RECTANGLE", RECTANGLE_FILL_ZONE_MODE, "COTE_TWO_CLICK", "LOCALIZED_REPAIR", "JOIN_ANNOTATIONS", "CHAT_REPAIR"].includes(enabledDrawingMode)) {
+    else if (["MEASURE", "IMAGE_SCALE", "SEGMENT", "POLYLINE_SEGMENT", "STRIP_SEGMENT", "RECTANGLE", "POLYLINE_RECTANGLE", "POLYGON_RECTANGLE", "CUT_RECTANGLE", RECTANGLE_FILL_ZONE_MODE, "REVOLUTION_AXIS_SECTION", "COTE_TWO_CLICK", "LOCALIZED_REPAIR", "JOIN_ANNOTATIONS", "CHAT_REPAIR"].includes(enabledDrawingMode)) {
       let finalPos = toLocalCoords(worldPos);
 
       // Apply Angle Snap (Ortho) if Shift is held or ortho snap is enabled
@@ -6895,7 +6901,7 @@ const InteractionLayer = forwardRef(({
       }
 
       // Apply rectangle X/Y typed-dimensions override for the second point
-      const isRectangleMode = ["RECTANGLE", "POLYLINE_RECTANGLE", "POLYGON_RECTANGLE", "CUT_RECTANGLE", RECTANGLE_FILL_ZONE_MODE].includes(enabledDrawingMode);
+      const isRectangleMode = ["RECTANGLE", "POLYLINE_RECTANGLE", "POLYGON_RECTANGLE", "CUT_RECTANGLE", RECTANGLE_FILL_ZONE_MODE, "REVOLUTION_AXIS_SECTION"].includes(enabledDrawingMode);
       if (
         isRectangleMode &&
         drawingPoints.length === 1 &&
@@ -6910,7 +6916,10 @@ const InteractionLayer = forwardRef(({
           const mbp = meterByPxRef.current;
           const hasScale = Number.isFinite(mbp) && mbp > 0;
           const mPerPx = hasScale ? mbp : 1;
-          const angleDeg = orthoSnapAngleOffsetRef.current || 0;
+          const angleDeg =
+            enabledDrawingMode === "REVOLUTION_AXIS_SECTION"
+              ? 0
+              : orthoSnapAngleOffsetRef.current || 0;
           if (angleDeg === 0) {
             if (metrics.rectX != null) finalPos = { ...finalPos, x: lastPoint.x + metrics.rectX / mPerPx };
             if (metrics.rectY != null) finalPos = { ...finalPos, y: lastPoint.y + metrics.rectY / mPerPx };
@@ -9026,7 +9035,7 @@ const InteractionLayer = forwardRef(({
         commitPoint();
       }
 
-      else if (["RECTANGLE", "POLYLINE_RECTANGLE", "POLYGON_RECTANGLE", "CUT_RECTANGLE", RECTANGLE_FILL_ZONE_MODE, "MEASURE", "IMAGE_SCALE", "SEGMENT", "POLYLINE_SEGMENT", "STRIP_SEGMENT", "COTE_TWO_CLICK"].includes(enabledDrawingMode) && newPointsList?.length === 2) {
+      else if (["RECTANGLE", "POLYLINE_RECTANGLE", "POLYGON_RECTANGLE", "CUT_RECTANGLE", RECTANGLE_FILL_ZONE_MODE, "REVOLUTION_AXIS_SECTION", "MEASURE", "IMAGE_SCALE", "SEGMENT", "POLYLINE_SEGMENT", "STRIP_SEGMENT", "COTE_TWO_CLICK"].includes(enabledDrawingMode) && newPointsList?.length === 2) {
         commitPolyline(e); // add "e" to get clientX & clientY to set the measurePopper anchor position.
       }
 

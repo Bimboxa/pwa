@@ -37,6 +37,7 @@ import {
 
 import AnnotationTemplateIcon from "Features/annotations/components/AnnotationTemplateIcon";
 import IconCreateBaseMap from "Features/icons/IconCreateBaseMap";
+import { isStandaloneRevolutionAxisPlacement } from "Features/annotations/constants/drawingShapeConfig";
 import MenuRevolutionAxisBaseMaps from "./MenuRevolutionAxisBaseMaps";
 import setRevolutionAxisHalfViewService from "../services/setRevolutionAxisHalfViewService";
 import setRevolutionAxisHorizontalCutService from "../services/setRevolutionAxisHorizontalCutService";
@@ -136,6 +137,9 @@ export default function RowRevolutionAxis({
 
   // helpers
 
+  // Axis drawn on a vertical base map: no plan to go to, no other base map
+  // to link — the navigation button is not offered.
+  const isStandalone = isStandaloneRevolutionAxisPlacement(axis);
   const isOnPlan = axis.baseMapId === baseMap?.id;
   const placementHere = placements.find((p) => p.baseMapId === baseMap?.id);
   const { associated: associatedProcedures } = splitRevolutionAxisProcedures(
@@ -451,30 +455,32 @@ export default function RowRevolutionAxis({
               <HorizontalSplit sx={{ fontSize: 16 }} />
             </IconButton>
           </Tooltip>
-          <Tooltip title={navigateTitle} arrow placement="right">
-            <IconButton
-              size="small"
-              onClick={handleNavigate}
-              sx={{
-                p: 0.5,
-                borderRadius: 1,
-                color: color,
-                bgcolor: alpha(color, 0.12),
-                "&:hover": { bgcolor: color, color: "white" },
-              }}
-            >
-              {isOnPlan && linkedBaseMaps.length === 0 ? (
-                <IconCreateBaseMap sx={{ fontSize: 16 }} />
-              ) : (
-                <ArrowForward
-                  sx={{
-                    fontSize: 16,
-                    transform: isOnPlan ? "none" : "rotate(180deg)",
-                  }}
-                />
-              )}
-            </IconButton>
-          </Tooltip>
+          {!isStandalone && (
+            <Tooltip title={navigateTitle} arrow placement="right">
+              <IconButton
+                size="small"
+                onClick={handleNavigate}
+                sx={{
+                  p: 0.5,
+                  borderRadius: 1,
+                  color: color,
+                  bgcolor: alpha(color, 0.12),
+                  "&:hover": { bgcolor: color, color: "white" },
+                }}
+              >
+                {isOnPlan && linkedBaseMaps.length === 0 ? (
+                  <IconCreateBaseMap sx={{ fontSize: 16 }} />
+                ) : (
+                  <ArrowForward
+                    sx={{
+                      fontSize: 16,
+                      transform: isOnPlan ? "none" : "rotate(180deg)",
+                    }}
+                  />
+                )}
+              </IconButton>
+            </Tooltip>
+          )}
         </Box>
       </ListItemButton>
 

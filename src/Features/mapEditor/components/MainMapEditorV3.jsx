@@ -1657,6 +1657,27 @@ export default function MainMapEditorV3({ forViewerKey = "MAP" }) {
     dispatch(setEnabledDrawingMode(null));
   };
 
+  // handlers - revolution axis (drawn on a vertical base map)
+
+  // The 2 clicks are [foot, corner]: the foot of the inverted T is the single
+  // stored point, the corner gives the two scalars `radiusM` (half base, |dx|)
+  // and `height` (|dy|). A standalone axis: no plan axis, no base map pose.
+  const handleCommitDrawingFromRevolutionAxisSection = (points) => {
+    const [foot, corner] = points ?? [];
+    if (!foot || !corner) return;
+    const meterByPx = baseMap?.getMeterByPx?.();
+    if (!Number.isFinite(meterByPx) || meterByPx <= 0) return;
+    const round = (px) => Math.round(px * meterByPx * 1e6) / 1e6;
+    const radiusM = round(Math.abs(corner.x - foot.x));
+    const height = round(Math.abs(corner.y - foot.y));
+    // Degenerate gesture (double click, a zero typed side): keep drawing.
+    if (!(radiusM > 0) || !(height > 0)) return;
+    handleCommitDrawing([foot], {
+      revolutionAxisProps: { radiusM, height },
+    });
+    dispatch(setEnabledDrawingMode(null));
+  };
+
   // handlers - photo pose (Photos module)
 
   // Same [centre, edge] gesture as the revolution axis, but the commit
@@ -2966,6 +2987,8 @@ export default function MainMapEditorV3({ forViewerKey = "MAP" }) {
                   return handleCommitDrawingFromCircle(points);
                 } else if (enabledDrawingMode === "REVOLUTION_AXIS_PLAN") {
                   return handleCommitDrawingFromRevolutionAxis(points);
+                } else if (enabledDrawingMode === "REVOLUTION_AXIS_SECTION") {
+                  return handleCommitDrawingFromRevolutionAxisSection(points);
                 } else if (enabledDrawingMode === "PHOTO_POSE") {
                   return handleCommitPhotoPose(points);
                 } else if (
