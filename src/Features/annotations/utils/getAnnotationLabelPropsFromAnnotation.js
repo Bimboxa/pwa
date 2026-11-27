@@ -1,6 +1,6 @@
-import getBarycenter from "Features/geometry/utils/getBarycenter";
+import getAnnotationLabelAnchor from "./getAnnotationLabelAnchor";
 import {
-    ANNOTATION_LABEL_FONT_SIZES_PX,
+    getAnnotationLabelFontSize,
     getAnnotationLabelTextLines,
     getAnnotationOwnLabel,
 } from "./getAnnotationLabelDisplay";
@@ -13,12 +13,8 @@ export default function getAnnotationLabelPropsFromAnnotation(annotation) {
     // The chip shows (and edits) the annotation's OWN label — never the entity
     // or template one.
     const label = getAnnotationOwnLabel(annotation);
-    let { points, point } = annotation;
-    if (["POINT", "MARKER", "DISC"].includes(annotation.type)) points = [point];
-
-    if (!points) return null;
-
-    const barycenter = getBarycenter(points);
+    const barycenter = getAnnotationLabelAnchor(annotation);
+    if (!barycenter) return null;
 
     // Label color = the annotation's VISIBLE color: line types are drawn with
     // strokeColor (same rule as NodePolylineStatic), surface types with
@@ -56,11 +52,8 @@ export default function getAnnotationLabelPropsFromAnnotation(annotation) {
         type: "LABEL",
         label,
         lines: getAnnotationLabelTextLines(annotation),
-        fontSize:
-            ANNOTATION_LABEL_FONT_SIZES_PX[annotation.labelFontSize] ??
-            ANNOTATION_LABEL_FONT_SIZES_PX.M,
-        // Size mode (resolved own ?? template ?? default): fixed relative to
-        // the print zone (sizes in page pt) or screen-constant (screen px).
+        fontSize: getAnnotationLabelFontSize(annotation),
+        // Always fixed relative to the print zone (sizes in page pt).
         // The pt → image-px scale inputs are stamped by useAnnotationsV2.
         isFixedSize: getAnnotationLabelFixedSizeConfig(annotation).isFixedSize,
         pagePxPerPt: annotation.pagePxPerPt,

@@ -1,15 +1,10 @@
-import {
-  Box,
-  Typography,
-  Button,
-  InputBase,
-  Switch,
-} from "@mui/material";
+import { Box, Typography, Button, Switch } from "@mui/material";
 import { Lock as LockIcon } from "@mui/icons-material";
 
 import useUpdateAnnotation from "Features/annotations/hooks/useUpdateAnnotation";
 
 import WhiteSectionGeneric from "Features/form/components/WhiteSectionGeneric";
+import InputNumberOnBlur from "Features/annotations/components/InputNumberOnBlur";
 
 import getAnnotationLabelSizeConfig, {
   hasOwnLabelSizeValue,
@@ -80,7 +75,12 @@ export default function FieldAnnotationLabelSize({
 
   // pageFormat: legacy own value, cleared too.
   function handleReset() {
-    update({ isFixedSize: null, fontSize: null, pageFormat: null, width: null });
+    update({
+      isFixedSize: null,
+      fontSize: null,
+      pageFormat: null,
+      width: null,
+    });
   }
 
   // render
@@ -128,10 +128,9 @@ export default function FieldAnnotationLabelSize({
               <Typography variant="body2" sx={{ flex: 1 }}>
                 {fontSizeS}
               </Typography>
-              <InputBase
-                type="number"
+              <InputNumberOnBlur
                 value={fontSize ?? ""}
-                onChange={(e) => handleFontSizeChange(e.target.value)}
+                onCommit={handleFontSizeChange}
                 inputProps={{ min: 1, step: 1 }}
                 endAdornment={
                   <Typography variant="caption" color="text.secondary">
@@ -141,7 +140,6 @@ export default function FieldAnnotationLabelSize({
                 sx={numberInputSx}
               />
             </Box>
-
           </Box>
         )}
       </Box>

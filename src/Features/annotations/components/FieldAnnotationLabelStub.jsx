@@ -2,7 +2,6 @@ import {
   Box,
   Typography,
   Button,
-  InputBase,
   ToggleButtonGroup,
   ToggleButton,
 } from "@mui/material";
@@ -11,6 +10,7 @@ import { Lock as LockIcon } from "@mui/icons-material";
 import useUpdateAnnotation from "Features/annotations/hooks/useUpdateAnnotation";
 
 import WhiteSectionGeneric from "Features/form/components/WhiteSectionGeneric";
+import InputNumberOnBlur from "Features/annotations/components/InputNumberOnBlur";
 
 import getAnnotationLabelStubConfig, {
   hasOwnLabelStubValue,
@@ -150,10 +150,9 @@ export default function FieldAnnotationLabelStub({
             ...(locked && { opacity: 0.5, pointerEvents: "none" }),
           }}
         >
-          <InputBase
-            type="number"
+          <InputNumberOnBlur
             value={length ?? ""}
-            onChange={(e) => handleLengthChange(e.target.value)}
+            onCommit={handleLengthChange}
             inputProps={{ min: 0, step: 1 }}
             endAdornment={
               <Typography variant="caption" color="text.secondary">

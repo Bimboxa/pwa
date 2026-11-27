@@ -1,17 +1,11 @@
-import {
-  Box,
-  Typography,
-  Button,
-  IconButton,
-  InputBase,
-  Switch,
-} from "@mui/material";
+import { Box, Typography, Button, IconButton, Switch } from "@mui/material";
 import {
   Lock as LockIcon,
   LockOpen as LockOpenIcon,
 } from "@mui/icons-material";
 
 import WhiteSectionGeneric from "Features/form/components/WhiteSectionGeneric";
+import InputNumberOnBlur from "Features/annotations/components/InputNumberOnBlur";
 
 import getAnnotationLabelSizeConfig, {
   DEFAULT_LABEL_FONT_SIZE_PT,
@@ -136,10 +130,9 @@ export default function FieldAnnotationTemplateLabelSize({
               <Typography variant="body2" sx={{ flex: 1 }}>
                 {fontSizeS}
               </Typography>
-              <InputBase
-                type="number"
+              <InputNumberOnBlur
                 value={fontSize ?? ""}
-                onChange={(e) => handleFontSizeChange(e.target.value)}
+                onCommit={handleFontSizeChange}
                 inputProps={{ min: 1, step: 1 }}
                 endAdornment={
                   <Typography variant="caption" color="text.secondary">

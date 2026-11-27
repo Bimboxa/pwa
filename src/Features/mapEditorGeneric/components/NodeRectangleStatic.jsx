@@ -2,6 +2,9 @@ import { memo, useMemo, useRef } from "react";
 import theme from "Styles/theme";
 
 import getRectangleSizeLocks from "Features/rectangles/utils/getRectangleSizeLocks";
+import getAnnotationLabelPropsFromAnnotation from "Features/annotations/utils/getAnnotationLabelPropsFromAnnotation";
+
+import NodeLabelStatic from "./NodeLabelStatic";
 
 // Taille des poignées (pixels écran fixes)
 const HANDLE_SIZE = 10;
@@ -17,6 +20,7 @@ export default memo(function NodeRectangleStatic({
     containerK = 1,
     // Multi-selection: selected look only, no resize / rotate / move.
     transformLocked = false,
+    forceHideLabel,
 }) {
     const { bbox, id, fillColor, strokeColor, rotation = 0, fillType = "SOLID", fillOpacity = 1 } = annotation;
     const { x, y, width, height } = bbox ?? {};
@@ -157,7 +161,16 @@ export default memo(function NodeRectangleStatic({
     // Sécurité si pas de bbox
     if (width === undefined || height === undefined) return null;
 
+    // Label chip: rendered here only outside the main pass of StaticMapContent
+    // (which hoists every label and passes forceHideLabel), e.g. for the
+    // selected rectangle in EditedObjectLayer. Kept out of the rotated group.
+    const showLabel = Boolean(annotation.showLabel) && !forceHideLabel;
+    const labelAnnotation = showLabel
+        ? getAnnotationLabelPropsFromAnnotation(annotation)
+        : null;
+
     return (
+        <>
         <g
             // On applique la translation ET la rotation sur le groupe parent
             // La rotation se fait autour du centre du rectangle (cx, cy)
@@ -217,5 +230,13 @@ export default memo(function NodeRectangleStatic({
 
             {dragged && draggedPartType === "ROTATE" && renderAngleBadge()}
         </g>
+        {labelAnnotation && (
+            <NodeLabelStatic
+                annotation={labelAnnotation}
+                containerK={containerK}
+                showElbowHandle={Boolean(selected)}
+            />
+        )}
+        </>
     );
 });

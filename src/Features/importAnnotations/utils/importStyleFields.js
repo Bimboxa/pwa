@@ -41,7 +41,7 @@ export const STYLE_FIELDS = [
   // label leader stub
   "labelStubLength",
   "labelStubMode",
-  "labelIsFixedSize",
+  "labelFontSize",
   // CIRCULATION
   "arrowStep",
   "arrowRight",

@@ -6,7 +6,7 @@ import {
   LinearFilter,
 } from "three";
 
-import { ANNOTATION_LABEL_FONT_SIZES_PX } from "Features/annotations/utils/getAnnotationLabelDisplay";
+import { DEFAULT_ANNOTATION_LABEL_FONT_SIZE } from "Features/annotations/utils/getAnnotationLabelDisplay";
 
 import sizeSpriteInCssPx from "./sizeSpriteInCssPx";
 
@@ -62,7 +62,8 @@ function wrapLine(mctx, text, font, maxW) {
  * Camera-facing, CLICKABLE card sprite for an annotation label.
  * `lines`: [{kind: "TEMPLATE"|"LABEL"|"DESCRIPTION", text}] — TEMPLATE and
  * LABEL lines render bold, DESCRIPTION smaller and normal weight.
- * `fontSizePreset`: "S" | "M" | "L" (Etiquette tab), scales the whole card.
+ * `fontSize`: label text size (Etiquette tab, see getAnnotationLabelFontSize),
+ * read as CSS px — scales the whole card.
  * `labelWidth`: 2D chip width in CSS px (resize handle) — the card wraps its
  * text at the equivalent width so both views show the same layout.
  */
@@ -70,7 +71,7 @@ export default function createAnnotationLabelSprite({
   lines,
   annotationId,
   color = "#2196f3",
-  fontSizePreset = "M",
+  fontSize = DEFAULT_ANNOTATION_LABEL_FONT_SIZE,
   labelWidth = null,
   selected = false,
 }) {
@@ -103,10 +104,11 @@ export default function createAnnotationLabelSprite({
   // Canvas px ↔ 2D chip CSS px: the title is drawn at `titleFontPx` canvas px
   // and must end up measuring exactly the 2D font size on screen, so the whole
   // card is later sized in CSS px through this ratio (see sizeSpriteInCssPx).
-  // This is also what makes S / M / L match the 2D presets.
+  // This is also what makes the card follow the 2D label text size.
   const fontSizePx =
-    ANNOTATION_LABEL_FONT_SIZES_PX[fontSizePreset] ??
-    ANNOTATION_LABEL_FONT_SIZES_PX.M;
+    Number.isFinite(fontSize) && fontSize > 0
+      ? fontSize
+      : DEFAULT_ANNOTATION_LABEL_FONT_SIZE;
   const cssToCanvas = titleFontPx / fontSizePx;
   const CHIP_PADDING_X_CSS = 8;
   // Mirror of the 2D layout: fixed width wraps everything, otherwise only the

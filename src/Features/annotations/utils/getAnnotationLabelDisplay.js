@@ -2,13 +2,48 @@
 // both the 2D chip (NodeLabelStatic) and the 3D card sprite
 // (createAnnotationLabelSprite) so the two views always show the same content.
 
-// 2D chip font size per preset ("M" = historical DEFAULT_FONT_SIZE): page
-// points of the print zone when the chip is fixed-size (default, see
-// getAnnotationLabelFixedSizeConfig), screen px otherwise.
+// Legacy S / M / L presets of `annotation.labelFontSize` ("M" = historical
+// DEFAULT_FONT_SIZE). The field now stores a free number; rows saved with a
+// preset keep rendering at these sizes.
 export const ANNOTATION_LABEL_FONT_SIZES_PX = { S: 11, M: 14, L: 18 };
 
-// The 3D card derives its on-screen size from the SAME px sizes (see
-// createAnnotationLabelSprite / sizeSpriteInCssPx), so both views match.
+export const DEFAULT_ANNOTATION_LABEL_FONT_SIZE =
+  ANNOTATION_LABEL_FONT_SIZES_PX.M;
+
+export const LABEL_FONT_SIZE_FIELDS = ["labelFontSize"];
+
+// A number, or a legacy "S" | "M" | "L" preset.
+function parseLabelFontSize(raw) {
+  if (typeof raw === "number" && Number.isFinite(raw) && raw > 0) return raw;
+  return ANNOTATION_LABEL_FONT_SIZES_PX[raw];
+}
+
+export function hasOwnLabelFontSizeValue(annotation) {
+  return parseLabelFontSize(annotation?.labelFontSize) !== undefined;
+}
+
+/**
+ * Font size of an annotation's label chip (`labelFontSize`). Unit: page points
+ * of the print zone, the chip being always fixed relative to it (see
+ * getAnnotationLabelFixedSizeConfig).
+ *
+ * Resolution: annotation own value ?? template value ?? app default — the
+ * same READ-TIME model as the leader stub (getAnnotationLabelStubConfig); the
+ * padlock (overrideFields) forces the template value through the generic
+ * override loop of getAnnotationPropsFromAnnotationTemplateProps.
+ *
+ * The 3D card derives its on-screen size from the SAME value (see
+ * createAnnotationLabelSprite / sizeSpriteInCssPx), so both views match.
+ */
+export function getAnnotationLabelFontSize(annotation) {
+  const templateProps =
+    annotation?.annotationTemplateProps ?? annotation?.annotationTemplate;
+  return (
+    parseLabelFontSize(annotation?.labelFontSize) ??
+    parseLabelFontSize(templateProps?.labelFontSize) ??
+    DEFAULT_ANNOTATION_LABEL_FONT_SIZE
+  );
+}
 
 /**
  * The annotation's OWN label — the `label` field of the annotation row.

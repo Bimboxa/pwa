@@ -873,7 +873,7 @@ export default function FormAnnotationTemplateVariantBlock({
               onOverrideFieldsChange={handleOverrideFieldsChange}
               // Standalone LABEL: size mode owned by
               // FieldAnnotationTemplateLabelSize (isFixedSize).
-              showFixedSize={drawingShape !== "LABEL"}
+              isSubLabel={drawingShape !== "LABEL"}
             />
           )}
 
