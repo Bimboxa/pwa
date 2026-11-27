@@ -10,6 +10,7 @@ import getLegendGroupHeaders, {
 } from "Features/legend/utils/getLegendGroupHeaders";
 import isComponentTemplate from "Features/annotationComponents/utils/isComponentTemplate";
 import { getOffsetLineLegendProps } from "Features/annotations/utils/getAnnotationOffsetLineConfig";
+import { getCirculationLegendProps } from "Features/annotations/utils/getCirculationArrowPath";
 
 export default function useLegendItems() {
   // data
@@ -69,6 +70,8 @@ export default function useLegendItems() {
             fillType,
             // "Ligne de déport" drawn: the glyph is that line.
             offsetLine: getOffsetLineLegendProps(annotation, template),
+            // CIRCULATION: the glyph is the band with an arrow inside.
+            circulation: getCirculationLegendProps(annotation, template),
             label: (() => {
               const base = template?.labelLegend || (template?.label ?? "A définir");
               const h = Number(template?.height);

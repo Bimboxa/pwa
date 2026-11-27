@@ -1,4 +1,5 @@
 import { memo, useLayoutEffect, useRef, useState } from "react";
+import { lighten } from "@mui/material/styles";
 import { Polyline, Pentagon as Polygon, Rectangle, Square, Circle, Texture } from "@mui/icons-material";
 
 import theme from "Styles/theme";
@@ -6,6 +7,7 @@ import theme from "Styles/theme";
 import useObject3DTopView from "Features/object3D/hooks/useObject3DTopView";
 
 import getStrokeDasharray from "Features/mapEditorGeneric/utils/getStrokeDasharray";
+import { getCirculationArrowPathForSpan } from "Features/annotations/utils/getCirculationArrowPath";
 
 // Offset line glyph: page pt of the line → glyph px, as if the glyph were a
 // 16 pt wide sample of the plan; kept readable and inside the glyph.
@@ -17,6 +19,11 @@ const STRIP_GLYPH_THICKNESS_RATIO = 0.2;
 // have no meaningful size in the legend), and largest thickness drawn.
 const POLYLINE_GLYPH_DEFAULT_WIDTH_PX = 2;
 const POLYLINE_GLYPH_MAX_THICKNESS_RATIO = 0.15;
+// CIRCULATION glyph: band height, arrow span and arrow thickness, as ratios
+// of the glyph size.
+const CIRCULATION_GLYPH_BAND_RATIO = 0.5;
+const CIRCULATION_GLYPH_ARROW_SPAN_RATIO = 0.7;
+const CIRCULATION_GLYPH_ARROW_HEIGHT_RATIO = 0.3;
 
 // OBJECT_3D legend glyph: the top view, painted in the template color2D
 // (« Représentation 2D ») when set.
@@ -115,7 +122,7 @@ export default memo(function NodeLegendStatic({
     } = spriteImage || {};
 
     // Helper Icon Component (Statique)
-    function LegendIcon({ type, iconKey, fillColor, strokeColor, fillType, strokeType, variant, topViewDataUrl, color2D, offsetLine, strokeWidth, strokeWidthUnit }) {
+    function LegendIcon({ type, iconKey, fillColor, strokeColor, fillType, strokeType, variant, topViewDataUrl, color2D, offsetLine, strokeWidth, strokeWidthUnit, circulation }) {
         const commonStyle = {
             width: `${ICON_PX}px`,
             height: `${ICON_PX}px`,
@@ -180,6 +187,44 @@ export default memo(function NodeLegendStatic({
                         .map((v) => Number(v) * k)
                     : null,
             });
+        }
+
+        // CIRCULATION: the band (lighter tint) with an arrow inside.
+        if (type === "POLYLINE" && circulation) {
+            let bandColor = strokeColor;
+            try {
+                bandColor = lighten(strokeColor, 0.35);
+            } catch {
+                // keep strokeColor as is
+            }
+            const bandH = ICON_PX * CIRCULATION_GLYPH_BAND_RATIO;
+            const d = getCirculationArrowPathForSpan({
+                span: ICON_PX * CIRCULATION_GLYPH_ARROW_SPAN_RATIO,
+                headHeight: ICON_PX * CIRCULATION_GLYPH_ARROW_HEIGHT_RATIO,
+                arrowRight: circulation.arrowRight,
+                arrowLeft: circulation.arrowLeft,
+            });
+            return (
+                <div style={{ ...commonStyle, background: "white" }}>
+                    <svg width={ICON_PX} height={ICON_PX} viewBox={`0 0 ${ICON_PX} ${ICON_PX}`}>
+                        <rect
+                            x={ICON_PX * 0.05}
+                            y={(ICON_PX - bandH) / 2}
+                            width={ICON_PX * 0.9}
+                            height={bandH}
+                            rx={ICON_PX * 0.06}
+                            fill={bandColor}
+                            fillOpacity={circulation.strokeOpacity}
+                        />
+                        <path
+                            d={d}
+                            transform={`translate(${ICON_PX / 2}, ${ICON_PX / 2})`}
+                            fill={strokeColor}
+                            fillOpacity={circulation.arrowOpacity}
+                        />
+                    </svg>
+                </div>
+            );
         }
 
         if (type === "POLYLINE") {
@@ -415,6 +460,7 @@ export default memo(function NodeLegendStatic({
                                             offsetLine={it.offsetLine}
                                             strokeWidth={it.strokeWidth}
                                             strokeWidthUnit={it.strokeWidthUnit}
+                                            circulation={it.circulation}
                                         />
                                     </div>
                                     <div

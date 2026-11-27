@@ -136,6 +136,9 @@ export default function getAnnotationTemplateProps(annotationTemplate) {
     arrowStep: annotationTemplate?.arrowStep,
     arrowRight: annotationTemplate?.arrowRight,
     arrowLeft: annotationTemplate?.arrowLeft,
+    arrowLength: annotationTemplate?.arrowLength,
+    arrowWidthRatio: annotationTemplate?.arrowWidthRatio,
+    arrowOpacity: annotationTemplate?.arrowOpacity,
 
     // COTE / RULER display settings — only applied to annotations when listed
     // in overrideFields (the lock on the "Cote" line of the template form).

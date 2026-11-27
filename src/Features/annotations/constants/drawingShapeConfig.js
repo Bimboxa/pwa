@@ -356,6 +356,9 @@ const DRAWING_SHAPE_CONFIG = {
   // lighter tint of strokeColor and arrows in the full strokeColor are
   // distributed along the line every `arrowStep` meters. arrowRight /
   // arrowLeft pick the direction(s): right = towards the next vertex.
+  // arrowLength (page pt of the print zone) and arrowWidthRatio (% of the
+  // band width) size the glyph; arrowOpacity is independent from the band's
+  // strokeOpacity.
   CIRCULATION: {
     label: "Circulation",
     annotationType: "POLYLINE",
@@ -374,6 +377,9 @@ const DRAWING_SHAPE_CONFIG = {
       "arrowStep",
       "arrowRight",
       "arrowLeft",
+      "arrowLength",
+      "arrowWidthRatio",
+      "arrowOpacity",
     ],
     defaults: {
       strokeColor: secondary,
@@ -384,6 +390,9 @@ const DRAWING_SHAPE_CONFIG = {
       arrowStep: 3,
       arrowRight: true,
       arrowLeft: true,
+      arrowLength: 24,
+      arrowWidthRatio: 50,
+      arrowOpacity: 1,
     },
     shapeCategory: "polyline",
   },

@@ -20,6 +20,7 @@ import {
   resolveDrawingShape,
 } from "Features/annotations/constants/drawingShapeConfig";
 import { toWatercolorHexColor } from "Features/threedEditor/js/postfx/aquarelleMaterials";
+import { getCirculationLegendProps } from "Features/annotations/utils/getCirculationArrowPath";
 
 /**
  * Builds the flat legend list for the 3D viewer from the exact annotation set
@@ -187,6 +188,8 @@ export default function useThreedLegendItems(
         // POLYLINE glyph: thickness (when in screen px) of the line.
         strokeWidth: source.strokeWidth ?? template.strokeWidth,
         strokeWidthUnit: source.strokeWidthUnit ?? template.strokeWidthUnit,
+        // CIRCULATION: the glyph is the band with an arrow inside.
+        circulation: getCirculationLegendProps(source, template),
         variant: source.variant,
         closeLine: source.closeLine,
         topViewDataUrl:

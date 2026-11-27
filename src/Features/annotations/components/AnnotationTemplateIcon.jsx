@@ -2,6 +2,7 @@ import { useMemo } from "react";
 import { useSelector } from "react-redux";
 
 import { Box, useTheme } from "@mui/material";
+import { lighten } from "@mui/material/styles";
 import { WidgetsOutlined as BlockIcon } from "@mui/icons-material";
 
 import { resolveShapeCategory } from "Features/annotations/constants/drawingShapes.jsx";
@@ -9,6 +10,10 @@ import { resolveDrawingShape } from "Features/annotations/constants/drawingShape
 import { selectEffectiveViewerKey } from "Features/viewers/utils/effectiveViewerKey";
 import { isThreedFamilyViewerKey } from "Features/viewers/utils/threedViewerKeys";
 import useObject3DTopView from "Features/object3D/hooks/useObject3DTopView";
+import {
+  getCirculationArrowPathForSpan,
+  getCirculationLegendProps,
+} from "Features/annotations/utils/getCirculationArrowPath";
 
 // `use3D` lets a caller force the 2D/3D swatch color; when omitted the icon
 // follows the active editor (3D editor => color3D/opacity3D). Same precedence
@@ -407,6 +412,59 @@ export default function AnnotationTemplateIcon({
             d="M19 10 L14.2 7.8 L14.2 12.2 Z"
             fill={isLightColor ? "#bbb" : color}
             opacity={opacity}
+          />
+        </svg>
+      </Box>
+    );
+  }
+
+  // render — CIRCULATION template: the band (lighter tint) with an arrow
+  // inside, each with its own opacity.
+  if (shape === "CIRCULATION") {
+    const circulation = getCirculationLegendProps(
+      { drawingShape: "CIRCULATION" },
+      template
+    );
+    let bandColor = color;
+    try {
+      bandColor = lighten(color, 0.35);
+    } catch {
+      // keep color as is
+    }
+    const d = getCirculationArrowPathForSpan({
+      span: 14,
+      headHeight: 6,
+      arrowRight: circulation.arrowRight,
+      arrowLeft: circulation.arrowLeft,
+    });
+    return (
+      <Box
+        sx={{
+          width: size,
+          height: size,
+          flexShrink: 0,
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+        }}
+      >
+        <svg width={size} height={size} viewBox="0 0 20 20">
+          <rect
+            x="1"
+            y="5"
+            width="18"
+            height="10"
+            rx="2"
+            fill={bandColor}
+            fillOpacity={opacity}
+            stroke={isLightColor ? "#bbb" : "none"}
+            strokeWidth={isLightColor ? 1 : 0}
+          />
+          <path
+            d={d}
+            transform="translate(10, 10)"
+            fill={isLightColor ? "#999" : color}
+            fillOpacity={circulation.arrowOpacity}
           />
         </svg>
       </Box>
