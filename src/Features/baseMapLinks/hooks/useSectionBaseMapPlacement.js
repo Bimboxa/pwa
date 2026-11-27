@@ -124,6 +124,7 @@ export default function useSectionBaseMapPlacement({ rendererIsReady }) {
     scale,
     existingBaseMapId,
     normalOffsetM,
+    centerRequestId,
     sectionPreview,
     cloudToleranceM,
     printPointCloud,
@@ -485,6 +486,21 @@ export default function useSectionBaseMapPlacement({ rendererIsReady }) {
       }
     };
   }, [active, rendererIsReady, anchors, pageSpec]);
+
+  // effects — « centrer » button: the page slides back onto the middle of
+  // the mark, its altitude is kept (the ref skips mount / a new session)
+
+  const centerRequestIdRef = useRef(centerRequestId);
+  useEffect(() => {
+    if (centerRequestIdRef.current === centerRequestId) return;
+    centerRequestIdRef.current = centerRequestId;
+    if (!active) return;
+    setSectionBaseMapOffsets({
+      alongM: 0,
+      upM: getSectionBaseMapOffsets().upM,
+    });
+    refreshRef.current?.();
+  }, [active, centerRequestId]);
 
   // effects — live options (↑ / ↓ offset, section preview, tolerance)
 
