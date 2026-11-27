@@ -2,14 +2,14 @@ import { useMemo } from "react";
 
 import createAnnotationLabeler from "../utils/createAnnotationLabeler";
 
-const EMPTY = { rows: [], totalText: null };
+const EMPTY = { rows: [] };
 
 // Joins the polygons whose own cuts (openings) overlap — `cutOverlaps` of the
 // last run — with the helper's live annotations / templates into display
 // rows, shaped for RowDuplicateAnnotation (`detailText` replaces its overlap
 // line): the surface subtracted in excess, in m² (calibrated run) or px², and
 // the number of openings involved. Annotations deleted since the run are
-// skipped. `totalText` sums the excess over the rows.
+// skipped.
 export default function useCutOverlapsHelperRows({
   result,
   annotations,
@@ -31,11 +31,9 @@ export default function useCutOverlapsHelperRows({
         : `${Math.round(areaPx)} px²`;
 
     const rows = [];
-    let totalPx = 0;
     for (const overlap of cutOverlaps) {
       const annotation = byId.get(overlap.annotationId);
       if (!annotation) continue;
-      totalPx += overlap.overCountedPx;
       rows.push({
         ...overlap,
         annotation,
@@ -45,6 +43,6 @@ export default function useCutOverlapsHelperRows({
         warning: true,
       });
     }
-    return { rows, totalText: rows.length ? formatArea(totalPx) : null };
+    return { rows };
   }, [result, annotations, templateById, meterByPx, hasScale]);
 }
