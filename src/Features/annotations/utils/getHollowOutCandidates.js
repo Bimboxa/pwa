@@ -1,9 +1,12 @@
 import polygonClipping from "polygon-clipping";
 
-import getAnnotationAsPolygons from "Features/geometry/utils/getAnnotationAsPolygons";
 import { expandArcsInPath } from "Features/geometry/utils/arcSampling";
 
 import getAnnotationBBox from "./getAnnotationBbox";
+import getHollowOutCutterFootprints, {
+  HOLLOW_OUT_CUTTER_TYPES,
+} from "./getHollowOutCutterFootprints";
+import getHollowOutPolylineCarve from "./getHollowOutPolylineCarve";
 
 // Same tessellation as avoidVisibleAnnotationsService / getAnnotationAsPolygons.
 const ARC_SAMPLES = 16;
@@ -36,12 +39,18 @@ const toGeom = (shape, expandArcs) => [
     .filter((r) => r.length >= 4),
 ];
 
+// Types « Évider » rewrites by clipping their centerline (the others are
+// carved as a POLYGON contour).
+export const HOLLOW_OUT_LINE_TYPES = ["POLYLINE", "STRIP"];
+
 /**
- * Annotations whose footprint actually carves the given POLYGON ("Evider"):
- * visible POLYGON / POLYLINE / STRIP / DISC of the same base map (the
- * annotation itself excluded), bbox pre-filter, then a real footprint ∩
- * polygon test — a polyline without thickness has no footprint and never
- * cuts. A DISC (disc or sector) cuts with its sampled plan ring.
+ * Annotations whose footprint actually carves the given annotation
+ * ("Evider"): visible POLYGON / POLYLINE / STRIP / DISC / RECTANGLE of the
+ * same base map (the annotation itself excluded), bbox pre-filter, then a
+ * real test — footprint ∩ polygon for a POLYGON, footprint removing a part
+ * of the centerline for a POLYLINE / STRIP. A polyline without thickness has
+ * no footprint and never cuts. A DISC (disc or sector) cuts with its sampled
+ * plan ring, a RECTANGLE with its 4 corners.
  *
  * Pure: `annotation` and `visibleAnnotations` are pixel-resolved
  * (useAnnotationsV2).
@@ -57,7 +66,10 @@ export default function getHollowOutCandidates({
   visibleAnnotations,
   baseMap,
 }) {
-  if (!annotation?.points || annotation.points.length < 3) return [];
+  const isLine = HOLLOW_OUT_LINE_TYPES.includes(annotation?.type);
+  if (!annotation?.points || annotation.points.length < (isLine ? 2 : 3)) {
+    return [];
+  }
 
   const shape = { points: annotation.points, cuts: annotation.cuts ?? [] };
   // The bbox must be the contour's, whatever the annotation type says.
@@ -70,13 +82,9 @@ export default function getHollowOutCandidates({
   return (visibleAnnotations ?? []).filter((a) => {
     if (!a || a.id === annotation.id) return false;
     if (a.baseMapId !== annotation.baseMapId) return false;
-    if (!["POLYGON", "POLYLINE", "STRIP", "DISC"].includes(a.type)) {
-      return false;
-    }
+    if (!HOLLOW_OUT_CUTTER_TYPES.includes(a.type)) return false;
 
-    const footprints = getAnnotationAsPolygons(a, { meterByPx }).filter(
-      (s) => s?.points?.length >= 3
-    );
+    const footprints = getHollowOutCutterFootprints(a, { meterByPx });
     if (footprints.length === 0) return false;
 
     // bbox pre-filter on the FOOTPRINT (a wide band can overlap the polygon
@@ -92,6 +100,10 @@ export default function getHollowOutCandidates({
       );
     });
     if (!overlapsBbox) return false;
+
+    if (isLine) {
+      return Boolean(getHollowOutPolylineCarve({ annotation, footprints }));
+    }
 
     try {
       if (!subjectGeom) subjectGeom = toGeom(shape, true);

@@ -11,12 +11,15 @@ const ARC_SAMPLES = 16;
 
 const isValidPoint = (p) => Number.isFinite(p?.x) && Number.isFinite(p?.y);
 
-function ringToPath(points) {
-  const pts = expandArcsInPath(points ?? [], ARC_SAMPLES, true).filter(
+// Open centerlines (POLYLINE / STRIP): pieces are open paths of >= 2 points.
+const LINE_TYPES = ["POLYLINE", "STRIP"];
+
+function ringToPath(points, closed = true) {
+  const pts = expandArcsInPath(points ?? [], ARC_SAMPLES, closed).filter(
     isValidPoint
   );
   if (pts.length < 2) return "";
-  return `M ${pts.map((p) => `${p.x} ${p.y}`).join(" L ")} Z`;
+  return `M ${pts.map((p) => `${p.x} ${p.y}`).join(" L ")}${closed ? " Z" : ""}`;
 }
 
 // Overview of the "Evider" result (DialogHollowOutAnnotation): the carved
@@ -24,22 +27,30 @@ function ringToPath(points) {
 // the original polygon so the removed areas read at a glance. The viewBox is
 // fitted on the ORIGINAL polygon: the frame stays put while the user toggles
 // templates. `annotation` and `pieces` ({points, cuts}) are pixel-resolved.
+// A POLYLINE / STRIP is drawn the same way from its centerline: the pieces are
+// open lines, the dashed outline is the original centerline.
 // `overlays` ([{id, color, pieces}], optional) tints removed zones in the
-// colour of what removes them (3D variant: the footprints of the subtractions).
+// colour of what removes them (3D variant: the footprints of the
+// subtractions; line variant: the footprints of the cutting annotations).
+// `baseMapMeterByPx` sizes the strokes / bands given in centimetres.
 export default function PreviewHollowOutAnnotation({
   annotation,
   pieces,
   overlays,
+  baseMapMeterByPx,
   padding = 0.06,
   height = 220,
 }) {
   // helpers
 
+  const isLine = LINE_TYPES.includes(annotation?.type);
+  const closed = !isLine || annotation?.closeLine === true;
+
   const { viewBox, originalD } = useMemo(() => {
     const outline = expandArcsInPath(
       annotation?.points ?? [],
       ARC_SAMPLES,
-      true
+      closed
     ).filter(isValidPoint);
     if (outline.length === 0) {
       return { viewBox: "0 0 100 100", originalD: "" };
@@ -54,11 +65,11 @@ export default function PreviewHollowOutAnnotation({
     return {
       viewBox: `${minX - pad} ${minY - pad} ${width + 2 * pad} ${boxHeight + 2 * pad}`,
       originalD: [
-        ringToPath(annotation.points),
+        ringToPath(annotation.points, closed),
         ...(annotation.cuts ?? []).map((c) => ringToPath(c.points)),
       ].join(" "),
     };
-  }, [annotation, padding]);
+  }, [annotation, padding, closed]);
 
   const pieceAnnotations = useMemo(() => {
     // The carved rings no longer match the original segment indices / ids.
@@ -67,15 +78,17 @@ export default function PreviewHollowOutAnnotation({
       delete base[idxField];
       delete base[idField];
     }
+    // The pieces of a line are always open, whatever the original was.
+    if (isLine) base.closeLine = false;
     return (pieces ?? [])
-      .filter((piece) => piece?.points?.length >= 3)
+      .filter((piece) => piece?.points?.length >= (isLine ? 2 : 3))
       .map((piece, i) => ({
         ...base,
         id: `${annotation.id}::hollowOutPreview::${i}`,
         points: piece.points,
         cuts: piece.cuts ?? [],
       }));
-  }, [annotation, pieces]);
+  }, [annotation, pieces, isLine]);
 
   const overlayPaths = useMemo(
     () =>
@@ -124,6 +137,7 @@ export default function PreviewHollowOutAnnotation({
             annotation={piece}
             selected={false}
             hovered={false}
+            baseMapMeterByPx={baseMapMeterByPx}
             printMode
             forceHideLabel
           />
