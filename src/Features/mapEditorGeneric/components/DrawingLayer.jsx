@@ -47,6 +47,7 @@ import {
   getRectangleDraftConstraints,
   getRectangleFillLayout,
   getRectangleFromTwoPoints,
+  getDrawnRectangleFromTwoPoints,
   getRectanglePlacementRotation,
 } from "Features/rectangles/utils/rectanglePlacement";
 import getRectangleCorners from "Features/rectangles/utils/getRectangleCorners";
@@ -656,12 +657,6 @@ const DrawingLayer = forwardRef(
           // Typed X/Y dimensions override (in meters → image pixels)
           const metrics = rectMetricsRef?.current;
           const mbp = meterByPxRef.current;
-          const hasScale = Number.isFinite(mbp) && mbp > 0;
-          const mPerPx = hasScale ? mbp : 1;
-          const forcedDx =
-            metrics?.rectX != null ? metrics.rectX / mPerPx : null;
-          const forcedDy =
-            metrics?.rectY != null ? metrics.rectY / mPerPx : null;
 
           // Corners A (anchor), B, C (cursor side), D — C is the corner the
           // cursor drives, its two sides carry the length labels.
@@ -734,33 +729,18 @@ const DrawingLayer = forwardRef(
               }),
             });
             [A, B, C, D] = rectangle.corners;
-          } else if (angle === 0) {
-            // Axis-aligned rectangle (original behavior)
-            const cx = forcedDx != null ? lastPoint.x + forcedDx : cursorPos.x;
-            const cy = forcedDy != null ? lastPoint.y + forcedDy : cursorPos.y;
-            A = lastPoint;
-            B = { x: cx, y: lastPoint.y };
-            C = { x: cx, y: cy };
-            D = { x: lastPoint.x, y: cy };
           } else {
-            // Rotated rectangle: project diagonal onto ortho snap grid axes
-            // Snap grid primary axis is at -offset in screen coords (Y down)
-            const theta = (-angle * Math.PI) / 180;
-            const ax1 = { x: Math.cos(theta), y: Math.sin(theta) };
-            const ax2 = { x: -Math.sin(theta), y: Math.cos(theta) };
-
-            const dx = cursorPos.x - lastPoint.x;
-            const dy = cursorPos.y - lastPoint.y;
-
-            // Project diagonal onto the two grid axes (overrideable per axis)
-            const d1 = forcedDx != null ? forcedDx : dx * ax1.x + dy * ax1.y;
-            const d2 = forcedDy != null ? forcedDy : dx * ax2.x + dy * ax2.y;
-
-            // 4 corners: A, B, C (=cursor projected), D
-            A = lastPoint;
-            B = { x: A.x + d1 * ax1.x, y: A.y + d1 * ax1.y };
-            C = { x: B.x + d2 * ax2.x, y: B.y + d2 * ax2.y };
-            D = { x: A.x + d2 * ax2.x, y: A.y + d2 * ax2.y };
+            // Rectangle tool on a POLYGON / POLYLINE / CUT: sides along the
+            // drawing frame, a typed dimension keeps its length and flips
+            // with the quadrant of the cursor.
+            const rectangle = getDrawnRectangleFromTwoPoints({
+              p1: lastPoint,
+              p2: cursorPos,
+              orthoSnapAngleOffset: angle,
+              meterByPx: mbp,
+              metrics,
+            });
+            [A, B, C, D] = rectangle.corners;
           }
           previewRectRef.current.setAttribute(
             "points",

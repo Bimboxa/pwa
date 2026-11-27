@@ -206,6 +206,7 @@ import {
   RECTANGLE_PLACEMENT_MODES,
   getRectangleDraftConstraints,
   getRectangleFromTwoPoints,
+  getDrawnRectangleFromTwoPoints,
   getRectanglePlacementRotation,
 } from "Features/rectangles/utils/rectanglePlacement";
 import {
@@ -5387,6 +5388,16 @@ const InteractionLayer = forwardRef(({
             let finalPos;
             if (newAnnotationRef.current?.type === "RECTANGLE") {
               finalPos = getRectangleSecondCorner(lastPoint, fallbackPos);
+            } else if (enabledDrawingMode !== "REVOLUTION_AXIS_SECTION") {
+              // POLYGON / POLYLINE / CUT: typed dims are magnitudes, the
+              // cursor picks the quadrant (same maths as the preview).
+              finalPos = getDrawnRectangleFromTwoPoints({
+                p1: lastPoint,
+                p2: fallbackPos,
+                orthoSnapAngleOffset: orthoSnapAngleOffsetRef.current,
+                meterByPx: mbp,
+                metrics,
+              }).corners[2];
             } else if (angleDeg === 0) {
               finalPos = {
                 x: metrics.rectX != null ? lastPoint.x + metrics.rectX / mPerPx : fallbackPos.x,
@@ -7314,7 +7325,17 @@ const InteractionLayer = forwardRef(({
             enabledDrawingMode === "REVOLUTION_AXIS_SECTION"
               ? 0
               : orthoSnapAngleOffsetRef.current || 0;
-          if (angleDeg === 0) {
+          if (enabledDrawingMode !== "REVOLUTION_AXIS_SECTION") {
+            // POLYGON / POLYLINE / CUT: typed dims are magnitudes, the
+            // cursor picks the quadrant (same maths as the preview).
+            finalPos = getDrawnRectangleFromTwoPoints({
+              p1: lastPoint,
+              p2: finalPos,
+              orthoSnapAngleOffset: orthoSnapAngleOffsetRef.current,
+              meterByPx: mbp,
+              metrics,
+            }).corners[2];
+          } else if (angleDeg === 0) {
             if (metrics.rectX != null) finalPos = { ...finalPos, x: lastPoint.x + metrics.rectX / mPerPx };
             if (metrics.rectY != null) finalPos = { ...finalPos, y: lastPoint.y + metrics.rectY / mPerPx };
           } else {

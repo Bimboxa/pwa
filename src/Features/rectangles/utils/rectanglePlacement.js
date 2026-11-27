@@ -98,6 +98,33 @@ export function getRectangleFromTwoPoints({
   };
 }
 
+/**
+ * Rectangle drawing tool on a POLYGON / POLYLINE / CUT (not a RECTANGLE
+ * annotation): the sides follow the drawing frame (`orthoSnapAngleOffset`,
+ * counter-clockwise), the typed X / Y (`metrics.rectX / rectY`, metres) are
+ * magnitudes and the cursor `p2` picks the quadrant.
+ *
+ * Shared by the live preview (DrawingLayer), the click and Enter
+ * (InteractionLayer). Same return as `getRectangleFromTwoPoints`.
+ */
+export function getDrawnRectangleFromTwoPoints({
+  p1,
+  p2,
+  orthoSnapAngleOffset,
+  meterByPx,
+  metrics,
+}) {
+  const mPerPx = Number.isFinite(meterByPx) && meterByPx > 0 ? meterByPx : 1;
+  const typed = (value) => (value != null ? Math.abs(value) / mPerPx : null);
+  return getRectangleFromTwoPoints({
+    p1,
+    p2,
+    rotation: -(orthoSnapAngleOffset || 0),
+    widthPx: typed(metrics?.rectX),
+    heightPx: typed(metrics?.rectY),
+  });
+}
+
 // « Texturer une zone rectangulaire » drawing mode (2 clicks: the zone, then
 // one RECTANGLE annotation per cell of the layout below).
 export const RECTANGLE_FILL_ZONE_MODE = "RECTANGLE_FILL_ZONE";
