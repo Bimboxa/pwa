@@ -8,7 +8,8 @@ import { isTransformable2dType } from "Features/annotationTransform/utils/transf
 //   - isMesh3d meshes (their 2D polygon is the projection of a 3D mesh);
 //   - openings (they slide along their host wall);
 //   - read-only footprints (foreign:: / revolution::);
-//   - annotations of another base map (one image frame per commit).
+//   - annotations of another base map (one image frame per commit);
+//   - POINT annotations (no measurable bbox to align).
 // `canEdit(annotation)` (optional) drops the annotations the user cannot edit.
 export default function getAlignTargets({ annotations, baseMapId, canEdit }) {
   if (!baseMapId) return [];
@@ -17,6 +18,7 @@ export default function getAlignTargets({ annotations, baseMapId, canEdit }) {
       a &&
       a.baseMapId === baseMapId &&
       isTransformable2dType("MOVE", a.type) &&
+      a.type !== "POINT" &&
       !a.isMesh3d &&
       !a.isForeignFootprint &&
       !isForeignFootprintId(a.id) &&

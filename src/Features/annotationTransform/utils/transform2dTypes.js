@@ -22,6 +22,10 @@ import {
 //     vertical base map the mark drives (resyncBaseMapLinksForAnnotationIds).
 //     Moved only: the located clone is horizontal by construction, and the
 //     direction of a mark is set by its own vertices.
+//   - POINT (single db.points row, `annotation.point`): grabbed by its
+//     centre and translated by a dedicated write (the row is moved in
+//     place; a copy mints its own row). Moved only — a point has no
+//     orientation.
 export const MOVE_2D_EXTRA_TYPES = [
   "COTE",
   "RULER",
@@ -30,6 +34,7 @@ export const MOVE_2D_EXTRA_TYPES = [
   "BLOCK_INSTANCE",
   "RECTANGLE",
   "BASE_MAP_LINK",
+  "POINT",
 ];
 export const ROTATE_2D_EXTRA_TYPES = [
   "COTE",
@@ -56,6 +61,11 @@ export function isPointHolderType(type) {
     type === "RULER" ||
     type === "BASE_MAP_LINK"
   );
+}
+
+// Types whose whole geometry is ONE db.points row (`annotation.point`).
+export function isSinglePointType(type) {
+  return type === "POINT";
 }
 
 export function isFreeTextType(type) {

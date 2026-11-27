@@ -102,6 +102,14 @@ Réutilisées depuis `threedAnnotationMove/utils/` :
   sous le curseur ; `handleMouseDown` annule le drag legacy des groupes
   `draggable` quand l'outil est armé, et `NodeFreeTextStatic` laisse alors
   remonter le mousedown d'un texte sélectionné). La liste 3D ne change pas.
+  S'y ajoute enfin POINT pour « Déplacer » seulement (2D) : sa géométrie est
+  une seule ligne `db.points` (`annotation.point`). Il s'aimante par son
+  centre (`_snapPoints` posé dans `annotationsForSnap`) ou se saisit par un
+  clic sur sa pastille, toujours ramené au centre (`handleWorldClick`). Le
+  déplacement translate la ligne `db.points` en place
+  (`commitAnnotationsTransform2d`), une copie multiple crée sa propre ligne
+  (`createTransformedAnnotationCopiesService`). Les commandes d'alignement
+  ne le portent pas (`getAlignTargets`).
 - **Axe de révolution** : « Déplacer » l'accepte, seul (jamais avec la
   sélection), saisi par son centre ou une extrémité de son contour (bouts du
   diamètre, ou bouts du secteur en révolution partielle). Seul son centre sur
