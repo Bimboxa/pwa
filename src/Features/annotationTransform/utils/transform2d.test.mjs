@@ -109,7 +109,10 @@ test("MOVE accepts point tracings, COTE / RULER and FREE_TEXT; ROTATE refuses FR
   assert.ok(!isTransformable2dType("ROTATE", "FREE_TEXT"));
   assert.ok(!isPointHolderType("FREE_TEXT"));
   assert.ok(isFreeTextType("FREE_TEXT"));
-  for (const type of ["LABEL", "IMAGE", "POINT", "MARKER"]) {
+  assert.ok(isTransformable2dType("MOVE", "POINT"));
+  assert.ok(!isTransformable2dType("ROTATE", "POINT"));
+  assert.ok(!isPointHolderType("POINT"));
+  for (const type of ["LABEL", "IMAGE", "MARKER"]) {
     assert.ok(!isTransformable2dType("MOVE", type), type);
     assert.ok(!isTransformable2dType("ROTATE", type), type);
   }

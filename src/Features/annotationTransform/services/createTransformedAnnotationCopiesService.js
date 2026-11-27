@@ -17,7 +17,11 @@ import { getPivotBbox } from "../utils/getTransformPointUpdates";
 import getFreeTextMoveUpdates from "../utils/getFreeTextMoveUpdates";
 import getObject3DTransformUpdates from "../utils/getObject3DTransformUpdates";
 import getPixelRotationAffine from "../utils/pixelRotationAffine";
-import { isFreeTextType, isObject3DType } from "../utils/transform2dTypes";
+import {
+  isFreeTextType,
+  isObject3DType,
+  isSinglePointType,
+} from "../utils/transform2dTypes";
 
 // « Copie multiple » of the « Déplacer » / « Tourner » tools (2D and 3D): N
 // transformed copies of the carried annotations, copy i at i × the
@@ -46,6 +50,9 @@ import { isFreeTextType, isObject3DType } from "../utils/transform2dTypes";
 // offsetZ rewritten by the copy's transform (getObject3DTransformUpdates:
 // the bbox centre orbits the pivot, the turn adds to `rotation`); the GLB
 // file (db.files, object3D.fileName) is shared with the source.
+//
+// POINT sources (one db.points row, `annotation.point`) get a fresh row at
+// the translated centre — MOVE only, like FREE_TEXT.
 //
 // Also carried: the isMesh3d mesh and its source snapshot (same pixel
 // affine), the mapping-category rels, the active layer, the listing's
@@ -151,6 +158,8 @@ export default async function createTransformedAnnotationCopiesService({
       if (!stored) continue;
       const isFreeText = isFreeTextType(stored.type);
       if (isFreeText && !deltaPx) continue;
+      const isSinglePoint = isSinglePointType(stored.type);
+      if (isSinglePoint && !deltaPx) continue;
 
       const transformed = applyDeltaPosToAnnotation(
         resolved,
@@ -205,6 +214,23 @@ export default async function createTransformedAnnotationCopiesService({
           : {}),
         ...(activeLayerId ? { layerId: activeLayerId } : {}),
       };
+
+      if (isSinglePoint) {
+        // `transformed.point` is the translated centre, in pixels.
+        const center = transformed.point;
+        if (!Number.isFinite(center?.x) || !Number.isFinite(center?.y))
+          continue;
+        const pointId = nanoid();
+        newPoints.push({
+          id: pointId,
+          x: center.x / width,
+          y: center.y / height,
+          projectId,
+          baseMapId: stored.baseMapId,
+          listingId: stored.listingId,
+        });
+        copy.point = { id: pointId };
+      }
 
       if (isFreeText) {
         // `transformed` already carries the translated pixel points: a zero

@@ -2073,6 +2073,10 @@ const InteractionLayer = forwardRef(({
             ],
           };
         }
+        // A POINT offers its centre (« Déplacer » only carries it).
+        if (a.type === "POINT" && a.point) {
+          return { ...a, _snapPoints: [{ x: a.point.x, y: a.point.y }] };
+        }
         if (a.type !== "FREE_TEXT" || !a.labelPoint) return a;
         const snapPoints = [{ x: a.labelPoint.x, y: a.labelPoint.y }];
         if (a.hasConnector && a.targetPoint) {
@@ -7028,8 +7032,8 @@ const InteractionLayer = forwardRef(({
     if (isTransformToolMode(enabledDrawingMode)) {
       const transformLocalPos = toLocalCoords(worldPos);
       let transformSnap = transformToolSnapRef.current;
-      // A FREE_TEXT box / an OBJECT_3D or RECTANGLE footprint is grabbable
-      // anywhere (no vertices of its own): a click that landed on its node,
+      // A FREE_TEXT box / an OBJECT_3D or RECTANGLE footprint / a POINT dot is
+      // grabbable anywhere (no vertices of its own): a click that landed on its node,
       // away from any snap, grabs it at the clicked point (same contract as
       // a snap: x / y + annotationId). A snap that names no annotation (the
       // id-less side of a RECTANGLE, see getBestSnap) keeps its position and
@@ -7040,13 +7044,18 @@ const InteractionLayer = forwardRef(({
       ) {
         const target = event?.target ?? event?.evt?.target;
         const bodyNode = target?.closest?.(
-          '[data-node-type="ANNOTATION"][data-annotation-type="FREE_TEXT"], [data-node-type="ANNOTATION"][data-annotation-type="OBJECT_3D"], [data-node-type="ANNOTATION"][data-annotation-type="BLOCK_INSTANCE"], [data-node-type="ANNOTATION"][data-annotation-type="RECTANGLE"]'
+          '[data-node-type="ANNOTATION"][data-annotation-type="FREE_TEXT"], [data-node-type="ANNOTATION"][data-annotation-type="OBJECT_3D"], [data-node-type="ANNOTATION"][data-annotation-type="BLOCK_INSTANCE"], [data-node-type="ANNOTATION"][data-annotation-type="RECTANGLE"], [data-node-type="ANNOTATION"][data-annotation-type="POINT"]'
         );
         const bodyId = bodyNode?.dataset?.nodeId;
+        // A POINT is always grabbed by its centre, wherever its dot is hit.
+        const pointCenter =
+          bodyNode?.dataset?.annotationType === "POINT"
+            ? annotations?.find((a) => a.id === bodyId)?.point
+            : null;
         if (bodyId) {
           transformSnap = {
-            x: transformSnap?.x ?? transformLocalPos.x,
-            y: transformSnap?.y ?? transformLocalPos.y,
+            x: pointCenter?.x ?? transformSnap?.x ?? transformLocalPos.x,
+            y: pointCenter?.y ?? transformSnap?.y ?? transformLocalPos.y,
             type: transformSnap?.type ?? "NODE",
             annotationId: bodyId,
             annotationType: bodyNode.dataset.annotationType,

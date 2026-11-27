@@ -16,6 +16,7 @@ import {
   isFreeTextType,
   isObject3DType,
   isPointHolderType,
+  isSinglePointType,
 } from "../utils/transform2dTypes";
 
 // Write of a 2D « Déplacer » / « Tourner »: the pixel-frame twin of
@@ -33,6 +34,10 @@ import {
 // either: MOVE and ROTATE rewrite their placement fields
 // (getObject3DTransformUpdates) and their painted parts follow
 // (moveMeshPaintsWithBboxHostService), same undo group.
+//
+// POINT annotations hold ONE db.points row (`annotation.point`): a MOVE
+// translates that row in place (normalized), same undo group. A ROTATE never
+// carries them (refused at grab time).
 //
 // transform: see getTransformPointUpdates. A MOVE may also carry each
 // annotation by its OWN translation (align commands):
@@ -98,7 +103,27 @@ export default async function commitAnnotationsTransform2d({
   const object3dUpdates = collectUpdates(object3ds, (annotations, t) =>
     getObject3DTransformUpdates({ annotations, transform: t, imageSize })
   );
-  if (!pointUpdates.size && !freeTextUpdates.size && !object3dUpdates.size) {
+  // pointId → translation (px) of the POINT annotations.
+  const singlePointDeltas = new Map();
+  if (
+    transform.kind === "MOVE" &&
+    imageSize.width > 0 &&
+    imageSize.height > 0
+  ) {
+    for (const a of carried) {
+      if (!isSinglePointType(a.type) || !a.point?.id) continue;
+      const deltaPx = deltaPxById ? deltaPxById.get(a.id) : transform.deltaPx;
+      if (deltaPx && !singlePointDeltas.has(a.point.id)) {
+        singlePointDeltas.set(a.point.id, deltaPx);
+      }
+    }
+  }
+  if (
+    !pointUpdates.size &&
+    !freeTextUpdates.size &&
+    !object3dUpdates.size &&
+    !singlePointDeltas.size
+  ) {
     return;
   }
 
@@ -118,6 +143,21 @@ export default async function commitAnnotationsTransform2d({
         // rotation / rotationCenter — bake the rotation into the points and
         // reset the metadata (same rule as the 3D tool and vertex edits).
         clearRotation: transform.kind === "ROTATE",
+      });
+    }
+
+    if (singlePointDeltas.size) {
+      await db.transaction("rw", db.points, async () => {
+        const rows = await db.points.bulkGet([...singlePointDeltas.keys()]);
+        await Promise.all(
+          rows.filter(Boolean).map((row) => {
+            const deltaPx = singlePointDeltas.get(row.id);
+            return db.points.update(row.id, {
+              x: row.x + deltaPx.x / imageSize.width,
+              y: row.y + deltaPx.y / imageSize.height,
+            });
+          })
+        );
       });
     }
 
