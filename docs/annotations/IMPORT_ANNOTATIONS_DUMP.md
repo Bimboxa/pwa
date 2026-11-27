@@ -10,7 +10,7 @@ trois formats, distingués automatiquement au collage :
 |---|---|---|
 | JSON inline | `image` + `annotationTemplates` | [`IMPORT_FROM_DRAWING_PROMPT.md`](IMPORT_FROM_DRAWING_PROMPT.md), skill `structure-outline` |
 | Maillage | `kind: "MESH"` ou `meshes` | [`MESH_IMPORT_PROMPT.md`](MESH_IMPORT_PROMPT.md) |
-| **Dump** | `imageSize` + `annotations` | bouton debug 🐛 de la barre d'outils de sélection |
+| **Dump** | `imageSize` + `annotations`, ou ligne(s) d'annotation nue(s) | bouton debug 🐛 des barres d'outils de sélection |
 
 Ce document décrit le troisième.
 
@@ -47,6 +47,19 @@ Le dump est le format de sortie de `useAnnotationsV2` : ce sont les lignes
   ]
 }
 ```
+
+### Annotation seule (ligne nue)
+
+Le bouton 🐛 « Copy annotation data » de la barre **mono-sélection**
+(`ToolbarEditAnnotation`) copie la ligne hydratée **sans enveloppe** : ni
+`imageSize`, ni `meterByPx`. Cette forme (un objet avec `type` + géométrie, ou
+un tableau de tels objets) est acceptée telle quelle :
+
+- le cadre est **synthétisé** à partir de l'étendue de la géométrie
+  (`imageSizeSynthetic: true`) — la normalisation `[0..1]` n'est qu'un pivot
+  interne, les pixels sources sont restitués à l'identique ;
+- l'échelle est lue sur le fond de plan source (`db.baseMaps`, via le
+  `baseMapId` de la ligne) quand il est encore en base locale.
 
 ## Trois particularités
 
@@ -130,6 +143,20 @@ repris que lorsqu'ils diffèrent des valeurs par défaut appliquées à la lectu
 par `resolvePoints` (`"square"` / `0` / `0`).
 
 ## Positionnement
+
+Quand les lignes du dump nomment leur fond de plan source (`baseMapId`), le
+placement est **automatique** :
+
+| Cas | Placement |
+|---|---|
+| Autre fond de plan que la cible | bbox du groupe calée sur le coin **haut-gauche** `(0,0)` de la cible ; échelle réelle conservée si les échelles source et cible sont connues, sinon pixels 1:1 (avertissement) |
+| Même fond de plan, ligne nue (sans `imageSize`) | pixels sources, à l'identique |
+| Même fond de plan, dump avec `imageSize` | options manuelles ci-dessous |
+
+La bbox est celle des sommets : l'épaisseur d'un STRIP ou la flèche d'un arc
+peuvent déborder légèrement du fond de plan.
+
+Options manuelles (dump sur son propre fond de plan, ou sans `baseMapId`) :
 
 La case « Positionner par rapport au fond de plan » (active par défaut) mappe les
 coordonnées normalisées directement sur l'espace pixel du fond de plan cible :

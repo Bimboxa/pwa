@@ -38,6 +38,11 @@ import createDetailBaseMapsFromImportService, {
  *   target map: when given, the group is pasted there right away even when
  *   the coordinates are not relative to the base map (live drawing centred on
  *   the user's view). Without it, non-relative imports arm a one-shot paste.
+ * @param {"SOURCE_PIXELS"|"TOP_LEFT"} [params.placement] - automatic placement
+ *   of a dump, overriding `targetCenter`: "SOURCE_PIXELS" keeps the group where
+ *   it was copied (same base map), "TOP_LEFT" pins its bbox to the origin of
+ *   the target base map (copied from another base map). Pass
+ *   `relativeToBaseMap: false` with it.
  * @param {Object} [params.annotationProps] - spread onto every placed
  *   annotation (e.g. relayJobId)
  * @param {Object} [params.templateProps]   - spread onto every CREATED template
@@ -62,6 +67,7 @@ export default async function importAnnotationsInlineJsonService({
   relativeToBaseMap = true,
   preserveIds = false,
   targetCenter = null,
+  placement = null,
   annotationProps = null,
   templateProps = null,
   baseMapProps = null,
@@ -122,6 +128,7 @@ export default async function importAnnotationsInlineJsonService({
         relativeToBaseMap,
         preserveIds,
         targetCenter,
+        placement,
         annotationProps,
         templateProps,
         baseMapIdMap,
@@ -146,7 +153,8 @@ async function importTemplatesAndAnnotations({
   excludedTemplateIds,
   relativeToBaseMap,
   preserveIds,
-  targetCenter,
+  targetCenter: targetCenterParam,
+  placement,
   annotationProps,
   templateProps,
   baseMapIdMap,
@@ -178,7 +186,7 @@ async function importTemplatesAndAnnotations({
     [...reusedRows.filter(Boolean), ...templateRecords].map((r) => [r.id, r])
   );
 
-  const { clipboard, relative } = buildImportData({
+  const { clipboard, relative, sourceTopLeft } = buildImportData({
     data,
     widthMeters: widthMeters > 0 ? widthMeters : undefined,
     mainBaseMap,
@@ -190,6 +198,18 @@ async function importTemplatesAndAnnotations({
     templateRowsById,
     baseMapIdMap,
   });
+
+  // Automatic placement of a dump (see `placement`): an identity paste, or a
+  // translation bringing the group's bbox to the base map origin.
+  let targetCenter = targetCenterParam;
+  if (!relative && placement === "SOURCE_PIXELS") {
+    targetCenter = clipboard.sourceCenter;
+  } else if (!relative && placement === "TOP_LEFT") {
+    targetCenter = {
+      x: clipboard.sourceCenter.x - sourceTopLeft.x,
+      y: clipboard.sourceCenter.y - sourceTopLeft.y,
+    };
+  }
 
   if (annotationProps) {
     for (const item of clipboard.items) {

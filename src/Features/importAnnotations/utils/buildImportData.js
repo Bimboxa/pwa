@@ -129,7 +129,7 @@ function toPointRefs(points) {
  *   sets none, like a hand-drawn annotation
  * @param {Map<string,string>} [params.baseMapIdMap] - payload detail baseMap
  *   id → db id (DETAIL bubbles; an id absent from the map is an existing one)
- * @returns {{ clipboard: Object, scaled: boolean, relative: boolean }}
+ * @returns {{ clipboard: Object, sourceTopLeft: {x:number,y:number}, scaled: boolean, relative: boolean }}
  */
 export default function buildImportData({
   data,
@@ -226,9 +226,19 @@ export default function buildImportData({
     if (ann.type === "IMAGE") {
       item.baseImageCorners = toBasePoints(ann.points, pxPerNormX, pxPerNormY);
       if (ann.targetPoint) {
-        [item.baseTargetPoint] = toBasePoints([ann.targetPoint], pxPerNormX, pxPerNormY);
+        [item.baseTargetPoint] = toBasePoints(
+          [ann.targetPoint],
+          pxPerNormX,
+          pxPerNormY
+        );
       }
-      for (const key of ["label", "labelDescription", "imageLift3d", "hasConnector", "imageOrientation3d"]) {
+      for (const key of [
+        "label",
+        "labelDescription",
+        "imageLift3d",
+        "hasConnector",
+        "imageOrientation3d",
+      ]) {
         if (ann[key] !== undefined) annotation[key] = ann[key];
       }
       item.imageAsset = data.imageAssets.find(
@@ -326,9 +336,13 @@ export default function buildImportData({
 
   // Group source center = bbox center of all basePoints
   let sourceCenter = { x: 0, y: 0 };
+  // Top-left corner of the same bbox: lets the caller pin the group to the
+  // target base map's origin (import from another base map).
+  let sourceTopLeft = { x: 0, y: 0 };
   if (allBasePoints.length) {
     const xs = allBasePoints.map((p) => p.x);
     const ys = allBasePoints.map((p) => p.y);
+    sourceTopLeft = { x: Math.min(...xs), y: Math.min(...ys) };
     sourceCenter = {
       x: (Math.min(...xs) + Math.max(...xs)) / 2,
       y: (Math.min(...ys) + Math.max(...ys)) / 2,
@@ -337,6 +351,7 @@ export default function buildImportData({
 
   return {
     clipboard: { sourceCenter, items },
+    sourceTopLeft,
     scaled,
     relative: Boolean(relative),
   };
