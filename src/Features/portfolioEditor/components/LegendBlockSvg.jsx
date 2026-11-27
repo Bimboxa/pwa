@@ -15,14 +15,16 @@ import NodeLegendStatic from "Features/mapEditorGeneric/components/NodeLegendSta
 import LegendTransformOverlay from "./LegendTransformOverlay";
 
 import applyHardCodedQties from "Features/legend/utils/applyHardCodedQties";
+import { resolveLegendFormat } from "../utils/getDefaultLegendFormat";
 
 import db from "App/db/db";
 
-const DEFAULT_WIDTH = 280;
-const DEFAULT_FONT_SIZE = 12;
-const PADDING = 16;
-
-export default function LegendBlockSvg({ container, zoom }) {
+export default function LegendBlockSvg({
+  container,
+  zoom,
+  pageDims,
+  pageFrame,
+}) {
   const dispatch = useDispatch();
 
   // data
@@ -41,12 +43,15 @@ export default function LegendBlockSvg({ container, zoom }) {
     hideHeight: container.legendFormat?.hideHeight,
   });
   const spriteImage = useAnnotationSpriteImage();
-  const qtiesById = useAnnotationTemplateQtiesByIdForBaseMap(container.baseMapId, {
-    viewBox,
-    hiddenAnnotationIdSet: phaseHiddenIdSet,
-    disabledAnnotationTemplates: container.disabledAnnotationTemplates,
-    disabledLayerIds: container.disabledLayerIds,
-  });
+  const qtiesById = useAnnotationTemplateQtiesByIdForBaseMap(
+    container.baseMapId,
+    {
+      viewBox,
+      hiddenAnnotationIdSet: phaseHiddenIdSet,
+      disabledAnnotationTemplates: container.disabledAnnotationTemplates,
+      disabledLayerIds: container.disabledLayerIds,
+    }
+  );
 
   // refs
 
@@ -55,15 +60,7 @@ export default function LegendBlockSvg({ container, zoom }) {
 
   // helpers
 
-  const legendFormat = container.legendFormat ?? {
-    x: container.x + container.width - DEFAULT_WIDTH - PADDING,
-    y: container.y + PADDING,
-    width: DEFAULT_WIDTH,
-    fontSize: DEFAULT_FONT_SIZE,
-    showQty: true,
-  };
-  // Ensure fontSize has a default even for persisted records without it
-  if (!legendFormat.fontSize) legendFormat.fontSize = DEFAULT_FONT_SIZE;
+  const legendFormat = resolveLegendFormat(container, { pageDims, pageFrame });
 
   const isSelected = selectedItems.some(
     (i) => i.id === container.id && i.type === "LEGEND_BLOCK"
@@ -73,9 +70,7 @@ export default function LegendBlockSvg({ container, zoom }) {
 
   function handleClick(e) {
     e.stopPropagation();
-    dispatch(
-      setSelectedItem({ id: container.id, type: "LEGEND_BLOCK" })
-    );
+    dispatch(setSelectedItem({ id: container.id, type: "LEGEND_BLOCK" }));
   }
 
   const handleSizeChange = useCallback(({ height }) => {
@@ -101,7 +96,14 @@ export default function LegendBlockSvg({ container, zoom }) {
   };
 
   return (
-    <g onClick={handleClick} style={{ cursor: "pointer" }}>
+    // data-legend-*: rendered height read by the "align legends" action
+    // (the height is content-driven, not stored)
+    <g
+      onClick={handleClick}
+      style={{ cursor: "pointer" }}
+      data-legend-container-id={container.id}
+      data-legend-height={measuredHeight}
+    >
       <g ref={wrapperRef}>
         <NodeLegendStatic
           id={`legend-${container.id}`}

@@ -1,14 +1,16 @@
+import { useState } from "react";
 import { useSelector } from "react-redux";
 import { useLiveQuery } from "dexie-react-hooks";
 
 import { selectSelectedItems } from "Features/selection/selectionSlice";
 
 import {
+  Button,
   Typography,
   ToggleButton,
   ToggleButtonGroup,
 } from "@mui/material";
-import { FormatSize } from "@mui/icons-material";
+import { FormatSize, AlignHorizontalRight } from "@mui/icons-material";
 
 import BoxFlexVStretch from "Features/layout/components/BoxFlexVStretch";
 import PanelTitle from "Features/layout/components/PanelTitle";
@@ -18,7 +20,13 @@ import SectionLegendManualQties from "Features/legend/components/SectionLegendMa
 
 import useLegendItemsByBaseMapId from "Features/legend/hooks/useLegendItemsByBaseMapId";
 import useAnnotationTemplateQtiesByIdForBaseMap from "Features/annotations/hooks/useAnnotationTemplateQtiesByIdForBaseMap";
+import usePortfolioPageFrame from "Features/portfolios/hooks/usePortfolioPageFrame";
 import parseMainQtyLabel from "Features/legend/utils/parseMainQtyLabel";
+import getPageDimensions from "../utils/getPageDimensions";
+import { resolveLegendFormat } from "../utils/getDefaultLegendFormat";
+import alignLegendsOnLegendService, {
+  getOtherPagesLegendContainers,
+} from "../services/alignLegendsOnLegendService";
 
 import db from "App/db/db";
 
@@ -26,9 +34,7 @@ export default function PanelLegendBlockProperties() {
   // data
 
   const selectedItems = useSelector(selectSelectedItems);
-  const selectedItem = selectedItems.find(
-    (i) => i.type === "LEGEND_BLOCK"
-  );
+  const selectedItem = selectedItems.find((i) => i.type === "LEGEND_BLOCK");
   const containerId = selectedItem?.id;
 
   const container = useLiveQuery(async () => {
@@ -37,6 +43,21 @@ export default function PanelLegendBlockProperties() {
     if (!record || record.deletedAt) return null;
     return record;
   }, [containerId]);
+
+  const pageFrame = usePortfolioPageFrame();
+
+  // page of the legend + number of legends on the other pages
+  const pageInfo = useLiveQuery(async () => {
+    if (!container?.portfolioPageId) return null;
+    const page = await db.portfolioPages.get(container.portfolioPageId);
+    if (!page || page.deletedAt) return null;
+    const others = await getOtherPagesLegendContainers(page);
+    return { page, otherLegendsCount: others.length };
+  }, [container?.portfolioPageId]);
+
+  // state
+
+  const [aligning, setAligning] = useState(false);
 
   // Same hooks + params as LegendBlockSvg so the panel lists the exact
   // rendered legend items and quantities.
@@ -61,13 +82,12 @@ export default function PanelLegendBlockProperties() {
 
   // helpers
 
-  const legendFormat = container.legendFormat ?? {
-    x: container.x + container.width - 280 - 16,
-    y: container.y + 16,
-    width: 280,
-    fontSize: 12,
-    showQty: true,
-  };
+  const page = pageInfo?.page;
+  const otherLegendsCount = pageInfo?.otherLegendsCount ?? 0;
+  const legendFormat = resolveLegendFormat(container, {
+    pageDims: page ? getPageDimensions(page.format, page.orientation) : null,
+    pageFrame,
+  });
   const showQty = legendFormat.showQty ?? true;
   const hideHeight = legendFormat.hideHeight ?? false;
   const fontSize = legendFormat.fontSize || 12;
@@ -113,6 +133,29 @@ export default function PanelLegendBlockProperties() {
     });
   }
 
+  // Aligns the legends of the other pages on this one (corner the closest
+  // to the page corner the legend sits in). Rendered heights come from the
+  // DOM: every page of the portfolio is mounted in the editor viewport.
+  async function handleAlignOtherLegends() {
+    if (!page || aligning) return;
+    setAligning(true);
+    try {
+      const heightById = {};
+      document.querySelectorAll("[data-legend-container-id]").forEach((el) => {
+        const height = Number(el.dataset.legendHeight);
+        if (height > 0) heightById[el.dataset.legendContainerId] = height;
+      });
+      await alignLegendsOnLegendService({
+        container,
+        page,
+        pageFrame,
+        heightById,
+      });
+    } finally {
+      setAligning(false);
+    }
+  }
+
   return (
     <BoxFlexVStretch>
       <PanelTitle title="Légende" />
@@ -154,6 +197,24 @@ export default function PanelLegendBlockProperties() {
           label="Masquer la hauteur"
           options={{ type: "switch", showAsSection: true }}
         />
+
+        {otherLegendsCount > 0 && (
+          <WhiteSectionGeneric>
+            <Typography variant="body2" color="text.secondary" sx={{ mb: 0.5 }}>
+              Position
+            </Typography>
+            <Button
+              variant="outlined"
+              size="small"
+              fullWidth
+              startIcon={<AlignHorizontalRight />}
+              disabled={aligning}
+              onClick={handleAlignOtherLegends}
+            >
+              {`Aligner les autres légendes (${otherLegendsCount})`}
+            </Button>
+          </WhiteSectionGeneric>
+        )}
 
         <WhiteSectionGeneric>
           <Typography variant="body2" color="text.secondary" sx={{ mb: 0.5 }}>

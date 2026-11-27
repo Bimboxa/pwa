@@ -467,8 +467,9 @@ export default function useDownloadPortfolioPdf() {
         const pageNum = `p. ${index + 1} / ${allPages.length}`;
 
         // double page border frame, on every page except folios (their
-        // source PDFs already carry their own frame)
-        if (meta.type !== "FOLIO") {
+        // source PDFs already carry their own frame); the portfolio can
+        // hide it (metadata.hidePageFrame), margins stay unchanged
+        if (meta.type !== "FOLIO" && !metadata.hidePageFrame) {
           drawPageFrameOnPdfPage(
             pdfPage,
             computePageFrame(pdfPage.getSize(), pageFrameConfig)
@@ -512,6 +513,8 @@ export default function useDownloadPortfolioPdf() {
             });
           }
           if (!meta.layout) return; // FOLIO fallback: no cartouche
+          // cartouche hidden on the portfolio (metadata.hideTitleBlock)
+          if (metadata.hideTitleBlock) return;
           const layoutData = computeTitleBlockLayout(
             manifest,
             meta.layout.cartouche,

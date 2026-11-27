@@ -530,16 +530,22 @@ export default function PortfolioPageSvg({
               key={`legend-${container.id}`}
               container={container}
               zoom={zoom}
+              pageDims={dims}
+              pageFrame={pageFrame}
             />
           ))}
-        <PortfolioPageFrameSvg frame={computePageFrame(dims, pageFrame)} />
-        <PortfolioHeaderSvg
-          page={page}
-          layout={layout}
-          pageIndex={pageIndex}
-          totalPages={totalPages}
-          scaleLabel={scaleLabel}
-        />
+        {!portfolio?.metadata?.hidePageFrame && (
+          <PortfolioPageFrameSvg frame={computePageFrame(dims, pageFrame)} />
+        )}
+        {!portfolio?.metadata?.hideTitleBlock && (
+          <PortfolioHeaderSvg
+            page={page}
+            layout={layout}
+            pageIndex={pageIndex}
+            totalPages={totalPages}
+            scaleLabel={scaleLabel}
+          />
+        )}
         <PortfolioTitleBarSvg
           page={page}
           portfolio={portfolio}

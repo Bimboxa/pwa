@@ -1,16 +1,22 @@
 import { useRef } from "react";
 
-import { Box, Typography, Button, IconButton } from "@mui/material";
-import { Image as ImageIcon, Delete } from "@mui/icons-material";
+import { Box, Typography, IconButton, Tooltip } from "@mui/material";
+import {
+  Image as ImageIcon,
+  AddPhotoAlternate,
+  Delete,
+} from "@mui/icons-material";
 
 import useDisplayedPortfolio from "Features/portfolios/hooks/useDisplayedPortfolio";
 import usePortfolioLogoUrl from "Features/portfolios/hooks/usePortfolioLogoUrl";
 import useTitleBlockManifest from "Features/titleBlocks/hooks/useTitleBlockManifest";
 import useDataMapping from "Features/appConfig/hooks/useDataMapping";
+import usePortfolioPageFrame from "Features/portfolios/hooks/usePortfolioPageFrame";
 
 import BoxFlexVStretch from "Features/layout/components/BoxFlexVStretch";
 import WhiteSectionGeneric from "Features/form/components/WhiteSectionGeneric";
 import DebouncedTextField from "Features/form/components/DebouncedTextField";
+import FieldCheck from "Features/form/components/FieldCheck";
 import TitleBlockFieldsForm from "Features/titleBlocks/components/TitleBlockFieldsForm";
 import IconButtonMoreActionsPortfolio from "./IconButtonMoreActionsPortfolio";
 
@@ -20,6 +26,15 @@ import getTitleBlockPlaceholders from "Features/titleBlocks/utils/getTitleBlockP
 import db from "App/db/db";
 
 export default function PanelPortfolioHeaderProperties() {
+  // strings
+
+  const showTitleBlockS = "Afficher le cartouche";
+  const showFrameS = "Afficher le cadre";
+  const logoS = "Logo";
+  const addLogoS = "Ajouter un logo";
+  const changeLogoS = "Changer le logo";
+  const deleteLogoS = "Supprimer le logo";
+
   // data
 
   const { value: portfolio } = useDisplayedPortfolio();
@@ -30,6 +45,7 @@ export default function PanelPortfolioHeaderProperties() {
   const config = portfolio?.metadata || {};
   const manifest = useTitleBlockManifest(portfolio);
   const { object: dataMapping } = useDataMapping();
+  const pageFrame = usePortfolioPageFrame();
   const logoUrl = usePortfolioLogoUrl(config.logo);
   const resolvedLogoSrc =
     logoUrl || (typeof config.logo === "string" ? config.logo : null);
@@ -103,42 +119,74 @@ export default function PanelPortfolioHeaderProperties() {
           overflow: "auto",
         }}
       >
-        {/* Logo */}
+        {/* Title block (cartouche) visibility: only the drawing is hidden,
+            the page layout is unchanged */}
+        <FieldCheck
+          value={!config.hideTitleBlock}
+          onChange={(checked) => updateConfig({ hideTitleBlock: !checked })}
+          label={showTitleBlockS}
+          options={{ type: "switch", showAsField: true }}
+        />
+
+        {/* Page frame (only when the org config defines one). Hiding it
+            only removes the drawn lines: page margins are unchanged. */}
+        {pageFrame && (
+          <FieldCheck
+            value={!config.hidePageFrame}
+            onChange={(checked) => updateConfig({ hidePageFrame: !checked })}
+            label={showFrameS}
+            options={{ type: "switch", showAsField: true }}
+          />
+        )}
+
+        {/* Logo: single dense row (label, thumbnail, icon actions) */}
         <WhiteSectionGeneric>
-          <Box sx={{ display: "flex", flexDirection: "column", gap: 1.5 }}>
+          <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
             <Typography variant="body2" sx={{ fontWeight: "bold" }}>
-              Logo
+              {logoS}
             </Typography>
-            {resolvedLogoSrc && (
-              <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+            <Box
+              sx={{
+                flex: 1,
+                minWidth: 0,
+                display: "flex",
+                justifyContent: "flex-end",
+              }}
+            >
+              {resolvedLogoSrc && (
                 <Box
                   component="img"
                   src={resolvedLogoSrc}
-                  sx={{ maxWidth: 60, maxHeight: 40, objectFit: "contain" }}
+                  sx={{ maxWidth: 96, maxHeight: 28, objectFit: "contain" }}
                 />
+              )}
+            </Box>
+            <Tooltip title={resolvedLogoSrc ? changeLogoS : addLogoS}>
+              <IconButton size="small" component="label">
+                {resolvedLogoSrc ? (
+                  <ImageIcon fontSize="small" />
+                ) : (
+                  <AddPhotoAlternate fontSize="small" />
+                )}
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/*"
+                  hidden
+                  onChange={handleLogoUpload}
+                />
+              </IconButton>
+            </Tooltip>
+            {resolvedLogoSrc && (
+              <Tooltip title={deleteLogoS}>
                 <IconButton
                   size="small"
                   onClick={() => updateConfig({ logo: null })}
                 >
                   <Delete fontSize="small" />
                 </IconButton>
-              </Box>
+              </Tooltip>
             )}
-            <Button
-              variant="outlined"
-              size="small"
-              component="label"
-              startIcon={<ImageIcon />}
-            >
-              {resolvedLogoSrc ? "Changer" : "Ajouter"}
-              <input
-                ref={fileInputRef}
-                type="file"
-                accept="image/*"
-                hidden
-                onChange={handleLogoUpload}
-              />
-            </Button>
           </Box>
         </WhiteSectionGeneric>
 
