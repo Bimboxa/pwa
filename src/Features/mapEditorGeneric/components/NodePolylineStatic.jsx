@@ -61,6 +61,11 @@ const CURSOR_REMOVE = `url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.or
 import getAnnotationLabelPropsFromAnnotation from "Features/annotations/utils/getAnnotationLabelPropsFromAnnotation";
 import getPolygonSlope from "Features/annotations/utils/getPolygonSlope";
 import getCotePageScale from "Features/annotations/utils/getCotePageScale";
+import getCirculationArrowPath, {
+  CIRCULATION_ARROW_DEFAULT_LENGTH_PT,
+  CIRCULATION_ARROW_DEFAULT_OPACITY,
+  CIRCULATION_ARROW_DEFAULT_WIDTH_RATIO,
+} from "Features/annotations/utils/getCirculationArrowPath";
 import { getSlopeFontSizePt } from "Features/annotations/constants/slopeFontSizeConstants";
 import getGuideLineStairsLayout, {
   isStairsGuideLine,
@@ -101,15 +106,6 @@ function uniqueVertexEntries(entries) {
     return true;
   });
 }
-
-// CIRCULATION arrow glyph (screen px). Each direction is a full arrow
-// (shaft + head); with both directions the two arrows sit back to back,
-// separated by a small gap.
-const CIRCULATION_ARROW_HEAD_PX = 14;
-const CIRCULATION_ARROW_HALF_HEIGHT_PX = 9;
-const CIRCULATION_ARROW_SHAFT_PX = 9;
-const CIRCULATION_ARROW_SHAFT_HALF_PX = 3;
-const CIRCULATION_ARROW_GAP_PX = 4;
 
 // SLOPE indicator ink, in page pt of the base map's print zone (see
 // getCotePageScale): label + arrow glyphs stay FIXED relative to the plan.
@@ -1271,7 +1267,9 @@ function NodePolylineStatic({
 
   // --- CIRCULATION ARROWS ---
   // Anchors every `arrowStep` meters along the path (centred distribution).
-  // Glyph size is constant on screen (vertexScaleTransform), like vertices.
+  // The glyph is FIXED relative to the base map: its length is set in page pt
+  // of the print zone (getCotePageScale, same rule as a text), its thickness
+  // is a share of the band width.
   const circulationArrows = useMemo(() => {
     if (!isCirculation) return [];
     const { arrowStep, arrowRight = true, arrowLeft = true } = mergedAnnotation;
@@ -1293,45 +1291,44 @@ function NodePolylineStatic({
   function renderCirculationArrows() {
     if (!isCirculation || circulationArrows.length === 0) return null;
     const { arrowRight = true, arrowLeft = true } = mergedAnnotation;
-    // Glyph in screen px, centred on the anchor, pointing +x.
-    const HEAD = CIRCULATION_ARROW_HEAD_PX;
-    const HALF_H = CIRCULATION_ARROW_HALF_HEIGHT_PX;
-    const SHAFT = CIRCULATION_ARROW_SHAFT_PX;
-    const SH = CIRCULATION_ARROW_SHAFT_HALF_PX;
-    const both = arrowRight && arrowLeft;
-    const arrowLen = SHAFT + HEAD;
-    // Single arrow: centred on the anchor. Double: each arrow starts half a
-    // gap away from the anchor.
-    const baseX = both ? CIRCULATION_ARROW_GAP_PX / 2 : -arrowLen / 2;
-    // One arrow pointing +x, shaft from baseX to baseX + SHAFT, then head.
-    const arrowPath = (sign) => {
-      const x0 = sign * baseX;
-      const x1 = sign * (baseX + SHAFT);
-      const x2 = sign * (baseX + arrowLen);
-      return (
-        `M ${x0} ${-SH} L ${x1} ${-SH} L ${x1} ${-HALF_H} L ${x2} 0 ` +
-        `L ${x1} ${HALF_H} L ${x1} ${SH} L ${x0} ${SH} Z`
-      );
-    };
-    const parts = [];
-    if (arrowRight) parts.push(arrowPath(1));
-    if (arrowLeft) parts.push(arrowPath(-1));
-    const d = parts.join(" ");
+
+    const lengthPt = Number(mergedAnnotation.arrowLength);
+    const length =
+      (lengthPt > 0 ? lengthPt : CIRCULATION_ARROW_DEFAULT_LENGTH_PT) *
+      getCotePageScale(mergedAnnotation);
+
+    // Thickness (head height) as a share of the band width. A PX band has a
+    // screen-fixed width, a share of it means nothing in base map space: the
+    // glyph then keeps its own proportions (headHeight left undefined).
+    const ratio = Number(mergedAnnotation.arrowWidthRatio);
+    const headHeight = isCmUnit
+      ? ((ratio > 0 ? ratio : CIRCULATION_ARROW_DEFAULT_WIDTH_RATIO) / 100) *
+        computedStrokeWidth
+      : undefined;
+
+    const d = getCirculationArrowPath({
+      length,
+      headHeight,
+      arrowRight,
+      arrowLeft,
+    });
+    if (!d) return null;
+
+    const opacity = Number(mergedAnnotation.arrowOpacity);
+    const fillOpacity = Number.isFinite(opacity)
+      ? Math.min(1, Math.max(0, opacity))
+      : CIRCULATION_ARROW_DEFAULT_OPACITY;
+
     return (
       <g data-part-type="CIRCULATION_ARROWS" style={{ pointerEvents: "none" }}>
         {circulationArrows.map((a, i) => (
-          <g
+          <path
             key={`circ-arrow-${i}`}
             transform={`translate(${a.x}, ${a.y}) rotate(${a.angleDeg})`}
-          >
-            <g style={{ transform: vertexScaleTransform }}>
-              <path
-                d={d}
-                fill={circulationArrowColor}
-                fillOpacity={strokeOpacity ?? 1}
-              />
-            </g>
-          </g>
+            d={d}
+            fill={circulationArrowColor}
+            fillOpacity={fillOpacity}
+          />
         ))}
       </g>
     );

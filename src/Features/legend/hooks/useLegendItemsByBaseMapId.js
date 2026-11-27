@@ -8,6 +8,7 @@ import getLegendGroupHeaders, {
 import isComponentTemplate from "Features/annotationComponents/utils/isComponentTemplate";
 import { getOffsetLineLegendProps } from "Features/annotations/utils/getAnnotationOffsetLineConfig";
 import filterAnnotationsByViewBox from "Features/annotations/utils/filterAnnotationsByViewBox";
+import { getCirculationLegendProps } from "Features/annotations/utils/getCirculationArrowPath";
 
 // includeHiddenInLegend: keep the templates flagged `hiddenInLegend` (tagged
 // `hiddenInLegend: true` on their item) without the eye-hidden ones — used by
@@ -84,6 +85,8 @@ export default function useLegendItemsByBaseMapId(baseMapId, { viewBox, disabled
           fillType,
           // "Ligne de déport" drawn: the glyph is that line.
           offsetLine: getOffsetLineLegendProps(annotation, template),
+          // CIRCULATION: the glyph is the band with an arrow inside.
+          circulation: getCirculationLegendProps(annotation, template),
           topViewDataUrl:
             template?.object3D?.topViewDataUrl ??
             annotation.object3D?.topViewDataUrl,

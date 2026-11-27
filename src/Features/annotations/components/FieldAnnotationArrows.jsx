@@ -2,7 +2,14 @@ import useUpdateAnnotation from "Features/annotations/hooks/useUpdateAnnotation"
 
 import FieldAnnotationTemplateArrows from "./FieldAnnotationTemplateArrows";
 
-const ARROW_FIELDS = ["arrowStep", "arrowRight", "arrowLeft"];
+const ARROW_FIELDS = [
+  "arrowStep",
+  "arrowRight",
+  "arrowLeft",
+  "arrowLength",
+  "arrowWidthRatio",
+  "arrowOpacity",
+];
 
 // Per-annotation "Flèches" editor (PanelProperties) for CIRCULATION rows:
 // same UI as the template field, writes the arrow props onto the annotation

@@ -46,6 +46,9 @@ export const STYLE_FIELDS = [
   "arrowStep",
   "arrowRight",
   "arrowLeft",
+  "arrowLength",
+  "arrowWidthRatio",
+  "arrowOpacity",
   // POINT (dot variant and size)
   "variant",
   "size",
