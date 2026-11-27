@@ -52,8 +52,9 @@ function getOutwardStripOrientation(ringTypedPoints) {
  * db.annotations. The CALLER dispatches triggerAnnotationsUpdate.
  *
  * @param {Object} params
- * @param {Array<{typedPoints: Array<{x,y,type?}>, closed: boolean, boundaryType?: string}>} params.groups
- *   contour geometries in pixel space, S-C-S arcs as typed points
+ * @param {Array<{typedPoints: Array<{x,y,type?}>, closed: boolean, isHole?: boolean, boundaryType?: string}>} params.groups
+ *   contour geometries in pixel space, S-C-S arcs as typed points; `isHole`
+ *   marks a polygon cut ring (STRIP band flipped into the void)
  * @param {Object} params.boundaryAnnotationTemplate - owns the target listing
  * @param {"POLYLINE"|"STRIP"} [params.outputType]
  * @param {{width: number, height: number}} params.imageSize
@@ -117,6 +118,9 @@ export default async function createContourAnnotationsService({
       let stripOrientation = 1;
       if (group.closed === true && typedPoints.length >= 3) {
         stripOrientation = getOutwardStripOrientation(typedPoints);
+        // A hole ring bounds a void: "outside the surface" is INSIDE the
+        // ring, so the band goes on the opposite side.
+        if (group.isHole === true) stripOrientation = -stripOrientation;
       }
       stripProps = {
         // Bands are physical: keep the template width only when it is

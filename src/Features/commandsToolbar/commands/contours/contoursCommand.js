@@ -7,7 +7,8 @@ export const CONTOURS_TYPES = ["POLYLINE", "STRIP", "POLYGON"];
 
 // « Contours »: creates the boundary lines / bands of the selected walls
 // (POLYLINE / STRIP — useWallBoundaries) and surfaces (POLYGON —
-// usePolygonContours) with a chosen polyline template.
+// usePolygonContours, exterior ring + one contour per cut) with a chosen
+// polyline template.
 export default {
   key: "CONTOURS",
   usesSelection: true,
