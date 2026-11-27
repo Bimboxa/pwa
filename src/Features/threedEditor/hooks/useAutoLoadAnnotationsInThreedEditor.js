@@ -21,6 +21,8 @@ import useUserHiddenAnnotations from "Features/hiddenAnnotations/hooks/useUserHi
 import filterUserHiddenAnnotations from "Features/hiddenAnnotations/utils/filterUserHiddenAnnotations";
 import usePhaseHiddenAnnotationIdSet from "Features/phasing/hooks/usePhaseHiddenAnnotationIdSet";
 import filterPhaseHiddenAnnotations from "Features/phasing/utils/filterPhaseHiddenAnnotations";
+import usePhaseNewAnnotationIdSet from "Features/phasing/hooks/usePhaseNewAnnotationIdSet";
+import dimPhaseOldAnnotations from "Features/phasing/utils/dimPhaseOldAnnotations";
 import useExtraBaseMapIdsIn3d from "./useExtraBaseMapIdsIn3d";
 import useSceneExtraBaseMapIdsIn3d from "./useSceneExtraBaseMapIdsIn3d";
 import useRevolutionAxisLinkedBaseMapIdsIn3d from "Features/revolutionAxes/hooks/useRevolutionAxisLinkedBaseMapIdsIn3d";
@@ -221,6 +223,7 @@ export default function useAutoLoadAnnotationsInThreedEditor({
   // Phases strip (Features/phasing): annotations present in none of the
   // displayed phases — not built either.
   const phaseHiddenIdSet = usePhaseHiddenAnnotationIdSet();
+  const phaseNewIdSet = usePhaseNewAnnotationIdSet();
 
   const annotations = useAnnotationsV2({
     caller: "MainThreedEditor",
@@ -346,6 +349,8 @@ export default function useAutoLoadAnnotationsInThreedEditor({
     // (no pick, no snap, no orbit pivot; labels / cotes / cut lines follow).
     let result = filterUserHiddenAnnotations(annotations, userHiddenIdSet);
     result = filterPhaseHiddenAnnotations(result, phaseHiddenIdSet);
+    // strip toggle: lighter tint for what is not new in the displayed phases
+    result = dimPhaseOldAnnotations(result, phaseNewIdSet);
     result = dropDoubledBaseMapLinks(result, selectedLinkCloneId);
     // Coupe base map loaded only for the axes of the plan view: only what is
     // revolved around one of those axes is built.
@@ -387,6 +392,7 @@ export default function useAutoLoadAnnotationsInThreedEditor({
     hiddenSheetIdSet,
     userHiddenIdSet,
     phaseHiddenIdSet,
+    phaseNewIdSet,
     selectedLinkCloneId,
     selectedComponentSourceId,
     axisOnlyBaseMapIdSet,

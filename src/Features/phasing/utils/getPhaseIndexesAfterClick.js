@@ -1,39 +1,31 @@
-// Period of an annotation after a click on the step `clickedIndex` of the
+// Phases of an annotation after a click on the step `clickedIndex` of the
 // phases strip — also what hovering that step previews. `currentIndexes`:
-// Set of the phases it is present in.
-// - before the period: the start moves back to the step;
-// - after the period: the end moves forward to the step;
-// - on a bound: the period collapses to that single phase;
-// - strictly inside: the nearest bound moves to the step (the start on a tie).
-// The holes (excluded phases) still inside the new period are kept.
+// Set of the phases it is present in. Same gestures as the displayed phases:
+// - plain click: that phase only — again on the only phase it is in: none;
+// - `additive` (Shift click): that phase is added / removed.
+// An annotation is always in at least one phase: "none" reads as every phase
+// (`phasesCount`), like no displayed phase displays everything.
+// `remove` forces the direction (a multi-selection decides it for all its
+// annotations at once); omitted, it comes from `currentIndexes`.
 //
 // Pure: node-testable.
 export default function getPhaseIndexesAfterClick(
   currentIndexes,
-  clickedIndex
+  clickedIndex,
+  { additive = false, remove, phasesCount = 0 } = {}
 ) {
-  const current = [...(currentIndexes ?? [])].sort((a, b) => a - b);
-  if (current.length === 0) return new Set([clickedIndex]);
-
-  const first = current[0];
-  const last = current[current.length - 1];
-  let from = first;
-  let to = last;
-  if (clickedIndex < first) from = clickedIndex;
-  else if (clickedIndex > last) to = clickedIndex;
-  else if (clickedIndex === first || clickedIndex === last) {
-    from = clickedIndex;
-    to = clickedIndex;
-  } else if (clickedIndex - first <= last - clickedIndex) from = clickedIndex;
-  else to = clickedIndex;
-
-  const holes = new Set();
-  for (let index = first + 1; index < last; index++) {
-    if (!currentIndexes.has(index)) holes.add(index);
+  const current = new Set(currentIndexes ?? []);
+  let result;
+  if (additive) {
+    result = current;
+    if (remove ?? current.has(clickedIndex)) result.delete(clickedIndex);
+    else result.add(clickedIndex);
+  } else {
+    const isOnlyPhase = current.size === 1 && current.has(clickedIndex);
+    result = (remove ?? isOnlyPhase) ? new Set() : new Set([clickedIndex]);
   }
-  const result = new Set();
-  for (let index = from; index <= to; index++) {
-    if (index === clickedIndex || !holes.has(index)) result.add(index);
+  if (result.size === 0) {
+    for (let index = 0; index < phasesCount; index++) result.add(index);
   }
   return result;
 }

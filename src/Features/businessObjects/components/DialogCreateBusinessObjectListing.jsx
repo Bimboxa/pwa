@@ -82,7 +82,8 @@ export default function DialogCreateBusinessObjectListing({
   // selector say it.
   const titleS = showTypeSelector
     ? "Nouvelle liste"
-    : `Nouvelle ${createdType.strings.listLabel.toLowerCase()}`;
+    : (createdType.strings.newListing ??
+      `Nouvelle ${createdType.strings.listLabel.toLowerCase()}`);
   const canLocateBusinessObjects =
     hasLocate && (canLocate ?? Boolean(createdType.features.locateByDefault));
 

@@ -7,6 +7,7 @@ import getPhaseIndexesAfterClick from "./getPhaseIndexesAfterClick.js";
 import filterPhaseHiddenAnnotations from "./filterPhaseHiddenAnnotations.js";
 import sortPhases from "./sortPhases.js";
 import getNewAnnotationPhaseIndexes from "./getNewAnnotationPhaseIndexes.js";
+import getPhaseNewAnnotationIds from "./getPhaseNewAnnotationIds.js";
 
 const phases = ["p1", "p2", "p3", "p4", "p5"].map((id) => ({ id }));
 const list = (set) => [...set].sort((a, b) => a - b);
@@ -59,32 +60,45 @@ test("encode is the inverse of resolve", () => {
   assert.equal(encodePhaseRels([], phases), null);
 });
 
-test("click moves a bound of the period", () => {
+test("click = that phase only, again on the only phase = every phase", () => {
+  const options = { phasesCount: 5 };
   const current = new Set([1, 2, 3]);
-  assert.deepEqual(list(getPhaseIndexesAfterClick(current, 0)), [0, 1, 2, 3]);
-  assert.deepEqual(list(getPhaseIndexesAfterClick(current, 4)), [1, 2, 3, 4]);
-  assert.deepEqual(list(getPhaseIndexesAfterClick(current, 1)), [1]);
-  assert.deepEqual(list(getPhaseIndexesAfterClick(current, 3)), [3]);
+  assert.deepEqual(list(getPhaseIndexesAfterClick(current, 2, options)), [2]);
+  assert.deepEqual(list(getPhaseIndexesAfterClick(current, 4, options)), [4]);
   assert.deepEqual(
-    list(getPhaseIndexesAfterClick(new Set([0, 1, 2, 3, 4]), 1)),
-    [1, 2, 3, 4]
+    list(getPhaseIndexesAfterClick(new Set([2]), 2, options)),
+    [0, 1, 2, 3, 4]
   );
-  assert.deepEqual(
-    list(getPhaseIndexesAfterClick(new Set([0, 1, 2, 3, 4]), 3)),
-    [0, 1, 2, 3]
-  );
+  // the input is left untouched
+  assert.deepEqual(list(current), [1, 2, 3]);
 });
 
-test("click keeps the holes inside the new period", () => {
+test("shift click adds / removes that phase", () => {
+  const options = { additive: true, phasesCount: 5 };
+  const current = new Set([1, 2, 3]);
   assert.deepEqual(
-    list(getPhaseIndexesAfterClick(new Set([1, 3]), 4)),
-    [1, 3, 4]
+    list(getPhaseIndexesAfterClick(current, 2, options)),
+    [1, 3]
   );
-  // clicking a hole fills it
   assert.deepEqual(
-    list(getPhaseIndexesAfterClick(new Set([0, 2, 4]), 1)),
-    [1, 2, 4]
+    list(getPhaseIndexesAfterClick(new Set([1, 3]), 2, options)),
+    [1, 2, 3]
   );
+  assert.deepEqual(
+    list(getPhaseIndexesAfterClick(current, 4, options)),
+    [1, 2, 3, 4]
+  );
+  // removing the only phase: every phase
+  assert.deepEqual(
+    list(getPhaseIndexesAfterClick(new Set([2]), 2, options)),
+    [0, 1, 2, 3, 4]
+  );
+  // forced direction (multi-selection)
+  assert.deepEqual(
+    list(getPhaseIndexesAfterClick(current, 2, { ...options, remove: false })),
+    [1, 2, 3]
+  );
+  assert.deepEqual(list(current), [1, 2, 3]);
 });
 
 test("filter keeps base map annotations and references", () => {
@@ -120,15 +134,36 @@ test("sortPhases orders by sortIndex and drops deleted rows", () => {
   );
 });
 
-test("new annotation: one phase only / and after, several as selected", () => {
-  assert.deepEqual(getNewAnnotationPhaseIndexes([2], 5, "FROM"), [2, 3, 4]);
-  assert.deepEqual(getNewAnnotationPhaseIndexes([2], 5, undefined), [2, 3, 4]);
-  assert.deepEqual(getNewAnnotationPhaseIndexes([2], 5, "ONLY"), [2]);
-  assert.deepEqual(getNewAnnotationPhaseIndexes([3, 0], 5, "FROM"), [0, 3]);
-  assert.deepEqual(getNewAnnotationPhaseIndexes([], 5, "FROM"), []);
-  // "and after" stays open-ended: no END row
+test("new annotation: exactly the selected phases", () => {
+  assert.deepEqual(getNewAnnotationPhaseIndexes([2]), [2]);
+  assert.deepEqual(getNewAnnotationPhaseIndexes([3, 0, 3]), [0, 3]);
+  assert.deepEqual(getNewAnnotationPhaseIndexes([]), []);
+  // "phase 3 and after" selected in the strip stays open-ended: no END row
   assert.deepEqual(
-    encodePhaseRels(getNewAnnotationPhaseIndexes([2], 5, "FROM"), phases),
+    encodePhaseRels(getNewAnnotationPhaseIndexes([4, 2, 3]), phases),
     [{ phaseId: "p3", type: "START" }]
   );
+});
+
+test("new annotations of the displayed phases", () => {
+  const rels = [
+    // a: phase 1 and after — old in phase 3
+    { annotationId: "a", phaseId: "p1", type: "START" },
+    // b: phase 3 and after — new in phase 3
+    { annotationId: "b", phaseId: "p3", type: "START" },
+    // c: phases 2 to 3 — old in phase 3
+    { annotationId: "c", phaseId: "p2", type: "START" },
+    { annotationId: "c", phaseId: "p3", type: "END" },
+    // d: phase 4 and after — new once phases 3+ are displayed
+    { annotationId: "d", phaseId: "p4", type: "START" },
+  ];
+  assert.deepEqual(getPhaseNewAnnotationIds(rels, phases, ["p3"]), ["b", "d"]);
+  assert.deepEqual(getPhaseNewAnnotationIds(rels, phases, ["p4", "p2"]), [
+    "b",
+    "c",
+    "d",
+  ]);
+  // nothing can be old: no displayed phase, or the first one is displayed
+  assert.equal(getPhaseNewAnnotationIds(rels, phases, []), null);
+  assert.equal(getPhaseNewAnnotationIds(rels, phases, ["p1", "p3"]), null);
 });
