@@ -61,6 +61,18 @@ export default function getAnnotationPropsFromAnnotationTemplateProps(annotation
         result.sizeUnit = annotationTemplateProps.sizeUnit;
     }
 
+    // POINT: the opacity is set in the colour popover of the template, so it
+    // follows the colour padlock (no padlock of its own).
+    if (
+        (result.type ?? annotationTemplateProps.type) === "POINT" &&
+        Array.isArray(overrideFields) &&
+        overrideFields.includes("fillColor") &&
+        annotationTemplateProps.fillOpacity !== null &&
+        annotationTemplateProps.fillOpacity !== undefined
+    ) {
+        result.fillOpacity = annotationTemplateProps.fillOpacity;
+    }
+
     if (annotation?.type === "RECTANGLE") {
         // RECTANGLE: per-dimension padlocks (getRectangleSizeLocks). Only a
         // locked dimension is driven by the template, around the centre of

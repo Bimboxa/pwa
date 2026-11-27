@@ -3,18 +3,16 @@ import {
   Box,
   Typography,
   Popover,
-  IconButton,
+  Slider,
   InputBase,
   Button,
   Menu,
   MenuItem,
 } from "@mui/material";
-import {
-  Close as CloseIcon,
-  ArrowDropDown as Down,
-} from "@mui/icons-material";
-import { CompactPicker } from "react-color";
+import { alpha } from "@mui/material/styles";
+import { ArrowDropDown as Down } from "@mui/icons-material";
 
+import ColorPickerContent from "Features/colors/components/ColorPickerContent";
 import WhiteSectionGeneric from "Features/form/components/WhiteSectionGeneric";
 import ToggleSingleSelectorGeneric from "Features/layout/components/ToggleSingleSelectorGeneric";
 import OverrideToggle from "./OverrideToggle";
@@ -67,10 +65,13 @@ export default function FieldAnnotationTemplatePoint({
 }) {
   const {
     fillColor = "#2196f3",
+    fillOpacity = 1,
     variant = "CIRCLE",
     size = 4,
     sizeUnit = "PX",
   } = value ?? {};
+
+  const opacityPct = Math.round((fillOpacity ?? 1) * 100);
 
   const [anchorColor, setAnchorColor] = useState(null);
   const [anchorUnit, setAnchorUnit] = useState(null);
@@ -124,7 +125,7 @@ export default function FieldAnnotationTemplatePoint({
               width: 24,
               height: 24,
               borderRadius: "50%",
-              bgcolor: fillColor,
+              bgcolor: alpha(fillColor, fillOpacity ?? 1),
               cursor: "pointer",
               border: "2px solid",
               borderColor: "divider",
@@ -219,35 +220,38 @@ export default function FieldAnnotationTemplatePoint({
         anchorOrigin={{ vertical: "bottom", horizontal: "right" }}
         transformOrigin={{ vertical: "top", horizontal: "right" }}
         slotProps={{
-          paper: { sx: { mt: 1, p: 0, overflow: "hidden", borderRadius: 2 } },
+          paper: { sx: { mt: 1, borderRadius: 2, boxShadow: 6 } },
         }}
       >
-        <Box
-          sx={{
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "space-between",
-            pl: 2,
-            pr: 1,
-            py: 0.5,
-            borderBottom: "1px solid",
-            borderColor: "divider",
-            bgcolor: "action.hover",
-          }}
+        <ColorPickerContent
+          color={fillColor}
+          onColorChange={(color) => onChange({ ...value, fillColor: color })}
+          onClose={() => setAnchorColor(null)}
         >
-          <Typography variant="caption" sx={{ fontWeight: "bold" }}>
-            Couleur
-          </Typography>
-          <IconButton size="small" onClick={() => setAnchorColor(null)}>
-            <CloseIcon fontSize="inherit" />
-          </IconButton>
-        </Box>
-        <Box sx={{ p: 1 }}>
-          <CompactPicker
-            color={fillColor}
-            onChange={(color) => onChange({ ...value, fillColor: color.hex })}
-          />
-        </Box>
+          <Box sx={{ display: "flex", alignItems: "center", gap: 1.5 }}>
+            <Typography
+              variant="caption"
+              color="text.secondary"
+              sx={{ minWidth: 52 }}
+            >
+              Opacité
+            </Typography>
+            <Slider
+              size="small"
+              value={opacityPct}
+              min={0}
+              max={100}
+              onChange={(e, v) => onChange({ ...value, fillOpacity: v / 100 })}
+              sx={{ flex: 1, color: "primary.main" }}
+            />
+            <Typography
+              variant="caption"
+              sx={{ fontWeight: "bold", minWidth: 34, textAlign: "right" }}
+            >
+              {opacityPct}%
+            </Typography>
+          </Box>
+        </ColorPickerContent>
       </Popover>
 
       {/* UNIT MENU */}
