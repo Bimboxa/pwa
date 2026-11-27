@@ -18,6 +18,7 @@ function NodePointStatic({
         id,
         listingId,
         fillColor,
+        fillOpacity,
         variant,
         size,
         sizeUnit
@@ -117,6 +118,7 @@ function NodePointStatic({
                         width={sizeInLocalUnits}
                         height={sizeInLocalUnits}
                         fill={displayFillColor}
+                        fillOpacity={fillOpacity ?? 1}
                         stroke={strokeColor}
                         strokeWidth={strokeWidth}
                         style={selected ? { filter: "drop-shadow(0px 2px 3px rgba(0,0,0,0.4))" } : {}}
@@ -127,6 +129,7 @@ function NodePointStatic({
                         cy={0}
                         r={halfSize}
                         fill={displayFillColor}
+                        fillOpacity={fillOpacity ?? 1}
                         stroke={strokeColor}
                         strokeWidth={strokeWidth}
                         style={selected ? { filter: "drop-shadow(0px 2px 3px rgba(0,0,0,0.4))" } : {}}
