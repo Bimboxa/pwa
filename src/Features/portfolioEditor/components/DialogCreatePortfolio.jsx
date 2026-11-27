@@ -12,6 +12,8 @@ import {
   ListItemText,
   ListSubheader,
   Checkbox,
+  MenuItem,
+  TextField,
   Typography,
 } from "@mui/material";
 
@@ -61,6 +63,7 @@ export default function DialogCreatePortfolio({ open, onClose, onCreate }) {
   const createS = "Créer";
   const detailsPortfolioS = "Carnet de détails";
   const phasesJournalS = "Journal des phases";
+  const phasingS = "Phasage";
   const noFolioS = "Aucun folio";
   const noDetailsS = "Aucun détail dans le scope";
   const detailS = "Détail";
@@ -79,6 +82,8 @@ export default function DialogCreatePortfolio({ open, onClose, onCreate }) {
   const [loading, setLoading] = useState(false);
   const [isDetailsPortfolio, setIsDetailsPortfolio] = useState(false);
   const [isPhasesJournal, setIsPhasesJournal] = useState(false);
+  // phasing picked for the journal (null = the one of the phases strip)
+  const [journalListingId, setJournalListingId] = useState(null);
   const [selectedIds, setSelectedIds] = useState(new Set());
   const [selectedBaseMapIds, setSelectedBaseMapIds] = useState(new Set());
   const [titleBlockValues, setTitleBlockValues] = useState({});
@@ -86,11 +91,19 @@ export default function DialogCreatePortfolio({ open, onClose, onCreate }) {
   // data
 
   const titleBlockManifest = useTitleBlockManifest(null);
-  // « Journal des phases »: one page per phase of the scope's phasing — the
-  // option only shows once phases exist
-  const { listing: phasingListing } = usePhasingListing();
+  // « Journal des phases »: one page per phase of a phasing of the scope
+  // (the one of the phases strip by default; several phasings: picked in the
+  // dialog). The option only shows once a phasing exists — with phases, when
+  // it is the only one.
+  const { listing: activePhasingListing, listings: phasingListings } =
+    usePhasingListing();
+  const hasSeveralPhasings = (phasingListings?.length ?? 0) > 1;
+  const phasingListing =
+    phasingListings?.find((l) => l.id === journalListingId) ??
+    activePhasingListing;
   const phases = usePhases(open ? (phasingListing?.id ?? null) : null);
   const hasPhases = phases.length > 0;
+  const showPhasesJournal = hasSeveralPhasings || hasPhases;
   const { object: dataMapping } = useDataMapping();
 
   // Same content filters as useAnnotationsCountByBaseMapId, minus the hidden
@@ -108,6 +121,8 @@ export default function DialogCreatePortfolio({ open, onClose, onCreate }) {
     () => annotations?.filter((a) => a.type === "DETAIL") ?? [],
     [annotations]
   );
+  // « Carnet de détails »: the option only shows once the scope has details
+  const hasDetails = details.length > 0;
 
   // annotated baseMaps: DETAIL annotations only for a details portfolio,
   // any annotation otherwise
@@ -283,6 +298,7 @@ export default function DialogCreatePortfolio({ open, onClose, onCreate }) {
     setName("");
     setIsDetailsPortfolio(false);
     setIsPhasesJournal(false);
+    setJournalListingId(null);
     setLoading(false);
     onClose();
   }
@@ -310,6 +326,47 @@ export default function DialogCreatePortfolio({ open, onClose, onCreate }) {
           />
         </Box>
 
+        {/* kind of portfolio: only the kinds the scope has content for */}
+        {(hasDetails || isDetailsPortfolio) && (
+          <FieldCheck
+            value={isDetailsPortfolio}
+            onChange={setIsDetailsPortfolio}
+            label={detailsPortfolioS}
+            options={{ showAsInline: true }}
+          />
+        )}
+        {showPhasesJournal && !isDetailsPortfolio && (
+          <FieldCheck
+            value={isPhasesJournal}
+            onChange={setIsPhasesJournal}
+            label={`${phasesJournalS} (${phases.length} ${
+              phases.length > 1 ? "phases" : "phase"
+            })`}
+            options={{ showAsInline: true }}
+          />
+        )}
+        {showPhasesJournal &&
+          !isDetailsPortfolio &&
+          isPhasesJournal &&
+          hasSeveralPhasings && (
+            <Box sx={{ px: 1, pt: 0.5, pb: 1 }}>
+              <TextField
+                select
+                fullWidth
+                size="small"
+                label={phasingS}
+                value={phasingListing?.id ?? ""}
+                onChange={(e) => setJournalListingId(e.target.value)}
+              >
+                {phasingListings.map((l) => (
+                  <MenuItem key={l.id} value={l.id}>
+                    {l.name}
+                  </MenuItem>
+                ))}
+              </TextField>
+            </Box>
+          )}
+
         <Box sx={{ px: 1, pt: 1 }}>
           <Typography
             variant="caption"
@@ -328,23 +385,6 @@ export default function DialogCreatePortfolio({ open, onClose, onCreate }) {
             )}
           />
         </Box>
-
-        <FieldCheck
-          value={isDetailsPortfolio}
-          onChange={setIsDetailsPortfolio}
-          label={detailsPortfolioS}
-          options={{ showAsInline: true }}
-        />
-        {hasPhases && !isDetailsPortfolio && (
-          <FieldCheck
-            value={isPhasesJournal}
-            onChange={setIsPhasesJournal}
-            label={`${phasesJournalS} (${phases.length} ${
-              phases.length > 1 ? "phases" : "phase"
-            })`}
-            options={{ showAsInline: true }}
-          />
-        )}
 
         <Box sx={{ maxHeight: "40vh", overflow: "auto", px: 1 }}>
           <Typography

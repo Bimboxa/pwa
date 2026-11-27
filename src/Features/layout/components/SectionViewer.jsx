@@ -229,8 +229,9 @@ export default function SectionViewer() {
       >
         {/* Phases strip (Features/phasing): in flow above the editors, the
         editors shrink. With the commands toolbar docked at the top, the strip
-        is the first row and the toolbar sits under it. Null without a PHASING
-        listing in the scope. */}
+        is the first row and the toolbar sits under it. Without a PHASING
+        listing in the scope: null, or its "create a phasing" empty state when
+        the Phasage module is enabled (Dessin / Phasage modules). */}
         {phasesStripAboveToolbar && <StripPhases />}
         {toolbarBefore && (
           <CommandsToolbar

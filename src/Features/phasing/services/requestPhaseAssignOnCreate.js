@@ -57,14 +57,11 @@ async function flush() {
       await db.businessObjects.where("listingId").equals(listingId).toArray()
     );
     const selectedIds = new Set(selected.map((o) => o.id));
-    // one selected phase: that phase only, or that phase and after (strip
-    // block « Nouvelle annotation »); several: the selected phases
+    // exactly the selected phases
     const indexes = getNewAnnotationPhaseIndexes(
       phases
         .map((phase, index) => (selectedIds.has(phase.id) ? index : -1))
-        .filter((index) => index >= 0),
-      phases.length,
-      phasingState?.newAnnotationPeriodMode
+        .filter((index) => index >= 0)
     );
     if (indexes.length === 0) return;
 

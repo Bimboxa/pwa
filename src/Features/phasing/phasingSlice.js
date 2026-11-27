@@ -18,14 +18,10 @@ const phasingSlice = createSlice({
     // scope, see hooks/usePhasingListing)
     activeListingId: null,
     selectedPhaseIds: [],
-    // strip toggle: a click on a step toggles that single step instead of
-    // moving a bound of the period
-    stepEditMode: false,
     relsPhaseUpdatedAt: null,
-    // period of a new annotation drawn while ONE phase is selected: "FROM" =
-    // that phase and the following ones, "ONLY" = that phase only (see
-    // utils/getNewAnnotationPhaseIndexes)
-    newAnnotationPeriodMode: "FROM",
+    // strip toggle: the annotations that are not new in the displayed phases
+    // get a lighter tint in the editors (hooks/usePhaseNewAnnotationIdSet)
+    highlightNewAnnotations: false,
   },
   reducers: {
     setActivePhasingListingId: (state, action) => {
@@ -38,7 +34,7 @@ const phasingSlice = createSlice({
       state.selectedPhaseIds = action.payload ?? [];
     },
     // {id, additive}: plain click = that phase only (again: none), additive
-    // (Ctrl / Shift click) = add / remove it
+    // (Shift click) = add / remove it
     togglePhaseSelection: (state, action) => {
       const { id, additive } = action.payload ?? {};
       if (!id) return;
@@ -52,12 +48,8 @@ const phasingSlice = createSlice({
       state.selectedPhaseIds =
         isSelected && state.selectedPhaseIds.length === 1 ? [] : [id];
     },
-    setPhaseStepEditMode: (state, action) => {
-      state.stepEditMode = Boolean(action.payload);
-    },
-    setNewAnnotationPeriodMode: (state, action) => {
-      state.newAnnotationPeriodMode =
-        action.payload === "ONLY" ? "ONLY" : "FROM";
+    setHighlightNewAnnotations: (state, action) => {
+      state.highlightNewAnnotations = Boolean(action.payload);
     },
     triggerRelsPhaseAnnotationUpdate: (state) => {
       state.relsPhaseUpdatedAt = Date.now();
@@ -75,8 +67,7 @@ export const {
   setActivePhasingListingId,
   setSelectedPhaseIds,
   togglePhaseSelection,
-  setPhaseStepEditMode,
-  setNewAnnotationPeriodMode,
+  setHighlightNewAnnotations,
   triggerRelsPhaseAnnotationUpdate,
 } = phasingSlice.actions;
 
