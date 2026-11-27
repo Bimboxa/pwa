@@ -25,13 +25,22 @@ import TemplateSwitchRowHollowOut from "./TemplateSwitchRowHollowOut";
 
 import avoidVisibleAnnotationsService from "../services/avoidVisibleAnnotationsService";
 import getAnnotationColor from "../utils/getAnnotationColor";
-import getHollowOutCandidates from "../utils/getHollowOutCandidates";
+import getHollowOutCandidates, {
+  HOLLOW_OUT_LINE_TYPES,
+} from "../utils/getHollowOutCandidates";
+import getHollowOutCutterFootprints, {
+  toHollowOutCutter,
+} from "../utils/getHollowOutCutterFootprints";
+import getHollowOutPolylineCarve from "../utils/getHollowOutPolylineCarve";
 import getHollowOutTemplateGroups, {
   getHollowOutGroupKey,
 } from "../utils/getHollowOutTemplateGroups";
 
-// "Evider" confirmation: overview of the carved POLYGON + the annotation
-// templates whose annotations would cut it, each with a switch. Opened by the
+// "Evider" confirmation: overview of the carved annotation + the annotation
+// templates whose annotations would cut it, each with a switch. A POLYGON is
+// carved as a contour (avoidVisibleAnnotationsService); a POLYLINE / STRIP has
+// its centerline clipped by the same footprints (getHollowOutPolylineCarve),
+// each remaining chain becoming a line. Opened by the
 // overlay button above the annotation and the "E" shortcut (both set
 // mapEditor.hollowOutDialogAnnotationId, see DialogHollowOutAnnotationOutlet);
 // nothing is written until "Evider" is confirmed (useCommitHollowOut).
@@ -62,6 +71,8 @@ export default function DialogHollowOutAnnotation({ annotationId, onClose }) {
     [visibleAnnotations, annotationId]
   );
   const accentColor = getAnnotationColor(annotation) || "#6366F1";
+  const isLine = HOLLOW_OUT_LINE_TYPES.includes(annotation?.type);
+  const meterByPx = baseMap?.getMeterByPx?.();
 
   const candidates = useMemo(
     () =>
@@ -81,14 +92,32 @@ export default function DialogHollowOutAnnotation({ annotationId, onClose }) {
     return candidates.filter((a) => !excluded.has(getHollowOutGroupKey(a)));
   }, [candidates, excludedTemplateIds]);
 
+  // Footprints of the enabled cutters: what clips a line, and what the
+  // preview tints over it (the gaps of a thin line would not read alone).
+  const cutterOverlays = useMemo(() => {
+    if (!isLine) return null;
+    return enabledCandidates.map((candidate) => ({
+      id: candidate.id,
+      color: getAnnotationColor(candidate),
+      pieces: getHollowOutCutterFootprints(candidate, { meterByPx }),
+    }));
+  }, [isLine, enabledCandidates, meterByPx]);
+
   const carved = useMemo(() => {
     if (!annotation || enabledCandidates.length === 0) return null;
+    if (isLine) {
+      return getHollowOutPolylineCarve({
+        annotation,
+        footprints: cutterOverlays.flatMap((overlay) => overlay.pieces),
+      });
+    }
     return avoidVisibleAnnotationsService({
       drawnShape: { points: annotation.points, cuts: annotation.cuts ?? [] },
-      candidates: enabledCandidates,
+      // A RECTANGLE has no points: it cuts as the polygon of its corners.
+      candidates: enabledCandidates.map(toHollowOutCutter),
       baseMap,
     });
-  }, [annotation, enabledCandidates, baseMap]);
+  }, [annotation, enabledCandidates, baseMap, isLine, cutterOverlays]);
 
   const consumed = Boolean(carved?.consumed);
   const pieces = useMemo(() => {
@@ -103,14 +132,19 @@ export default function DialogHollowOutAnnotation({ annotationId, onClose }) {
 
   let helperText = null;
   if (candidates.length === 0) {
-    helperText = "Aucune annotation visible ne recoupe ce polygone.";
+    helperText = isLine
+      ? "Aucune annotation visible ne recoupe cette ligne."
+      : "Aucune annotation visible ne recoupe ce polygone.";
   } else if (enabledCandidates.length === 0) {
     helperText = "Tous les modèles sont désactivés : rien à évider.";
   } else if (consumed) {
-    helperText =
-      "Le polygone serait entièrement évidé : désactivez au moins un modèle.";
+    helperText = isLine
+      ? "La ligne serait entièrement évidée : désactivez au moins un modèle."
+      : "Le polygone serait entièrement évidé : désactivez au moins un modèle.";
   } else if (pieces.length > 1) {
-    helperText = `Le polygone sera divisé en ${pieces.length} annotations.`;
+    helperText = isLine
+      ? `La ligne sera divisée en ${pieces.length} annotations.`
+      : `Le polygone sera divisé en ${pieces.length} annotations.`;
   }
 
   // handlers
@@ -152,7 +186,12 @@ export default function DialogHollowOutAnnotation({ annotationId, onClose }) {
       <DialogTitle>Évider</DialogTitle>
       <DialogContent dividers>
         <Box sx={{ display: "flex", flexDirection: "column", gap: 1.5 }}>
-          <PreviewHollowOutAnnotation annotation={annotation} pieces={pieces} />
+          <PreviewHollowOutAnnotation
+            annotation={annotation}
+            pieces={pieces}
+            overlays={cutterOverlays}
+            baseMapMeterByPx={meterByPx}
+          />
 
           {helperText && (
             <Typography variant="caption" color="text.secondary">

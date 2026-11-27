@@ -13,7 +13,8 @@ import {
 // DialogHollowOutAnnotationOutlet):
 //  - 2D (E): the selected POLYGON is carved by the footprints of the visible
 //    annotations of its base map, its geometry is rewritten
-//    (DialogHollowOutAnnotation);
+//    (DialogHollowOutAnnotation); a POLYLINE / STRIP has its centerline
+//    clipped by the same footprints, each remaining chain becoming a line;
 //  - 3D: the annotations whose solid intersects the selected one are offered
 //    as subtractions (DialogHollowOutAnnotation3d) — relations only, so the
 //    hosts are those of « Soustraire », 3D meshes included.
@@ -29,7 +30,11 @@ export default {
       ? getSingleAnnotationState(ctx, SUBTRACT_TYPES, SUBTRACT_TYPES_REASON, {
           allowMesh3d: true,
         })
-      : getSingleAnnotationState(ctx, ["POLYGON"], "Réservé aux surfaces"),
+      : getSingleAnnotationState(
+          ctx,
+          ["POLYGON", "POLYLINE", "STRIP"],
+          "Réservé aux surfaces et aux lignes"
+        ),
   run(ctx, { dispatch }) {
     dispatch(setHollowOutDialogAnnotationId(ctx.selectedAnnotation.id));
   },

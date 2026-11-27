@@ -13,6 +13,9 @@ import {
   filterSegmentPointIds,
 } from "../utils/segmentFlags";
 import getIsoSurfaceOffsetsSampler from "../utils/getIsoSurfaceOffsetsSampler";
+import { HOLLOW_OUT_LINE_TYPES } from "../utils/getHollowOutCandidates";
+
+import commitHollowOutPolylineService from "../services/commitHollowOutPolylineService";
 
 import db from "App/db/db";
 
@@ -29,6 +32,10 @@ import db from "App/db/db";
 //
 // `annotation` is the pixel-resolved POLYGON (useAnnotationsV2), `carved` the
 // service result ({points, cuts, pieces, consumed}, pixel space).
+//
+// A POLYLINE / STRIP is carved along its centerline instead: `carved` is the
+// getHollowOutPolylineCarve result ({chains, pieces, consumed}) and the write
+// is done by commitHollowOutPolylineService.
 export default function useCommitHollowOut() {
   const dispatch = useDispatch();
 
@@ -50,6 +57,16 @@ export default function useCommitHollowOut() {
   }
 
   async function commit(annotation, carved) {
+    if (HOLLOW_OUT_LINE_TYPES.includes(annotation?.type)) {
+      const written = await commitHollowOutPolylineService({
+        annotation,
+        carved,
+        imageSize: baseMap?.getImageSize?.(),
+      });
+      if (written) dispatch(triggerAnnotationsUpdate());
+      return;
+    }
+
     if (!annotation?.points || annotation.points.length < 3) return;
 
     const imageSize = baseMap?.getImageSize?.();
@@ -179,9 +196,15 @@ export default function useCommitHollowOut() {
     // the write below migrates the row off the legacy index fields.
     const rootFlagChanges = {};
     for (const { idxField, idField } of SEGMENT_FLAG_FIELDS) {
-      const ids = getRingSegmentFlagPointIds(raw, idxField, idField, raw.points, {
-        closed: true,
-      });
+      const ids = getRingSegmentFlagPointIds(
+        raw,
+        idxField,
+        idField,
+        raw.points,
+        {
+          closed: true,
+        }
+      );
       if (ids != null)
         rootFlagChanges[idField] = filterSegmentPointIds(ids, newPointsRefs);
       if (raw[idxField] !== undefined) rootFlagChanges[idxField] = undefined;
