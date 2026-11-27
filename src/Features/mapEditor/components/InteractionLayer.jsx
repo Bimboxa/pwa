@@ -197,6 +197,7 @@ import mergeBboxes from 'Features/misc/utils/mergeBboxes';
 import snapToAngle from 'Features/mapEditor/utils/snapToAngle';
 import getBestSnap from 'Features/mapEditor/utils/getBestSnap';
 import getRectangleSizeLocks from "Features/rectangles/utils/getRectangleSizeLocks";
+import getRectangleCorners from "Features/rectangles/utils/getRectangleCorners";
 import {
   RECTANGLE_ROTATE_STEP_DEG,
   RECTANGLE_ROTATE_FINE_STEP_DEG,
@@ -2417,6 +2418,15 @@ const InteractionLayer = forwardRef(({
       if (pts) {
         for (const p of pts) {
           if (excludeSet?.has(p?.id)) continue;
+          pushCandidate(p, unbounded);
+        }
+      }
+      // A RECTANGLE is stored as bbox + rotation: it has no `points`, so its
+      // four corners are derived here (same helper as the vertex snap in
+      // getBestSnap). Skipped when `_snapPoints` already carries them
+      // (transform tools).
+      if (ann?.type === "RECTANGLE" && !ann._snapPoints) {
+        for (const p of getRectangleCorners(ann) || []) {
           pushCandidate(p, unbounded);
         }
       }
