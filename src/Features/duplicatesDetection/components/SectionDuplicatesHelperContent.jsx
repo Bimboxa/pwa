@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
 
 import { clearDetection, setToleranceCm } from "../duplicatesDetectionSlice";
+import { setToaster } from "Features/layout/layoutSlice";
 
 import {
   clearSelection,
@@ -19,6 +20,7 @@ import {
 } from "@mui/material";
 import Refresh from "@mui/icons-material/Refresh";
 import DeleteSweep from "@mui/icons-material/DeleteSweep";
+import MergeType from "@mui/icons-material/MergeType";
 
 import RowDuplicateAnnotation from "./RowDuplicateAnnotation";
 import DialogDeleteRessource from "Features/layout/components/DialogDeleteRessource";
@@ -31,6 +33,8 @@ import useLayers from "Features/layers/hooks/useLayers";
 import useSelectAnnotationFromPanel from "Features/panelDrawing/hooks/useSelectAnnotationFromPanel";
 import useRunDuplicatesDetection from "../hooks/useRunDuplicatesDetection";
 import useDuplicatesHelperRows from "../hooks/useDuplicatesHelperRows";
+import useCutOverlapsHelperRows from "../hooks/useCutOverlapsHelperRows";
+import mergeOverlappingCutsService from "../services/mergeOverlappingCutsService";
 import findDuplicateAnnotations from "Features/annotations/utils/findDuplicateAnnotations";
 import getItemsByKey from "Features/misc/utils/getItemsByKey";
 import isEditableTarget from "Features/commandsToolbar/utils/isEditableTarget";
@@ -42,7 +46,11 @@ import isEditableTarget from "Features/commandsToolbar/utils/isEditableTarget";
 // while running, then the summary and one row per duplicate (click = select
 // on the map). « Supprimer les doublons exacts » deletes, in one batch, the
 // copies with the very same geometry on the same layer (the oldest of each
-// group is kept), then relaunches the run. Only mounted while a run exists (status !== "idle"), so its
+// group is kept), then relaunches the run. A second list, « Ouvertures
+// superposées », shows the polygons whose own openings (cuts) overlap each
+// other — their area comes off the surface more than once — with « Fusionner
+// les ouvertures superposées » replacing each overlapping group by its union.
+// Only mounted while a run exists (status !== "idle"), so its
 // own annotations query (same scope as the « Doublons » card) runs only then.
 // Escape closes the helper (clearDetection).
 // ---------------------------------------------------------------------------
@@ -59,6 +67,8 @@ export default function SectionDuplicatesHelperContent() {
   const errorS = "Échec de la détection";
   const hintS = "Cliquez une ligne pour la sélectionner sur le plan";
   const deleteExactS = "Supprimer les doublons exacts";
+  const cutOverlapsS = "Ouvertures superposées";
+  const mergeCutsS = "Fusionner les ouvertures superposées";
 
   // data
 
@@ -103,6 +113,15 @@ export default function SectionDuplicatesHelperContent() {
     hasScale: runHasScale,
   });
 
+  // polygons whose own openings overlap each other
+  const { rows: cutRows, totalText: cutTotalText } = useCutOverlapsHelperRows({
+    result,
+    annotations,
+    templateById,
+    meterByPx: runMeterByPx,
+    hasScale: runHasScale,
+  });
+
   // exact duplicates among the listed ones: same template, type, layer and
   // geometry — the oldest annotation of each group is kept
   const exactDuplicateIds = useMemo(
@@ -118,15 +137,20 @@ export default function SectionDuplicatesHelperContent() {
 
   const [openDelete, setOpenDelete] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [openMergeCuts, setOpenMergeCuts] = useState(false);
+  const [mergingCuts, setMergingCuts] = useState(false);
 
   // helpers
 
   const running = status === "running";
   const duplicatesCount = result?.duplicates?.length ?? 0;
   const pairsCount = result?.pairs?.length ?? 0;
+  const cutOverlapsCount = cutRows.length;
   const summaryS =
     duplicatesCount === 0
-      ? noneS
+      ? cutOverlapsCount === 0
+        ? noneS
+        : null
       : `${duplicatesCount} doublon${duplicatesCount > 1 ? "s" : ""} · ${pairsCount} paire${pairsCount > 1 ? "s" : ""}`;
   const missingS =
     missingCount > 0
@@ -136,17 +160,21 @@ export default function SectionDuplicatesHelperContent() {
   const exactCount = exactDuplicateIds.length;
   const deleteMessageS = `Supprimer ${exactCount} doublon${exactCount > 1 ? "s" : ""} exact${exactCount > 1 ? "s" : ""} (même calque, géométrie identique) ? L'annotation la plus ancienne de chaque groupe est conservée.`;
 
+  const cutSummaryS = `${cutOverlapsCount} annotation${cutOverlapsCount > 1 ? "s" : ""} · ${cutTotalText} soustraits en trop`;
+  const mergeCutsMessageS = `Fusionner les ouvertures superposées de ${cutOverlapsCount} annotation${cutOverlapsCount > 1 ? "s" : ""} ? Chaque groupe d'ouvertures qui se recouvrent est remplacé par une seule ouverture (leur union).`;
+
   // effect - Escape closes the helper (not while typing in the field)
 
   useEffect(() => {
     const onKeyDown = (e) => {
       if (e.key !== "Escape" || isEditableTarget(e.target)) return;
-      if (openDelete) return; // Escape only closes the confirmation dialog
+      // Escape only closes the confirmation dialog
+      if (openDelete || openMergeCuts) return;
       dispatch(clearDetection());
     };
     window.addEventListener("keydown", onKeyDown, true);
     return () => window.removeEventListener("keydown", onKeyDown, true);
-  }, [dispatch, openDelete]);
+  }, [dispatch, openDelete, openMergeCuts]);
 
   // handlers
 
@@ -173,6 +201,50 @@ export default function SectionDuplicatesHelperContent() {
     } finally {
       setDeleting(false);
       setOpenDelete(false);
+    }
+  }
+
+  async function handleMergeOverlappingCuts() {
+    if (mergingCuts || cutOverlapsCount === 0) return;
+    setMergingCuts(true);
+    try {
+      // one batch: single transaction, single undo step
+      const { mergedAnnotationIds, skippedClusters } =
+        await mergeOverlappingCutsService({
+          annotations,
+          cutOverlaps: cutRows,
+          baseMap,
+        });
+      if (skippedClusters > 0) {
+        dispatch(
+          setToaster({
+            message: `${skippedClusters} groupe${skippedClusters > 1 ? "s" : ""} d'ouvertures non fusionné${skippedClusters > 1 ? "s" : ""} (ouvertures liées ou union impossible) — relancez l'analyse`,
+            isError: true,
+          })
+        );
+      }
+      // the live query has not caught up yet: the next run would still see
+      // the old cuts of the merged annotations, so they are left out of it —
+      // « Relancer » checks them again.
+      if (mergedAnnotationIds.length > 0) {
+        const mergedIds = new Set(mergedAnnotationIds);
+        relaunch(
+          (annotations ?? []).map((a) =>
+            mergedIds.has(a.id) ? { ...a, cuts: [] } : a
+          )
+        );
+      }
+    } catch (e) {
+      console.error("[duplicatesDetection] merge of the cuts failed:", e);
+      dispatch(
+        setToaster({
+          message: "Échec de la fusion des ouvertures",
+          isError: true,
+        })
+      );
+    } finally {
+      setMergingCuts(false);
+      setOpenMergeCuts(false);
     }
   }
 
@@ -258,9 +330,11 @@ export default function SectionDuplicatesHelperContent() {
             pointerEvents: running ? "none" : "auto",
           }}
         >
-          <Typography variant="body2" sx={{ fontWeight: 600, px: 0.5 }}>
-            {summaryS}
-          </Typography>
+          {summaryS && (
+            <Typography variant="body2" sx={{ fontWeight: 600, px: 0.5 }}>
+              {summaryS}
+            </Typography>
+          )}
           {missingS && (
             <Typography variant="caption" color="warning.main" sx={{ px: 0.5 }}>
               {missingS}
@@ -307,6 +381,50 @@ export default function SectionDuplicatesHelperContent() {
               </Paper>
             </>
           )}
+          {cutOverlapsCount > 0 && (
+            <>
+              <Typography
+                variant="body2"
+                sx={{ fontWeight: 600, px: 0.5, mt: 1 }}
+              >
+                {cutOverlapsS}
+              </Typography>
+              <Typography
+                variant="caption"
+                color="warning.main"
+                sx={{ px: 0.5 }}
+              >
+                {cutSummaryS}
+              </Typography>
+              <Button
+                size="small"
+                variant="outlined"
+                startIcon={<MergeType fontSize="small" />}
+                onClick={() => setOpenMergeCuts(true)}
+                disabled={running || mergingCuts}
+                sx={{ textTransform: "none", alignSelf: "flex-start" }}
+              >
+                {`${mergeCutsS} (${cutOverlapsCount})`}
+              </Button>
+              <Paper
+                elevation={0}
+                sx={{
+                  border: "1px solid",
+                  borderColor: "divider",
+                  overflow: "hidden",
+                }}
+              >
+                {cutRows.map((row) => (
+                  <RowDuplicateAnnotation
+                    key={row.annotationId}
+                    row={row}
+                    selected={row.annotationId === selectedAnnotationId}
+                    onClick={handleRowClick}
+                  />
+                ))}
+              </Paper>
+            </>
+          )}
         </Box>
       )}
 
@@ -315,6 +433,14 @@ export default function SectionDuplicatesHelperContent() {
         onClose={() => setOpenDelete(false)}
         onConfirmAsync={handleDeleteExactDuplicates}
         message={deleteMessageS}
+      />
+      <DialogDeleteRessource
+        open={openMergeCuts}
+        onClose={() => setOpenMergeCuts(false)}
+        onConfirmAsync={handleMergeOverlappingCuts}
+        message={mergeCutsMessageS}
+        title={mergeCutsS}
+        confirmColor="primary"
       />
     </Box>
   );

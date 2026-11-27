@@ -2,6 +2,8 @@ import buildAnnotationEdgeRings from "Features/annotations/utils/buildAnnotation
 import findSharedEdgeChains from "Features/annotations/utils/findSharedEdgeChains";
 import polygonsIntersectionArea from "Features/geometry/utils/polygonsIntersectionArea";
 
+import findOverlappingCuts from "./findOverlappingCuts.js";
+
 import {
   MIN_POLYGON_COVERAGE,
   TOTAL_COVERAGE,
@@ -24,6 +26,9 @@ import {
 //   pairs: [{ aId, bId, overlapPx }],
 //   duplicates: [{ annotationId, annotationTemplateId, type, layerId, measure,
 //                  overlapPx, ownMeasurePx, coverage, isTotal, partnerIds }],
+//   cutOverlaps: polygons whose own cuts overlap each other (see
+//                findOverlappingCuts) — the only check run on a `cutsOnly`
+//                annotation,
 //   stats: { candidates, groups, pairsChecked, pairs, durationMs },
 // }
 // `overlapPx` / `ownMeasurePx` are px for a LENGTH measure, px² for AREA.
@@ -178,6 +183,7 @@ export default function findOverlappingAnnotations(
   // 1. rings + bbox + own measure (length, or area for a polygon)
   const entries = [];
   for (const annotation of annotations ?? []) {
+    if (annotation.cutsOnly) continue;
     const rings = buildAnnotationEdgeRings(annotation);
     if (!rings?.length) continue;
     const isArea = annotation.type === "POLYGON";
@@ -260,9 +266,16 @@ export default function findOverlappingAnnotations(
     return d2.overlapPx - d1.overlapPx;
   });
 
+  // 6. cuts of one polygon overlapping each other
+  const cutOverlaps = findOverlappingCuts(annotations, {
+    minOverlapPx: minOverlap,
+    minCoverage: minPolygonCoverage,
+  });
+
   return {
     pairs,
     duplicates,
+    cutOverlaps,
     stats: {
       candidates: entries.length,
       groups: groups.size,
