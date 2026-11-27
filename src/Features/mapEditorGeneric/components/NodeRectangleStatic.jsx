@@ -15,6 +15,8 @@ export default memo(function NodeRectangleStatic({
     dragged,
     draggedPartType,
     containerK = 1,
+    // Multi-selection: selected look only, no resize / rotate / move.
+    transformLocked = false,
 }) {
     const { bbox, id, fillColor, strokeColor, rotation = 0, fillType = "SOLID", fillOpacity = 1 } = annotation;
     const { x, y, width, height } = bbox ?? {};
@@ -184,7 +186,7 @@ export default memo(function NodeRectangleStatic({
                     fill={finalFill}
                     //fillOpacity={0.5}
                     style={{
-                        cursor: selected ? "move" : (hovered ? "pointer" : "default"),
+                        cursor: selected && !transformLocked ? "move" : (hovered ? "pointer" : "default"),
                         transition: "fill 0.2s"
                     }}
                     {...((selected || fillType === "HATCHING" || fillType === "HATCHING_LEFT") && {
@@ -196,7 +198,7 @@ export default memo(function NodeRectangleStatic({
             </g>
 
             {/* Poignées (Uniquement si sélectionné et pas en cours de déplacement global) */}
-            {selected && !dragged && (
+            {selected && !dragged && !transformLocked && (
                 <g>
                     {/* Resize — hidden when both dimensions are locked by the template */}
                     {!resizeLocked && (

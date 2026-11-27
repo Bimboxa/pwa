@@ -10137,9 +10137,17 @@ const InteractionLayer = forwardRef(({
       // exactly like a click on its line.
       const isNodeOwnedDrag =
         draggableGroup.dataset?.dragOwner === "node";
+      // RECTANGLE body in a multi-selection: no single-annotation move — the
+      // user would expect the drag to move the whole selection. The click
+      // still selects.
+      const isRectangleInMultiSelection =
+        draggableGroup.dataset?.annotationType === "RECTANGLE" &&
+        !partType &&
+        (selectedItems?.length ?? 0) > 1;
       const clickOnly =
         (isLabelPart && !labelNodeSelected) ||
         isUnselectedPlacement ||
+        isRectangleInMultiSelection ||
         isNodeOwnedDrag ||
         enabledDrawingModeRef.current === "CHANGE_STYLE" ||
         // « Masquer l'annotation »: the click hides, never moves
