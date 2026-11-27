@@ -24,7 +24,19 @@ export default function createScanResourceStore(db, newId) {
           })
         : null;
     },
-    async save({ projectId, file, data, placement, zone, legacyKey, signal }) {
+    // importedFrom: provenance of a file converted at import (LAS / LAZ →
+    // PLY): {format, fileName, lasVersion, skip, origin (subtracted from the
+    // source coordinates)}. The stored file is always the PLY.
+    async save({
+      projectId,
+      file,
+      data,
+      placement,
+      zone,
+      importedFrom,
+      legacyKey,
+      signal,
+    }) {
       const id = newId(),
         fileName = `resource_${id}_${file.name}`;
       const resource = {
@@ -44,6 +56,7 @@ export default function createScanResourceStore(db, newId) {
           bounds: data.bounds,
           placement,
           ...(zone && { zone }),
+          ...(importedFrom && { importedFrom }),
         },
         ...(legacyKey && { legacyScanKey: legacyKey }),
       };
