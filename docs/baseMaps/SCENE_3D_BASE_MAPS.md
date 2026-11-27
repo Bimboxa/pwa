@@ -128,6 +128,11 @@ per-scope activation like the other sources). Fullscreen dialog, three steps:
    the zone, rotated by θ, ≤ 200 px/m within the chosen size) →
    `createBaseMapFromImage({…, scene3d})` → `unmarkScene3dImporting`.
 
+A point cloud takes another path through the same dialog (→
+`baseMap.localScan`, see `src/Features/localScans/README.md`): a `.ply`
+without faces, or a `.laz` / `.las`, which is first converted to a binary PLY
+(step `CONVERT_LAZ`, README section "LAS / LAZ import").
+
 Between the import and « Créer » the rows are unreferenced:
 `scene3dImportingGuard` protects them from the orphan purge; closing the
 dialog deletes them.

@@ -2,6 +2,8 @@
 // cards + drop zone). Per-scope activation lives in
 // scopeConfigs.disabledBaseMapSourceKeys (Configuration > Fonds de plan).
 // `fileBased` sources feed the drop zone (accepted extensions + formats line).
+// SCENE_3D is the exception: its card is opt-in, but a dropped .ply / .laz /
+// .las / .glb is always accepted (see SectionCreateBaseMapFullscreen).
 const BASE_MAP_SOURCE_CATALOG = [
   {
     key: "DXF",
@@ -63,7 +65,10 @@ const BASE_MAP_SOURCE_CATALOG = [
   {
     key: "SCENE_3D",
     label: "Scène 3D",
-    caption: "Maillage ou nuage de points (PLY)",
+    caption: "Maillage ou nuage de points (PLY, LAZ)",
+    fileBased: true,
+    extensions: [".ply", ".laz", ".las", ".glb"],
+    formats: ["PLY", "LAZ", "GLB"],
   },
 ];
 

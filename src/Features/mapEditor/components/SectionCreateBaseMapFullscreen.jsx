@@ -67,6 +67,11 @@ import testIsImage from "Features/files/utils/testIsImage";
 import testIsDwg from "Features/files/utils/testIsDwg";
 import getBlankBaseMapGeometry from "Features/baseMaps/utils/getBlankBaseMapGeometry";
 
+const SCENE_3D_SOURCE = BASE_MAP_SOURCE_CATALOG.find(
+  (source) => source.key === "SCENE_3D"
+);
+const SCENE_3D_FILE_REGEX = /\.(ply|laz|las|glb)$/i;
+
 const DialogCreateBaseMapFromDxf = lazy(
   () => import("Features/dxf/components/DialogCreateBaseMapFromDxf")
 );
@@ -110,7 +115,8 @@ export default function SectionCreateBaseMapFullscreen({
   const satelliteTitleS = "Image satellite";
   const satelliteSubtitleS = "Extrait géoréférencé";
   const scene3dTitleS = "Scène 3D";
-  const scene3dSubtitleS = "Maillage, nuage de points (PLY) ou maquette (GLB)";
+  const scene3dSubtitleS =
+    "Maillage, nuage de points (PLY, LAZ) ou maquette (GLB)";
   const scanResourcesTitleS = "Choisir un scan 3D des ressources";
   const noScanResourceS = "Aucun scan 3D dans les ressources du projet.";
 
@@ -144,6 +150,8 @@ export default function SectionCreateBaseMapFullscreen({
   const [openScene3d, setOpenScene3d] = useState(false);
   // scan of the Ressources opened in the « Scène 3D » dialog (point cloud)
   const [scene3dResource, setScene3dResource] = useState(null);
+  // files dropped on the main drop zone, handed to the « Scène 3D » dialog
+  const [scene3dFiles, setScene3dFiles] = useState(null);
   const [openScanResource, setOpenScanResource] = useState(false);
   const [openPdfResource, setOpenPdfResource] = useState(false);
 
@@ -173,15 +181,22 @@ export default function SectionCreateBaseMapFullscreen({
   const enabledSources = BASE_MAP_SOURCE_CATALOG.filter((source) =>
     isSourceEnabled(source.key)
   );
-  // the drop zone only makes sense with at least one file-based source
   const enabledFileSources = enabledSources.filter((s) => s.fileBased);
-  const showDropZone = enabledFileSources.length > 0;
-  const dropAccept = enabledFileSources
-    .flatMap((source) => source.extensions)
-    .join(",");
-  const dropSubtitleS = `${enabledFileSources
-    .flatMap((source) => source.formats)
-    .join(" · ")} — ${dropSubtitleSuffixS}`;
+  // a 3D scene (.ply / .glb) is always accepted by the drop zone: the
+  // configuration only hides its card
+  const dropAccept = [
+    ...new Set([
+      ...enabledFileSources.flatMap((source) => source.extensions),
+      ...SCENE_3D_SOURCE.extensions,
+    ]),
+  ].join(",");
+  // formats line: the enabled sources (the 3D scene ones when it is the only
+  // thing the drop zone still takes)
+  const dropFormats = enabledFileSources.flatMap((source) => source.formats);
+  const dropSubtitleS = `${(dropFormats.length > 0
+    ? dropFormats
+    : SCENE_3D_SOURCE.formats
+  ).join(" · ")} — ${dropSubtitleSuffixS}`;
 
   // resolved target listing for the new baseMap
   const listing =
@@ -269,7 +284,16 @@ export default function SectionCreateBaseMapFullscreen({
   }
 
   function handleDropZoneFiles(files) {
-    const file = files?.[0];
+    const droppedFiles = (files ?? []).filter(Boolean);
+    // 3D scene: never gated by the configuration, and the whole drop goes to
+    // the dialog (a mesh .ply comes with its texture images)
+    if (droppedFiles.some((f) => SCENE_3D_FILE_REGEX.test(f.name))) {
+      setScene3dResource(null);
+      setScene3dFiles(droppedFiles);
+      setOpenScene3d(true);
+      return;
+    }
+    const file = droppedFiles[0];
     if (!file) return;
     if (/\.dxf$/i.test(file.name)) {
       if (!isDxfEnabled) {
@@ -416,6 +440,7 @@ export default function SectionCreateBaseMapFullscreen({
   function handleScene3dCreated(entity) {
     setOpenScene3d(false);
     setScene3dResource(null);
+    setScene3dFiles(null);
     onCreated?.(entity);
     onClose?.();
   }
@@ -423,6 +448,7 @@ export default function SectionCreateBaseMapFullscreen({
   function handleScene3dClose() {
     setOpenScene3d(false);
     setScene3dResource(null);
+    setScene3dFiles(null);
   }
 
   function handleScanResourceSelect(resource) {
@@ -483,24 +509,23 @@ export default function SectionCreateBaseMapFullscreen({
           >
             {/* Main drop zone */}
 
-            {showDropZone && (
-              <Paper
-                elevation={3}
-                sx={{ width: 1, maxWidth: 560, borderRadius: "12px", p: 2 }}
-              >
-                <ContainerFilesSelectorV2
-                  callToActionLabel={dropTitleS}
-                  subLabel={dropSubtitleS}
-                  accept={dropAccept}
-                  onFilesChange={handleDropZoneFiles}
-                  sxDropZone={{
-                    minHeight: 220,
-                    borderColor: (theme) =>
-                      alpha(theme.palette.secondary.main, 0.5),
-                  }}
-                />
-              </Paper>
-            )}
+            {/* always shown: a 3D scene can be dropped whatever the sources */}
+            <Paper
+              elevation={3}
+              sx={{ width: 1, maxWidth: 560, borderRadius: "12px", p: 2 }}
+            >
+              <ContainerFilesSelectorV2
+                callToActionLabel={dropTitleS}
+                subLabel={dropSubtitleS}
+                accept={dropAccept}
+                onFilesChange={handleDropZoneFiles}
+                sxDropZone={{
+                  minHeight: 220,
+                  borderColor: (theme) =>
+                    alpha(theme.palette.secondary.main, 0.5),
+                }}
+              />
+            </Paper>
 
             {/* Destination listing */}
 
@@ -568,7 +593,7 @@ export default function SectionCreateBaseMapFullscreen({
             {/* Other creation options — cards of the enabled sources only
                 (Configuration > Fonds de plan > Sources de fonds de plan) */}
 
-            {enabledSources.length > 0 && showDropZone && (
+            {enabledSources.length > 0 && (
               <Divider sx={{ width: 1, maxWidth: 720, my: 1 }}>
                 <Typography
                   variant="overline"
@@ -883,6 +908,7 @@ export default function SectionCreateBaseMapFullscreen({
         listing={listing}
         onCreated={handleScene3dCreated}
         scanResource={scene3dResource}
+        initialFiles={scene3dFiles}
       />
 
       <DialogSelectPdfResource

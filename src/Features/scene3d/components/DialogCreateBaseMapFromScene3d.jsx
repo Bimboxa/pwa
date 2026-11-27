@@ -63,6 +63,11 @@ import {
   readLocalScanSample,
 } from "Features/localScans/services/createLocalScanZonePreview";
 import ensureBinaryLocalPly from "Features/localScans/services/ensureBinaryLocalPly";
+import convertLazToPlyService from "Features/localScans/services/convertLazToPlyService";
+import {
+  getLazConversionPlan,
+  readLasHeader,
+} from "Features/localScans/utils/readLasHeader";
 import createScanBaseMapFromZoneService from "Features/localScans/services/createScanBaseMapFromZoneService";
 
 const IMPORT_STEP_LABELS = {
@@ -71,6 +76,7 @@ const IMPORT_STEP_LABELS = {
   TOP_VIEW: "Projection sur le plan",
   SAMPLE: "Lecture d’un échantillon du nuage",
   CONVERT: "Conversion du PLY ASCII en binaire",
+  CONVERT_LAZ: "Décompression du nuage LAS / LAZ",
 };
 // share of each step in the import progress bar
 const IMPORT_STEP_RANGES = {
@@ -79,6 +85,7 @@ const IMPORT_STEP_RANGES = {
   TOP_VIEW: [0.97, 1],
   SAMPLE: [0, 1],
   CONVERT: [0, 1],
+  CONVERT_LAZ: [0, 1],
 };
 const FINALIZE_STEP_LABELS = {
   CLIP: "Découpe du maillage",
@@ -158,6 +165,7 @@ export default function DialogCreateBaseMapFromScene3d({
   onCreated,
   reloadBaseMap = null,
   scanResource = null,
+  initialFiles = null,
 }) {
   const dispatch = useDispatch();
   const filesInputRef = useRef(null);
@@ -169,7 +177,7 @@ export default function DialogCreateBaseMapFromScene3d({
 
   const titleS = reloadBaseMap ? "Recharger la scène 3D" : "Scène 3D";
   const helperS =
-    "Sélectionnez le scan (.ply : maillage avec ses textures .jpg, ou nuage de points), une maquette .glb, ou le dossier qui les contient.";
+    "Sélectionnez le scan (.ply : maillage avec ses textures .jpg, ou nuage de points ; .laz / .las : nuage de points), une maquette .glb, ou le dossier qui les contient.";
   const reloadHelperS =
     "Les données du scan ne sont pas sur cet appareil : rechargez les mêmes fichiers. La zone, l'échelle et l'altitude du fond de plan sont conservées.";
   const dropS = "Glisser-déposer les fichiers ou le dossier du scan ici";
@@ -178,7 +186,7 @@ export default function DialogCreateBaseMapFromScene3d({
   const imageSizeS = "Résolution de l'image";
   const importS = "Charger";
   const cancelS = "Annuler";
-  const noPlyS = "Aucun fichier .ply ou .glb dans la sélection.";
+  const noPlyS = "Aucun fichier .ply, .laz, .las ou .glb dans la sélection.";
   const reloadGlbS =
     "Ce fond de plan est une maquette GLB : rechargez un .glb.";
   const reloadNotGlbS =
@@ -296,6 +304,15 @@ export default function DialogCreateBaseMapFromScene3d({
     };
     // the resource is read once per opening
   }, [open, scanResource]);
+
+  // Files dropped on the Fonds de plan creation drop zone: they are the
+  // selection, as if they had been dropped in the dialog.
+  useEffect(() => {
+    if (!open || !initialFiles?.length) return;
+    // the name state was just reset by the opening effect above
+    void handleFiles(initialFiles, "");
+    // the files are read once per opening
+  }, [open, initialFiles]);
 
   // mesh preview object URL
   useEffect(() => {
@@ -419,14 +436,43 @@ export default function DialogCreateBaseMapFromScene3d({
     setDragOver(false);
   }
 
-  async function handleFiles(files) {
+  async function handleFiles(files, currentName = name) {
     if (files.length === 0) return;
     setErrorMessage(null);
 
-    const { plyFile, glbFile, imageFiles } = sortScene3dFiles(files);
-    if (!plyFile && !glbFile) {
+    const { plyFile, lasFile, glbFile, imageFiles } = sortScene3dFiles(files);
+    if (!plyFile && !lasFile && !glbFile) {
       setSelection(null);
       setErrorMessage(noPlyS);
+      return;
+    }
+    // LAS / LAZ: always a point cloud, converted to a binary PLY at import
+    if (lasFile) {
+      if (isReload) {
+        setSelection(null);
+        setErrorMessage(
+          isScene3dGlb(reloadBaseMap) ? reloadGlbS : reloadPointsS
+        );
+        return;
+      }
+      try {
+        const header = await readLasHeader(lasFile);
+        const plan = getLazConversionPlan(header, lasFile.size);
+        setSelection({
+          kind: "POINTS",
+          sourceFile: lasFile,
+          resource: null,
+          isAscii: false,
+          needsLazConversion: true,
+          lazSkip: plan.skip,
+          vertexCount: header.pointCount,
+          totalBytes: lasFile.size,
+        });
+        if (!currentName) setName(stripExtension(lasFile.name));
+      } catch (error) {
+        setSelection(null);
+        setErrorMessage(error?.message);
+      }
       return;
     }
     // reload: the file must be of the base map's format
@@ -441,7 +487,7 @@ export default function DialogCreateBaseMapFromScene3d({
         sourceFile: glbFile,
         totalBytes: glbFile.size,
       });
-      if (!name) setName(stripExtension(glbFile.name));
+      if (!currentName) setName(stripExtension(glbFile.name));
       return;
     }
     try {
@@ -482,7 +528,7 @@ export default function DialogCreateBaseMapFromScene3d({
           totalBytes: plyFile.size,
         });
       }
-      if (!name) setName(stripExtension(plyFile.name));
+      if (!currentName) setName(stripExtension(plyFile.name));
     } catch (error) {
       setSelection(null);
       setErrorMessage(ERROR_MESSAGES[error?.code] ?? error?.message);
@@ -507,6 +553,28 @@ export default function DialogCreateBaseMapFromScene3d({
     if (current.kind === "POINTS") {
       try {
         let sourceFile = current.sourceFile;
+        if (current.needsLazConversion) {
+          // decompressed once: the stored resource and every later decode
+          // read the binary PLY (the .laz itself is not kept)
+          setImportProgress({ step: "CONVERT_LAZ", ratio: 0 });
+          const converted = await convertLazToPlyService(sourceFile, {
+            signal: controller.signal,
+            onProgress: (ratio) =>
+              setImportProgress({ step: "CONVERT_LAZ", ratio }),
+          });
+          sourceFile = converted.file;
+          setSelection((previous) =>
+            previous?.sourceFile === current.sourceFile
+              ? {
+                  ...previous,
+                  sourceFile,
+                  needsLazConversion: false,
+                  importedFrom: converted.importedFrom,
+                  totalBytes: sourceFile.size,
+                }
+              : previous
+          );
+        }
         if (current.isAscii) {
           // converted once: the preview, the stored resource and every
           // later decode then read the binary file
@@ -822,6 +890,7 @@ export default function DialogCreateBaseMapFromScene3d({
       const entity = await createScanBaseMapFromZoneService({
         source: selection.sourceFile,
         resource: selection.resource,
+        importedFrom: selection.importedFrom,
         zone,
         wholePolygon,
         mode: imageMode,
@@ -861,6 +930,10 @@ export default function DialogCreateBaseMapFromScene3d({
       ? `${pointsS}${
           selection.vertexCount
             ? ` · ${selection.vertexCount.toLocaleString("fr-FR")} points`
+            : ""
+        }${
+          selection.lazSkip > 1
+            ? ` · 1 point sur ${selection.lazSkip} conservé`
             : ""
         } · ${formatScene3dBytes(selection.totalBytes)}`
       : isGlb
@@ -931,7 +1004,7 @@ export default function DialogCreateBaseMapFromScene3d({
           ref={filesInputRef}
           type="file"
           multiple
-          accept=".ply,.glb,.jpg,.jpeg,.png,.webp"
+          accept=".ply,.laz,.las,.glb,.jpg,.jpeg,.png,.webp"
           hidden
           onChange={handleFilesChange}
         />

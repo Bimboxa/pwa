@@ -19,6 +19,8 @@ the operator.
 - ASCII PLY points: converted once to binary little-endian at import
   (`convertAsciiPlyToBinary`, in the worker); the converted file is the one
   stored and decoded afterwards.
+- LAS / LAZ points (`.las`, `.laz`): converted once to that same binary PLY at
+  import, from the « Scène 3D » card only (see "LAS / LAZ import" below).
 - Gaussian PLY rendering with pinned Spark 2.4.0, including its SH attributes.
 - Automatic project-local persistence, reopen, replace, delete, frame, axis and scale.
 - Multiple project-level resources; one model displayed at a time.
@@ -31,6 +33,48 @@ plane estimate. Editable surface extraction, reference-plane heatmaps and
 integration with annotation picking are subsequent steps. Splat centers are reconstructed visual data, not laser measurements.
 Existing clipping, snapping, collisions and project exports do not include
 these scans. Their visibility is independent of existing base-map visibility.
+
+## LAS / LAZ import
+
+A `.laz` (or `.las`) dropped on the « Scène 3D » card is a point cloud. It is
+converted once (`convertLazToPlyService` → `workers/convertLaz.worker.js` →
+`utils/convertLasToPly.js`) to a binary PLY (`createPointsPlyWriter`: x y z
+float, RGB uchar, 15 bytes per point). The PLY is what the preview, the stored
+resource and every later decode read; the `.laz` itself is not kept.
+
+- Streamed, chunk by chunk: a LAZ is a sequence of independent compressed
+  chunks (50 000 points by default). `readLazChunkTable` decodes the chunk
+  table (a JS port of the LASzip arithmetic decoder + integer decompressor,
+  the table is itself compressed), then each chunk is read with `file.slice`
+  and decoded by the `ChunkDecoder` of `laz-perf` (WASM, emitted as an
+  asset). Memory holds one 32 MiB read window, one chunk and the PLY being
+  written — never the source file. An uncompressed `.las` is read by windows
+  of records, without the decoder.
+- `@loaders.gl/las` was tried first and dropped: both of its decoders copy
+  the whole file into a 32-bit WASM heap, which cannot hold a multi-GiB file.
+- Supported: LAS 1.0 → 1.4; compressed point formats 0-3 and 6-8 (the
+  waveform formats 4, 5, 9, 10 only uncompressed); chunked LAZ only
+  (compressor 2 or 3 — every current writer).
+- Limits (`readLasHeader.js`): 4 GiB per file (time only: every point of a
+  chunk is decoded, about 4 million points per second in Node on the test
+  file); at most `MAX_SCAN_POINTS` (40 million) points written — a larger
+  cloud keeps one point out of `skip`, shown in the dialog.
+- Recentring: when the header bounds reach further than 10 km from the origin
+  (georeferenced cloud), `getLazOrigin` gives the origin subtracted in double
+  precision before the Float32 cast — bbox centre in plan rounded to the
+  metre, lowest point rounded down. A local cloud is left untouched (origin
+  `[0, 0, 0]`). Unusable header bounds: the first point stands in.
+- Colours: 16-bit values are reduced to 8 bits; files that store 8-bit values
+  are detected on the first chunk holding a non-black colour. Intensity and
+  classification are not kept; a format without RGB is drawn in neutral grey.
+- Provenance: `resource.scan.importedFrom = {format, fileName, lasVersion,
+  pointFormat, sourceCount, skip, origin}`; the origin is also written in the
+  PLY header (`comment source_origin x y z`). `resource.fileType` stays
+  `"PLY"`.
+- Test on a real file: `LAZ_FIXTURE=/path/to/file.laz node --test
+  src/Features/localScans/utils/convertLasToPly.test.mjs` compares the
+  chunked decode with the whole-file decoder of laz-perf (skipped without
+  the variable).
 
 ## Isolation and lifecycle
 

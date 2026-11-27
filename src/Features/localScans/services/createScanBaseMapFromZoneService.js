@@ -30,10 +30,13 @@ const throwIfAborted = (signal) => {
 // colours). The base map stores the scan pose (localScan.matrix) so the
 // point cloud follows it in 3D, the same createdFrom as the tool, and its
 // height map (altimetry under the cursor). → base map entity
+// importedFrom: provenance of a `source` converted at import (LAS / LAZ →
+// PLY, convertLazToPlyService), kept on the new resource.
 // onProgress({step: "DECODE" | "PROJECT" | "CREATE", ratio})
 export default async function createScanBaseMapFromZoneService({
   source,
   resource = null,
+  importedFrom,
   zone,
   wholePolygon,
   mode,
@@ -77,6 +80,7 @@ export default async function createScanBaseMapFromZoneService({
       data,
       placement,
       zone,
+      importedFrom,
       signal,
     });
   }
