@@ -3,19 +3,16 @@ import { withUndoGroup } from "App/db/undoManager";
 import commitAnnotationsTransform2d from "Features/annotationTransform/services/commitAnnotationsTransform2d";
 
 import getAlignDeltas from "../utils/getAlignDeltas";
+import getAlignMoveBatches from "../utils/getAlignMoveBatches";
 
-// Deltas closer than this (px) are written as one move.
-const DELTA_KEY_PRECISION = 1e4;
-
-function getDeltaKey({ x, y }) {
-  return `${Math.round(x * DELTA_KEY_PRECISION)}|${Math.round(y * DELTA_KEY_PRECISION)}`;
-}
-
-// Aligns `targets` (resolved annotations, px) on `mode`: one 2D « Déplacer »
-// commit per distinct translation, the whole alignment being ONE undo step.
+// Aligns `targets` (resolved annotations, px) on `mode`: every annotation is
+// carried by its own translation in ONE 2D « Déplacer » commit (single write,
+// single annotations update), the whole alignment being ONE undo step. Only
+// targets sharing a vertex they move differently are written in successive
+// commits (getAlignMoveBatches).
 // `allAnnotations` is the full resolved list of the editor (shared-point
 // detection of commitWrapperTransform: a vertex shared with an annotation
-// that does not follow the same translation is forked).
+// that is not carried by the same commit is forked).
 // Returns the number of moved annotations.
 export default async function alignAnnotationsService({
   targets,
@@ -30,25 +27,20 @@ export default async function alignAnnotationsService({
   const deltas = getAlignDeltas({ annotations: targets, mode });
   if (!deltas.size) return 0;
 
-  const groups = new Map();
-  deltas.forEach((deltaPx, annotationId) => {
-    const key = getDeltaKey(deltaPx);
-    if (!groups.has(key)) groups.set(key, { deltaPx, annotationIds: [] });
-    groups.get(key).annotationIds.push(annotationId);
-  });
+  const batches = getAlignMoveBatches({ annotations: targets, deltas });
 
   await withUndoGroup(async () => {
-    // Annotations moved by a previous group no longer reference the points
+    // Annotations moved by a previous batch no longer reference the points
     // they shared with the next ones (forked by their commit): leaving their
     // stale resolved rows in the list would fork those points a second time.
     const movedIds = new Set();
-    for (const { deltaPx, annotationIds } of groups.values()) {
+    for (const annotationIds of batches) {
       await commitAnnotationsTransform2d({
         annotationIds,
-        allAnnotations: (allAnnotations ?? []).filter(
-          (a) => !movedIds.has(a.id)
-        ),
-        transform: { kind: "MOVE", deltaPx },
+        allAnnotations: movedIds.size
+          ? (allAnnotations ?? []).filter((a) => !movedIds.has(a.id))
+          : allAnnotations,
+        transform: { kind: "MOVE", deltaPxByAnnotationId: deltas },
         imageSize,
         meterByPx,
         projectId,
