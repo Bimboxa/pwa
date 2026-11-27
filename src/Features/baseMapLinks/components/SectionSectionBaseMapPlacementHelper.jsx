@@ -2,12 +2,14 @@ import { useDispatch, useSelector } from "react-redux";
 
 import {
   SECTION_BASE_MAP_MODES,
+  requestSectionBaseMapCenter,
   selectSectionBaseMapPlacement,
   setSectionBaseMapPlacementParams,
 } from "../sectionBaseMapPlacementSlice";
 
 import {
   Box,
+  Button,
   Checkbox,
   ListSubheader,
   MenuItem,
@@ -23,6 +25,7 @@ import {
   CropLandscape as LandscapeIcon,
   CropPortrait as PortraitIcon,
   CropSquare as SquareIcon,
+  VerticalAlignCenter as CenterIcon,
 } from "@mui/icons-material";
 
 import SectionTransformToolHelper from "Features/annotationTransform/components/SectionTransformToolHelper";
@@ -105,6 +108,7 @@ export default function SectionSectionBaseMapPlacementHelper() {
     "Aucun fond de plan vertical à l'échelle dans ce plan de repérage";
   const noScaleS = "sans échelle";
   const offsetS = "Décalage du plan";
+  const centerS = "Centrer par rapport au trait de coupe";
   const previewS = "Aperçu de la coupe";
   const toleranceS = "Nuage de points ±";
   const printS = "Imprimer le nuage de points";
@@ -160,6 +164,13 @@ export default function SectionSectionBaseMapPlacementHelper() {
       setParams({ [key]: e.target.checked });
       e.target.blur();
     };
+  }
+
+  // Slides the page back onto the middle of the mark (altitude kept), and
+  // gives the keyboard back.
+  function handleCenter(e) {
+    dispatch(requestSectionBaseMapCenter());
+    e.currentTarget?.blur?.();
   }
 
   function handleOffsetText(text) {
@@ -388,6 +399,18 @@ export default function SectionSectionBaseMapPlacementHelper() {
             onChangeText={handleOffsetText}
             unit="m"
           />
+        </Box>
+        <Box sx={ROW_SX}>
+          <Button
+            size="small"
+            variant="outlined"
+            fullWidth
+            onClick={handleCenter}
+            startIcon={<CenterIcon sx={{ transform: "rotate(90deg)" }} />}
+            sx={{ textTransform: "none" }}
+          >
+            {centerS}
+          </Button>
         </Box>
         <Box sx={ROW_SX}>
           <Typography variant="body2" color="text.secondary" sx={{ pl: 0.5 }}>

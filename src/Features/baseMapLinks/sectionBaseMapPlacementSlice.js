@@ -30,6 +30,9 @@ const initialState = {
   // of the section plane, in metres — positive = in the viewing direction,
   // away from the observer (↑ / ↓ keys)
   normalOffsetM: 0,
+  // bumped by the « centrer » button of the helper: the page is slid back
+  // onto the middle of the mark, altitude kept (useSectionBaseMapPlacement)
+  centerRequestId: 0,
   // the 3D scene is cut at the page (ClippingManager.setSectionPreview)
   sectionPreview: false,
   // half thickness of the point cloud slab shown / printed around the page
@@ -93,6 +96,10 @@ const sectionBaseMapPlacementSlice = createSlice({
       state.normalOffsetM =
         Math.round((state.normalOffsetM + delta) * 1000) / 1000;
     },
+    // Request counter: the live offsets are not in redux (module store).
+    requestSectionBaseMapCenter(state) {
+      if (state.active) state.centerRequestId += 1;
+    },
   },
   extraReducers: (builder) => {
     // The placement never survives a change of main base map, scope, project,
@@ -125,6 +132,7 @@ export const {
   stopSectionBaseMapPlacement,
   setSectionBaseMapPlacementParams,
   shiftSectionBaseMapNormalOffset,
+  requestSectionBaseMapCenter,
 } = sectionBaseMapPlacementSlice.actions;
 
 export const selectSectionBaseMapPlacement = (s) => s.sectionBaseMapPlacement;
