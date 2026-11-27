@@ -254,6 +254,10 @@ export default function EditedObjectLayer({
                 !annotation?.isForeignFootprint &&
                 !(showWrapper && POINT_BASED_TYPES.includes(annotation.type))
               }
+              // Several annotations selected: no per-annotation transform
+              // (RECTANGLE resize / rotate handles) — a drag would be
+              // expected to move the whole selection.
+              transformLocked={isMultiSelection}
               sizeVariant="FIXED_IN_SCREEN"
               containerK={finalPose.k}
               // Offset line "hideMainLine": the selected annotation shows its

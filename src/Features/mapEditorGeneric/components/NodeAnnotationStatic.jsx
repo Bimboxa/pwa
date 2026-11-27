@@ -69,6 +69,9 @@ function NodeAnnotationStatic({
   // of the selected / edited annotations passes it, so the shape can be
   // edited).
   showHiddenMainLine,
+  // Multi-selection: the node keeps its selected look but hides its own
+  // transform handles (RECTANGLE resize / rotate).
+  transformLocked,
 }) {
   // Apply the override + shape-based defaults ONCE per (annotation,
   // annotationOverride) pair. The memo keeps the resolved object
@@ -86,6 +89,7 @@ function NodeAnnotationStatic({
   const props = {
     hovered,
     selected,
+    transformLocked,
     selectedPointId,
     selectedPointIds,
     selectedPartId,
