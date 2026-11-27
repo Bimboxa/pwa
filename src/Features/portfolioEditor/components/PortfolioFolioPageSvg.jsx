@@ -185,7 +185,7 @@ export default function PortfolioFolioPageSvg({
         {detailBaseMap && annotationsRect && (
           <FolioAnnotationsSvg baseMap={detailBaseMap} rect={annotationsRect} />
         )}
-        {cartouche && (
+        {cartouche && !portfolio?.metadata?.hideTitleBlock && (
           <PortfolioHeaderSvg
             page={page}
             pageIndex={pageIndex}
