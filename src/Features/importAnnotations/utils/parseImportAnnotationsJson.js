@@ -74,6 +74,10 @@
 //                      "points": [ { "id": "...", "x": <px>, "y": <px> } ] } ]
 // }
 //
+// A bare hydrated row (or an array of them) is accepted too — that is what the
+// debug button of the single-selection toolbar copies. It has no `imageSize`
+// nor `meterByPx`: the frame is synthesized from the geometry extent.
+//
 // It is normalized into the shape above by normalizeAnnotationsDumpJson and
 // carries data.kind === "DUMP". See docs/annotations/IMPORT_ANNOTATIONS_DUMP.md.
 //
@@ -292,9 +296,12 @@ function parseMeshJson(json) {
 // normalizeAnnotationsDumpJson. Unsupported types are skipped (and surfaced in
 // data.skipped) rather than rejecting the whole paste — a dump of a mixed
 // selection must stay importable.
-function parseAnnotationsDumpJson(json) {
+function parseAnnotationsDumpJson(json, { bareRows = false } = {}) {
   const imageSize = json.imageSize;
-  if (!imageSize || !(imageSize.width > 0) || !(imageSize.height > 0)) {
+  if (
+    !bareRows &&
+    (!imageSize || !(imageSize.width > 0) || !(imageSize.height > 0))
+  ) {
     return {
       ok: false,
       error:
@@ -315,6 +322,17 @@ function parseAnnotationsDumpJson(json) {
   return { ok: true, data };
 }
 
+// A hydrated annotation row as copied by the single-selection debug button:
+// a `type` plus its geometry, and none of the envelope keys.
+function isBareAnnotationRow(json) {
+  return (
+    typeof json?.type === "string" &&
+    (Array.isArray(json.points) || json.point || json.labelPoint) &&
+    !json.annotations &&
+    !json.image
+  );
+}
+
 export default function parseImportAnnotationsJson(text) {
   if (!text || !text.trim()) {
     return { ok: false, error: null }; // empty input → no error, just nothing
@@ -329,6 +347,15 @@ export default function parseImportAnnotationsJson(text) {
 
   if (typeof json !== "object" || json === null) {
     return { ok: false, error: "Le JSON doit être un objet." };
+  }
+
+  // Bare annotation row(s) (debug "Copy annotation data") → DUMP without envelope
+  const bareRows = Array.isArray(json) ? json : [json];
+  if (bareRows.length > 0 && bareRows.every(isBareAnnotationRow)) {
+    return parseAnnotationsDumpJson(
+      { annotations: bareRows },
+      { bareRows: true }
+    );
   }
 
   // MESH shape → its own validation path

@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
+import { useLiveQuery } from "dexie-react-hooks";
 
 import {
   Alert,
@@ -19,6 +20,7 @@ import {
 } from "@mui/material";
 import { ContentCopy, Upload } from "@mui/icons-material";
 
+import db from "App/db/db";
 import BoxFlexVStretch from "Features/layout/components/BoxFlexVStretch";
 import useMainBaseMap from "Features/mapEditor/hooks/useMainBaseMap";
 import useListingsByScope from "Features/listings/hooks/useListingsByScope";
@@ -88,6 +90,35 @@ export default function PanelImportAnnotations() {
   }, [isDump, data?.annotationTemplates, annotationTemplates, projectId]);
 
   const mbpxTarget = mainBaseMap?.getMeterByPx?.() ?? null;
+
+  // Automatic placement of a dump that names its source base map:
+  // - another base map → pinned to the top-left corner of the target, at real
+  //   scale when both scales are known;
+  // - the same base map, bare row(s) without `imageSize` → source pixels.
+  // Otherwise (null) the manual options below apply.
+  const sourceBaseMapId = isDump ? data.sourceBaseMapId : null;
+  const isOtherBaseMap = Boolean(
+    sourceBaseMapId && mainBaseMap?.id && sourceBaseMapId !== mainBaseMap.id
+  );
+  let placement = null;
+  if (isOtherBaseMap) placement = "TOP_LEFT";
+  else if (isDump && data.imageSizeSynthetic) placement = "SOURCE_PIXELS";
+
+  // A bare row carries no scale: read it off the source base map when it is
+  // still in the local db.
+  const sourceBaseMapRow = useLiveQuery(
+    async () =>
+      isOtherBaseMap
+        ? ((await db.baseMaps.get(sourceBaseMapId)) ?? null)
+        : null,
+    [isOtherBaseMap, sourceBaseMapId]
+  );
+  const mbpxSource = isOtherBaseMap
+    ? (data.meterByPx ?? sourceBaseMapRow?.meterByPx ?? null)
+    : null;
+  const hasRealScale = mbpxSource > 0 && mbpxTarget > 0;
+  const sourceBaseMapName =
+    data?.sourceBaseMapName ?? sourceBaseMapRow?.name ?? null;
   const widthMetersNum = parseFloat(widthMeters);
   const hasScale = widthMetersNum > 0 && mbpxTarget > 0;
 
@@ -168,9 +199,16 @@ export default function PanelImportAnnotations() {
         projectId,
         listingId: targetListingId,
         mainBaseMap,
-        widthMeters: widthMetersNum,
+        // Automatic placement: the scale comes from the source base map, never
+        // from the (hidden) width field.
+        widthMeters: placement
+          ? hasRealScale
+            ? mbpxSource * data.image.width
+            : null
+          : widthMetersNum,
         excludedTemplateIds,
-        relativeToBaseMap,
+        relativeToBaseMap: placement ? false : relativeToBaseMap,
+        placement,
         // Only the dump carries real db template ids (see the service).
         preserveIds: isDump,
         dispatch,
@@ -189,9 +227,10 @@ export default function PanelImportAnnotations() {
           Importer des annotations
         </Typography>
         <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-          Collez le JSON : données d’annotations copiées depuis la barre
-          d’outils de sélection, JSON inline (taille image, templates,
-          annotations), ou maillage d’annotations existantes (kind « MESH »).
+          Collez le JSON : données d’une annotation ou d’une sélection copiées
+          depuis la barre d’outils (bouton debug), JSON inline (taille image,
+          templates, annotations), ou maillage d’annotations existantes (kind «
+          MESH »).
         </Typography>
 
         <TextField
@@ -292,17 +331,40 @@ export default function PanelImportAnnotations() {
               </Alert>
             )}
 
-            <FormControlLabel
-              sx={{ mb: 1, display: "flex" }}
-              control={
-                <Checkbox
-                  checked={relativeToBaseMap}
-                  onChange={(e) => setRelativeToBaseMap(e.target.checked)}
-                />
-              }
-              label="Positionner par rapport au fond de plan"
-            />
-            {relativeToBaseMap && (
+            {placement === "SOURCE_PIXELS" && (
+              <Alert severity="info" sx={{ mb: 2 }}>
+                Les annotations sont replacées à leur position d’origine (en
+                pixels du fond de plan source).
+              </Alert>
+            )}
+            {placement === "TOP_LEFT" && (
+              <Alert
+                severity={hasRealScale ? "info" : "warning"}
+                sx={{ mb: 2 }}
+              >
+                {`Annotations issues d’un autre fond de plan${
+                  sourceBaseMapName ? ` (« ${sourceBaseMapName} »)` : ""
+                } : collées en partant du coin haut-gauche, ${
+                  hasRealScale
+                    ? "à l’échelle réelle."
+                    : "sans échelle réelle (échelle source ou cible inconnue)."
+                }`}
+              </Alert>
+            )}
+
+            {!placement && (
+              <FormControlLabel
+                sx={{ mb: 1, display: "flex" }}
+                control={
+                  <Checkbox
+                    checked={relativeToBaseMap}
+                    onChange={(e) => setRelativeToBaseMap(e.target.checked)}
+                  />
+                }
+                label="Positionner par rapport au fond de plan"
+              />
+            )}
+            {!placement && relativeToBaseMap && (
               <Typography
                 variant="caption"
                 color="text.secondary"
@@ -313,7 +375,7 @@ export default function PanelImportAnnotations() {
               </Typography>
             )}
 
-            {!relativeToBaseMap && (
+            {!placement && !relativeToBaseMap && (
               <>
                 <TextField
                   label="Largeur de l'image (m)"
@@ -341,7 +403,13 @@ export default function PanelImportAnnotations() {
             <Box sx={{ mb: 2, mt: 0.5 }}>
               <ImportAnnotationsPreview
                 data={data}
-                widthMeters={widthMetersNum}
+                widthMeters={
+                  placement
+                    ? mbpxSource > 0
+                      ? mbpxSource * data.image.width
+                      : undefined
+                    : widthMetersNum
+                }
                 excludedTemplateIds={excludedTemplateIds}
               />
             </Box>

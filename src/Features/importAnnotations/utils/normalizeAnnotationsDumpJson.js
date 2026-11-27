@@ -6,6 +6,9 @@ import { resolveDrawingShapeFromType } from "Features/annotations/constants/draw
 //
 // Dump shape (annotations are the HYDRATED rows out of useAnnotationsV2):
 //   { imageSize: {width, height}, meterByPx, annotations: [ <resolved row> ] }
+// The single-selection toolbar (ToolbarEditAnnotation) copies one bare row, with
+// no envelope: parseImportAnnotationsJson wraps it as { annotations: [row] } and
+// the frame is then synthesized (see getSyntheticImageSize).
 //
 // Three things differ from the "inline JSON" format and are reconciled here:
 //   1. points are in PIXELS (vs the image) → divided by imageSize
@@ -119,16 +122,46 @@ function normalizePoints(points, width, height) {
   return points.map((p) => normalizePoint(p, width, height)).filter(Boolean);
 }
 
+// Frame used when the dump carries no `imageSize` (bare annotation rows copied
+// by the single-selection toolbar): the extent of the whole geometry. The
+// [0..1] normalization is only an internal pivot — buildImportData multiplies
+// back by this very frame when no scale applies, so the source pixels come out
+// unchanged.
+function getSyntheticImageSize(annotations) {
+  let width = 1;
+  let height = 1;
+  const visit = (p) => {
+    if (Number.isFinite(p?.x) && p.x > width) width = p.x;
+    if (Number.isFinite(p?.y) && p.y > height) height = p.y;
+  };
+  for (const ann of annotations) {
+    (Array.isArray(ann?.points) ? ann.points : []).forEach(visit);
+    for (const cut of Array.isArray(ann?.cuts) ? ann.cuts : []) {
+      (Array.isArray(cut?.points) ? cut.points : []).forEach(visit);
+    }
+    visit(ann?.point);
+    visit(ann?.labelPoint);
+    visit(ann?.targetPoint);
+  }
+  return { width, height };
+}
+
 /**
- * @param {Object} json - the raw dump { imageSize, meterByPx, annotations }
+ * @param {Object} json - the raw dump { imageSize?, meterByPx?, annotations }
  * @returns {{
  *   kind: "DUMP", image: {width, height, widthMeters?}, sourceListingId: ?string,
+ *   imageSizeSynthetic: boolean, sourceBaseMapId: ?string, sourceBaseMapName: ?string,
  *   annotationTemplates: Object[], annotations: Object[], skipped: {id, type, reason}[]
  * }}
  */
 export default function normalizeAnnotationsDumpJson(json) {
-  const { width, height } = json.imageSize;
-  const meterByPx = json.meterByPx;
+  const imageSizeSynthetic = !(
+    json.imageSize?.width > 0 && json.imageSize?.height > 0
+  );
+  const { width, height } = imageSizeSynthetic
+    ? getSyntheticImageSize(json.annotations)
+    : json.imageSize;
+  const meterByPx = json.meterByPx ?? null;
 
   const image = { width, height };
   // The panel's real-scale mode asks for the image width in meters; the dump
@@ -139,6 +172,10 @@ export default function normalizeAnnotationsDumpJson(json) {
   const annotations = [];
   const skipped = [];
   let sourceListingId = null;
+  // The base map the rows were copied from — null when the rows name none or
+  // disagree (the panel then keeps its manual positioning options).
+  const sourceBaseMapIds = new Set();
+  let sourceBaseMapName = null;
 
   for (const ann of json.annotations) {
     const type = ann?.type;
@@ -195,6 +232,10 @@ export default function normalizeAnnotationsDumpJson(json) {
 
     annotations.push(normalized);
     if (!sourceListingId && ann.listingId) sourceListingId = ann.listingId;
+    sourceBaseMapIds.add(ann.baseMapId ?? null);
+    if (!sourceBaseMapName && ann.baseMapName) {
+      sourceBaseMapName = ann.baseMapName;
+    }
 
     // Synthesize the template from the first annotation carrying it.
     const templateId = ann.annotationTemplateId;
@@ -220,8 +261,12 @@ export default function normalizeAnnotationsDumpJson(json) {
   return {
     kind: "DUMP",
     image,
+    imageSizeSynthetic,
     meterByPx,
     sourceListingId,
+    sourceBaseMapId:
+      sourceBaseMapIds.size === 1 ? [...sourceBaseMapIds][0] : null,
+    sourceBaseMapName: sourceBaseMapIds.size === 1 ? sourceBaseMapName : null,
     annotationTemplates: [...templatesById.values()],
     annotations,
     skipped,
