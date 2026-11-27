@@ -60,7 +60,10 @@ import IconOpeningPolylineSegment from "Features/icons/IconOpeningPolylineSegmen
 import IconOpeningStrip from "Features/icons/IconOpeningStrip";
 import IconOpeningStripSegment from "Features/icons/IconOpeningStripSegment";
 
-import { getToolsForShape } from "Features/annotations/constants/drawingShapeConfig";
+import {
+  getTemplatelessToolsForShape,
+  getToolsForShape,
+} from "Features/annotations/constants/drawingShapeConfig";
 import { MESH_BRUSH_TOOL_KEY } from "Features/meshPaint/constants/meshPaintConstants";
 
 import { BOUNDARY_DETECT_MODE } from "./boundaryDetectMode";
@@ -763,7 +766,9 @@ export function getDrawingToolsByShape(
   drawingShape,
   { editor = "2D", templateless = false } = {}
 ) {
-  const keys = getToolsForShape(drawingShape);
+  const keys = templateless
+    ? getTemplatelessToolsForShape(drawingShape)
+    : getToolsForShape(drawingShape);
   return filterDrawingToolsForEditor(
     DRAWING_TOOLS.filter((tool) => keys.includes(tool.key)),
     { editor, templateless }

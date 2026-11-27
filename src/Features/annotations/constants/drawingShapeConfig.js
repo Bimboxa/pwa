@@ -254,6 +254,10 @@ const DRAWING_SHAPE_CONFIG = {
     label: "Rectangle",
     annotationType: "RECTANGLE",
     tools: ["ONE_CLICK", "RECTANGLE", "RECTANGLE_FILL_ZONE"],
+    // « Dessin » tool (no template, hence no dimensions): only the 2-click
+    // rectangle — the one-click and fill-zone tools place rectangles at the
+    // TEMPLATE dimensions.
+    templatelessTools: ["RECTANGLE"],
     configurableProps: [
       "fillColor",
       "fillOpacity",
@@ -729,6 +733,14 @@ export function getConfigurableProps(drawingShape) {
 
 export function getToolsForShape(drawingShape) {
   return DRAWING_SHAPE_CONFIG[drawingShape]?.tools ?? [];
+}
+
+// Tools of a shape drawn WITHOUT template (« Dessin » tool): the shape's own
+// restriction when it declares one (`templatelessTools`), else all its tools
+// (the per-tool `requiresTemplate` flag still applies).
+export function getTemplatelessToolsForShape(drawingShape) {
+  const config = DRAWING_SHAPE_CONFIG[drawingShape];
+  return config?.templatelessTools ?? config?.tools ?? [];
 }
 
 export function getAnnotationType(drawingShape) {

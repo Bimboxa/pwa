@@ -4,9 +4,12 @@ import DRAWING_SHAPES from "./drawingShapes.jsx";
 // in menu order. Technical shapes (revolution axis, base map link, opening,
 // linear layout, circulation, 3D object) stay template-driven. DISC rides the
 // generic commit (handleCommitDrawingFromDisc keeps centre + radiusM).
+// RECTANGLE (rigid bbox + rotation) is drawn with the 2-click tool only
+// (drawingShapeConfig `templatelessTools`).
 const TEMPLATELESS_DRAWING_SHAPE_KEYS = [
   "POLYLINE",
   "POLYGON",
+  "RECTANGLE",
   "DISC",
   "MARKER",
   "POINT",

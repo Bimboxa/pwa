@@ -73,6 +73,7 @@ const DEFAULT_SECTIONS = [
     entries: [
       "DRAW_POLYLINE",
       "DRAW_POLYGON",
+      "DRAW_RECTANGLE",
       "DRAW_DISC",
       {
         type: "group",

@@ -4,6 +4,7 @@ import addCommentCommand from "./addComment/addCommentCommand";
 import addLocatedCommentCommand from "./addLocatedComment/addLocatedCommentCommand";
 import drawPolylineCommand from "./drawPolyline/drawPolylineCommand";
 import drawPolygonCommand from "./drawPolygon/drawPolygonCommand";
+import drawRectangleCommand from "./drawRectangle/drawRectangleCommand";
 import drawDiscCommand from "./drawDisc/drawDiscCommand";
 import drawMarkerCommand from "./drawMarker/drawMarkerCommand";
 import drawPointCommand from "./drawPoint/drawPointCommand";
@@ -114,6 +115,7 @@ export const COMMANDS = [
   // the last-used one)
   drawPolylineCommand,
   drawPolygonCommand,
+  drawRectangleCommand,
   drawDiscCommand,
   drawMarkerCommand,
   drawPointCommand,
