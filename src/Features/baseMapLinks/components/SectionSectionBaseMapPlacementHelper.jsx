@@ -173,6 +173,8 @@ export default function SectionSectionBaseMapPlacementHelper() {
     e.currentTarget?.blur?.();
   }
 
+  // Committed when the field loses focus (blur, Enter): the 3D preview does
+  // not follow every keystroke.
   function handleOffsetText(text) {
     const trimmed = text.trim().replace(",", ".");
     const parsed = trimmed === "" ? 0 : Number(trimmed);
@@ -396,7 +398,7 @@ export default function SectionSectionBaseMapPlacementHelper() {
           <FieldNumberCompact
             label={offsetS}
             value={offsetValue}
-            onChangeText={handleOffsetText}
+            onCommitText={handleOffsetText}
             unit="m"
           />
         </Box>
