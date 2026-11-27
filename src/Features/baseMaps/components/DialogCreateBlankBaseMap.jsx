@@ -6,6 +6,7 @@ import {
   Box,
   Typography,
   TextField,
+  Switch,
   ToggleButtonGroup,
   ToggleButton,
 } from "@mui/material";
@@ -49,6 +50,9 @@ export default function DialogCreateBlankBaseMap({
   const sizeLabel = "Taille";
   const scaleLabel = "Échelle";
   const orientationLabel = "Orientation du plan";
+  const clippingLabel = "Plan de coupe";
+  const clippingCaption =
+    "Le fond de plan coupe la scène 3D : les annotations et le nuage de points sont masqués hors de sa boîte de coupe.";
   const createS = "Créer le fond de plan";
 
   // data
@@ -63,6 +67,8 @@ export default function DialogCreateBlankBaseMap({
   const [scale, setScale] = useState(50);
   // 3D plane orientation (floor / wall)
   const [orientation, setOrientation] = useState(defaultOrientation);
+  // base map used as a 3D clipping plane (baseMap.clipping3d.enabled)
+  const [clippingEnabled, setClippingEnabled] = useState(false);
 
   // handlers
 
@@ -95,6 +101,7 @@ export default function DialogCreateBlankBaseMap({
       listing,
       meterByPx,
       orientation,
+      ...(clippingEnabled && { clipping3d: { enabled: true } }),
       printZone: getBlankBaseMapPrintZone({
         format,
         size,
@@ -114,6 +121,7 @@ export default function DialogCreateBlankBaseMap({
     setSize("A3");
     setScale(50);
     setOrientation(defaultOrientation);
+    setClippingEnabled(false);
     if (onClose) onClose();
   }
 
@@ -214,6 +222,22 @@ export default function DialogCreateBlankBaseMap({
               <Typography variant="body2">Vertical</Typography>
             </ToggleButton>
           </ToggleButtonGroup>
+        </Box>
+
+        <Box>
+          <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+            <Typography variant="body2" sx={{ fontWeight: "bold", flex: 1 }}>
+              {clippingLabel}
+            </Typography>
+            <Switch
+              size="small"
+              checked={clippingEnabled}
+              onChange={(e) => setClippingEnabled(e.target.checked)}
+            />
+          </Box>
+          <Typography variant="caption" color="text.secondary">
+            {clippingCaption}
+          </Typography>
         </Box>
       </BoxFlexVStretch>
 

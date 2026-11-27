@@ -2,6 +2,7 @@ import { nanoid } from "@reduxjs/toolkit";
 import { useDispatch } from "react-redux";
 
 import { setSelectedMainBaseMapId } from "Features/mapEditor/mapEditorSlice";
+import { setBaseMapClippingIn3d } from "Features/threedEditor/threedEditorSlice";
 
 import useCreateEntity from "Features/entities/hooks/useCreateEntity";
 import useEnsureBaseMapListing from "Features/baseMaps/hooks/useEnsureBaseMapListing";
@@ -33,6 +34,9 @@ import db from "App/db/db";
  *   created by a configuration or a procedure), so content seeded with keys
  *   can target it whatever its id (Features/comments —
  *   bindSeededCommentsService)
+ *   clipping3d: clipping box of the base map used as a 3D clipping plane
+ *   (« Plan de coupe », see baseMapClipping/utils/getBaseMapClipping3d.js);
+ *   `{ enabled: true }` enables the feature and arms the cut right away
  *   selectOnCreate: pass false to keep the current main base map (e.g. a
  *   procedure creating its output map mid-flow must not switch the view)
  */
@@ -62,6 +66,7 @@ export default function useCreateBaseMapFromImage() {
     createdFrom,
     key,
     keyScopeId,
+    clipping3d,
     triggerInitialSave = true,
     selectOnCreate = true,
   }) {
@@ -86,6 +91,7 @@ export default function useCreateBaseMapFromImage() {
       // Print zone seeded by the creator (blank pages); resolved at read
       // time otherwise.
       ...(printZone && { printZone }),
+      ...(clipping3d && { clipping3d }),
     };
 
     const _entity = await createEntity(entity, { listing });
@@ -111,6 +117,11 @@ export default function useCreateBaseMapFromImage() {
           image: record.image,
           transform: { x: 0, y: 0, rotation: 0, scale: 1 },
         });
+      }
+
+      // same as the panel switch: enabling the feature arms the cut
+      if (clipping3d?.enabled) {
+        dispatch(setBaseMapClippingIn3d({ baseMapId: _entity.id, on: true }));
       }
 
       if (selectOnCreate) dispatch(setSelectedMainBaseMapId(_entity.id));
