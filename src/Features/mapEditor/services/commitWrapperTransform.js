@@ -15,6 +15,8 @@ import {
 import { filterMeshPaintsWritableHere } from "Features/meshPaint/services/meshPaintWriteGuard";
 import applyAffineToPaintGeometry from "Features/meshPaint/utils/applyAffineToPaintGeometry";
 
+import getTransformedPointRefs from "../utils/getTransformedPointRefs";
+
 // A host's paints follow its transform only when the fitted pixel affine
 // reproduces every moved point (wrapper move / rotate / resize); a looser
 // fit means the host was deformed, and the re-sync re-fits its paints.
@@ -49,6 +51,9 @@ const EMPTY_RESULT = { movedMeshPaintIds: [], refreshedMeshPaintIds: [] };
  * @param {{ width: number, height: number }} params.imageSize
  * @param {number|null} params.rotationDelta - Rotation delta for ROTATE (degrees), null otherwise
  * @param {{ x: number, y: number }|null} params.moveDelta - Pixel delta for MOVE (to translate rotationCenter), null otherwise
+ * @param {Map<string, {x: number, y: number}>} [params.moveDeltaByAnnotationId] - Per-annotation
+ *   pixel delta of a MOVE carrying each annotation by its own translation
+ *   (align commands); wins over `moveDelta` for the annotations it holds.
  * @param {boolean} [params.isResize] - True when the transform is a RESIZE (clears rotation metadata)
  * @param {boolean} [params.clearRotation] - True when the transform invalidates the
  *   single-center rotation model (e.g. rotation around an arbitrary pivot from the
@@ -79,6 +84,7 @@ async function commitWrapperTransformWrites({
   rotationDelta,
   wrapperBbox,
   moveDelta,
+  moveDeltaByAnnotationId,
   isResize,
   clearRotation,
   paintDeltaZ = 0,
@@ -93,7 +99,8 @@ async function commitWrapperTransformWrites({
 
   for (const ann of allAnnotations) {
     const addRef = (pointId) => {
-      if (!pointReferences.has(pointId)) pointReferences.set(pointId, new Set());
+      if (!pointReferences.has(pointId))
+        pointReferences.set(pointId, new Set());
       pointReferences.get(pointId).add(ann.id);
     };
     for (const pt of ann.points ?? []) addRef(pt.id);
@@ -268,7 +275,9 @@ async function commitWrapperTransformWrites({
             points: cut.points?.map(replacePointId),
           }));
           const cutsChanged = newCuts.some((cut, ci) =>
-            cut.points?.some((pt, pi) => pt.id !== ann.cuts[ci].points?.[pi]?.id)
+            cut.points?.some(
+              (pt, pi) => pt.id !== ann.cuts[ci].points?.[pi]?.id
+            )
           );
           if (cutsChanged) {
             updates.cuts = newCuts;
@@ -396,15 +405,17 @@ async function commitWrapperTransformWrites({
     }
 
     // 4e. Translate rotationCenter on MOVE
-    if (moveDelta) {
+    if (moveDelta || moveDeltaByAnnotationId) {
       for (const annId of selectedAnnotationIds) {
+        const delta = moveDeltaByAnnotationId?.get(annId) ?? moveDelta;
+        if (!delta) continue;
         const ann = allAnnotations.find((a) => a.id === annId);
         if (!ann?.rotationCenter) continue;
         ops.push(
           db.annotations.update(annId, {
             rotationCenter: {
-              x: (ann.rotationCenter.x + moveDelta.x) / imageSize.width,
-              y: (ann.rotationCenter.y + moveDelta.y) / imageSize.height,
+              x: (ann.rotationCenter.x + delta.x) / imageSize.width,
+              y: (ann.rotationCenter.y + delta.y) / imageSize.height,
             },
           })
         );
@@ -455,29 +466,6 @@ async function commitWrapperTransformWrites({
       .filter((m) => m.refreshSyncedAt)
       .map((m) => m.row.id),
   };
-}
-
-// Point refs a wrapper transform carries (same sets as
-// applyWrapperTransformToPoints), as {id, x, y} in pixels.
-function getTransformedPointRefs(ann) {
-  const refs = [];
-  const add = (id, pt) => refs.push({ id, x: pt?.x, y: pt?.y });
-  for (const pt of ann.points ?? []) add(pt?.id, pt);
-  for (const cut of ann.cuts ?? []) {
-    for (const pt of cut.points ?? []) add(pt?.id, pt);
-  }
-  for (const pt of ann.innerPoints ?? []) add(pt?.id, pt);
-  for (const line of [
-    ...(ann.guideLines ?? []),
-    ...(ann.isoHeightLines ?? []),
-    ...(ann.profileLines ?? []),
-    ...(ann.layoutLines ?? []),
-    ...(ann.heightCuts ?? []),
-    ...(ann.heightCutFaces ?? []),
-  ]) {
-    for (const pt of line?.points ?? []) add(pt?.pointId ?? pt?.id, pt);
-  }
-  return refs.filter((ref) => ref.id != null);
 }
 
 // Pixel affine of an annotation transformed AS A WHOLE: every point it

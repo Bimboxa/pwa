@@ -204,6 +204,14 @@ anti-horaire (même convention qu'en 3D) — voir `utils/rotateAngle.js`.
 3. `reflowOpeningsForHost` : les ouvertures collées suivent leur mur.
 4. Le tout dans un `withUndoGroup` : un seul `Ctrl+Z`.
 
+MOVE par annotation (commandes d'alignement, `Features/annotationAlign`) :
+`transform = { kind: "MOVE", deltaPxByAnnotationId: Map<id, {x, y}> }` porte
+chaque annotation par sa propre translation dans **un seul** commit (une
+écriture, un `triggerAnnotationsUpdate`). Les annotations absentes de la map
+restent en place. L'appelant ne doit pas mettre dans le même commit deux
+annotations qui partagent un point avec des translations différentes
+(`annotationAlign/utils/getAlignMoveBatches.js` les répartit en lots).
+
 Ne jamais écrire de `x/y` directement dans `annotation.points`
 (cf. `docs/annotations/POINTS_STORAGE.md`).
 

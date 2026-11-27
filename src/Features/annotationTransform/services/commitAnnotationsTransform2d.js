@@ -34,7 +34,14 @@ import {
 // (getObject3DTransformUpdates) and their painted parts follow
 // (moveMeshPaintsWithBboxHostService), same undo group.
 //
-// transform: see getTransformPointUpdates.
+// transform: see getTransformPointUpdates. A MOVE may also carry each
+// annotation by its OWN translation (align commands):
+//   { kind: "MOVE", deltaPxByAnnotationId: Map<annotationId, {x, y}> }
+// Everything is still written in one commit (one transaction per storage
+// family, one openings reflow, one annotations update dispatch). The
+// annotations missing from the map are left in place. The caller must not
+// carry, in the same commit, two annotations sharing a point with different
+// translations (see getAlignMoveBatches).
 export default async function commitAnnotationsTransform2d({
   annotationIds,
   allAnnotations,
@@ -45,31 +52,52 @@ export default async function commitAnnotationsTransform2d({
   dispatch,
 }) {
   if (!imageSize) return;
-  const carried = (allAnnotations ?? []).filter((a) =>
-    annotationIds.includes(a.id)
+  const deltaPxById =
+    transform.kind === "MOVE" ? transform.deltaPxByAnnotationId : null;
+  const carried = (allAnnotations ?? []).filter(
+    (a) =>
+      annotationIds.includes(a.id) && (!deltaPxById || deltaPxById.has(a.id))
   );
   if (!carried.length) return;
 
+  // Updates of `annotations` (Map), computed in one go for a shared
+  // transform, annotation by annotation for a per-annotation MOVE.
+  const collectUpdates = (annotations, getUpdates) => {
+    if (!deltaPxById) return getUpdates(annotations, transform);
+    const merged = new Map();
+    for (const annotation of annotations) {
+      const updates = getUpdates([annotation], {
+        kind: "MOVE",
+        deltaPx: deltaPxById.get(annotation.id),
+      });
+      updates.forEach((value, key) => {
+        if (!merged.has(key)) merged.set(key, value);
+      });
+    }
+    return merged;
+  };
+
   const pointHolders = carried.filter((a) => isPointHolderType(a.type));
   const pointHolderIds = pointHolders.map((a) => a.id);
-  const pointUpdates = getTransformPointUpdates({
-    annotations: pointHolders,
-    transform,
-  });
+  const pointUpdates = collectUpdates(pointHolders, (annotations, t) =>
+    getTransformPointUpdates({ annotations, transform: t })
+  );
   const freeTextUpdates =
     transform.kind === "MOVE"
-      ? getFreeTextMoveUpdates({
-          annotations: carried.filter((a) => isFreeTextType(a.type)),
-          deltaPx: transform.deltaPx,
-          imageSize,
-        })
+      ? collectUpdates(
+          carried.filter((a) => isFreeTextType(a.type)),
+          (annotations, t) =>
+            getFreeTextMoveUpdates({
+              annotations,
+              deltaPx: t.deltaPx,
+              imageSize,
+            })
+        )
       : new Map();
   const object3ds = carried.filter((a) => isObject3DType(a.type));
-  const object3dUpdates = getObject3DTransformUpdates({
-    annotations: object3ds,
-    transform,
-    imageSize,
-  });
+  const object3dUpdates = collectUpdates(object3ds, (annotations, t) =>
+    getObject3DTransformUpdates({ annotations, transform: t, imageSize })
+  );
   if (!pointUpdates.size && !freeTextUpdates.size && !object3dUpdates.size) {
     return;
   }
@@ -83,7 +111,9 @@ export default async function commitAnnotationsTransform2d({
         imageSize,
         rotationDelta: null,
         wrapperBbox: null,
-        moveDelta: transform.kind === "MOVE" ? transform.deltaPx : null,
+        moveDelta:
+          transform.kind === "MOVE" ? (transform.deltaPx ?? null) : null,
+        moveDeltaByAnnotationId: deltaPxById ?? null,
         // An arbitrary user-picked pivot breaks the single-center model of
         // rotation / rotationCenter — bake the rotation into the points and
         // reset the metadata (same rule as the 3D tool and vertex edits).
