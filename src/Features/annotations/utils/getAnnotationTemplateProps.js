@@ -158,8 +158,12 @@ export default function getAnnotationTemplateProps(annotationTemplate) {
     // onto every annotation when listed in overrideFields (padlock).
     labelStubLength: annotationTemplate?.labelStubLength,
     labelStubMode: annotationTemplate?.labelStubMode,
-    // Label chip size mode (fixed vs print zone / screen-constant), same model.
-    labelIsFixedSize: annotationTemplate?.labelIsFixedSize,
+    // "Afficher l'étiquette": seeded on the annotation at creation
+    // (getNewAnnotationPropsFromAnnotationTemplate), forced onto every
+    // annotation when listed in overrideFields (padlock).
+    showLabel: annotationTemplate?.showLabel,
+    // Label chip text size (page pt), same model.
+    labelFontSize: annotationTemplate?.labelFontSize,
 
     // Standalone LABEL "Taille fixe" (fontSize / pageFormat above are shared
     // with FREE_TEXT / COTE). Same read-time model as the stub.

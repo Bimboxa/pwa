@@ -49,6 +49,9 @@ const ALWAYS_COPY_KEYS = [
   // always re-derives them), so the copy on the row is never authoritative.
   "color2DEnabled",
   "color2D",
+  // "Afficher l'étiquette": default of the new annotation; the padlock
+  // (overrideFields) forces the template value at read time.
+  "showLabel",
 ];
 
 export default function getNewAnnotationPropsFromAnnotationTemplate(

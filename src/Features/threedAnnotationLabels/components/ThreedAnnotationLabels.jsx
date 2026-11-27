@@ -281,7 +281,7 @@ export default function ThreedAnnotationLabels({ annotations }) {
           lines: labelProps.lines,
           annotationId: annotation.id,
           color,
-          fontSizePreset: annotation.labelFontSize ?? "M",
+          fontSize: labelProps.fontSize,
           labelWidth: labelProps.width ?? null,
           selected: isSelected,
         });

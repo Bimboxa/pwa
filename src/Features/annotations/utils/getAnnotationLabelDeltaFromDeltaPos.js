@@ -1,4 +1,4 @@
-import getBarycenter from "Features/geometry/utils/getBarycenter";
+import getAnnotationLabelAnchor from "./getAnnotationLabelAnchor";
 
 // Label drag → new labelDelta (image px relative to the barycenter).
 // Shared by the 2D commit (MainMapEditorV3) and the 3D drag hook.
@@ -58,11 +58,8 @@ export default function getAnnotationLabelDeltaFromDeltaPos(annotation, deltaPos
         };
         const seed = options?.elbowSeed;
         if (!delta_elbow && seed && Number.isFinite(seed.x) && Number.isFinite(seed.y)) {
-            const points = ["POINT", "MARKER"].includes(annotation.type)
-                ? [annotation.point]
-                : annotation.points;
-            const barycenter = points?.length ? getBarycenter(points) : null;
-            if (barycenter && Number.isFinite(barycenter.x) && Number.isFinite(barycenter.y)) {
+            const barycenter = getAnnotationLabelAnchor(annotation);
+            if (barycenter) {
                 labelDelta.elbow = {
                     x: seed.x - barycenter.x,
                     y: seed.y - barycenter.y,

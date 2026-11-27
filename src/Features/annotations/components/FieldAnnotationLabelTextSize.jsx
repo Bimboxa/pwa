@@ -1,55 +1,32 @@
-import {
-  Box,
-  Typography,
-  Button,
-  Switch,
-  ToggleButtonGroup,
-  ToggleButton,
-} from "@mui/material";
+import { Box, Typography, Button } from "@mui/material";
 import { Lock as LockIcon } from "@mui/icons-material";
 
 import useUpdateAnnotation from "Features/annotations/hooks/useUpdateAnnotation";
 
 import WhiteSectionGeneric from "Features/form/components/WhiteSectionGeneric";
+import InputNumberOnBlur from "Features/annotations/components/InputNumberOnBlur";
 
-import getAnnotationLabelFixedSizeConfig, {
-  hasOwnLabelFixedSizeValue,
-  LABEL_FIXED_SIZE_FIELDS,
-} from "Features/annotations/utils/getAnnotationLabelFixedSizeConfig";
+import { numberInputSx } from "Features/annotations/constants/fieldSx";
+import {
+  DEFAULT_ANNOTATION_LABEL_FONT_SIZE,
+  getAnnotationLabelFontSize,
+  hasOwnLabelFontSizeValue,
+  LABEL_FONT_SIZE_FIELDS,
+} from "Features/annotations/utils/getAnnotationLabelDisplay";
 
 // strings
 
 const titleS = "Taille du texte";
-const fixedSizeS = "Fixe / zone d'impression";
-const fixedSizeTitleS =
-  "Activé : taille fixe par rapport à la zone d'impression. Désactivé : taille fixe à l'écran.";
+const unitS = "pt";
 const inheritedS = "Hérité du modèle";
 const lockedS = "Verrouillé par le modèle";
 const resetS = "Réinit.";
 
-const FONT_SIZE_OPTIONS = [
-  { value: "S", label: "S" },
-  { value: "M", label: "M" },
-  { value: "L", label: "L" },
-];
-
-const toggleGroupSx = {
-  flexShrink: 0,
-  bgcolor: "action.hover",
-  "& .MuiToggleButton-root": {
-    border: "none",
-    borderRadius: 1.5,
-    px: 1.5,
-    py: 0.25,
-    fontSize: "0.7rem",
-  },
-};
-
-// Text size of an annotation's label chip (Etiquette tab): S/M/L preset +
-// size mode. Fixed mode (default) = the chip is fixed relative to the base
-// map's print zone (sizes in page pt); off = screen-constant chip (screen px).
-// The mode is inherited from the template when unset (read-time), see
-// getAnnotationLabelFixedSizeConfig.
+// Text size of an annotation's label chip (Etiquette tab), in page pt: the
+// chip is always fixed relative to the base map's print zone (see
+// getAnnotationLabelFixedSizeConfig). Unset = inherited from the template
+// (read-time); legacy S / M / L sizes are resolved by
+// getAnnotationLabelFontSize.
 export default function FieldAnnotationLabelTextSize({
   annotation,
   overrideFields,
@@ -58,12 +35,11 @@ export default function FieldAnnotationLabelTextSize({
 
   // helpers
 
-  const fontSize = annotation?.labelFontSize ?? "M";
-  const { isFixedSize } = getAnnotationLabelFixedSizeConfig(annotation);
-  const isOwn = hasOwnLabelFixedSizeValue(annotation);
+  const fontSize = getAnnotationLabelFontSize(annotation);
+  const isOwn = hasOwnLabelFontSizeValue(annotation);
   const locked =
     Array.isArray(overrideFields) &&
-    LABEL_FIXED_SIZE_FIELDS.some((f) => overrideFields.includes(f));
+    LABEL_FONT_SIZE_FIELDS.some((f) => overrideFields.includes(f));
 
   // handlers
 
@@ -72,16 +48,19 @@ export default function FieldAnnotationLabelTextSize({
     await updateAnnotation({ id: annotation.id, ...updates });
   }
 
-  function handleFontSizeChange(e, value) {
-    if (value) update({ labelFontSize: value });
-  }
-
-  function handleFixedSizeChange(e) {
-    update({ labelIsFixedSize: e.target.checked });
+  function handleFontSizeChange(raw) {
+    const parsed =
+      raw === "" ? DEFAULT_ANNOTATION_LABEL_FONT_SIZE : Number(raw);
+    update({
+      labelFontSize:
+        Number.isFinite(parsed) && parsed > 0
+          ? parsed
+          : DEFAULT_ANNOTATION_LABEL_FONT_SIZE,
+    });
   }
 
   function handleReset() {
-    update({ labelIsFixedSize: null });
+    update({ labelFontSize: null });
   }
 
   // render
@@ -92,29 +71,6 @@ export default function FieldAnnotationLabelTextSize({
         <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
           <Typography variant="body2" sx={{ fontWeight: "bold", flex: 1 }}>
             {titleS}
-          </Typography>
-          <ToggleButtonGroup
-            exclusive
-            size="small"
-            value={fontSize}
-            onChange={handleFontSizeChange}
-            sx={toggleGroupSx}
-          >
-            {FONT_SIZE_OPTIONS.map(({ value, label }) => (
-              <ToggleButton key={value} value={value}>
-                {label}
-              </ToggleButton>
-            ))}
-          </ToggleButtonGroup>
-        </Box>
-
-        <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-          <Typography
-            variant="body2"
-            title={fixedSizeTitleS}
-            sx={{ flex: 1, ...(locked && { opacity: 0.5 }) }}
-          >
-            {fixedSizeS}
           </Typography>
           {locked ? (
             <LockIcon
@@ -131,11 +87,19 @@ export default function FieldAnnotationLabelTextSize({
               {inheritedS}
             </Typography>
           )}
-          <Switch
-            size="small"
-            checked={isFixedSize}
-            onChange={handleFixedSizeChange}
-            disabled={locked}
+          <InputNumberOnBlur
+            value={fontSize}
+            onCommit={handleFontSizeChange}
+            inputProps={{ min: 1, step: 1 }}
+            endAdornment={
+              <Typography variant="caption" color="text.secondary">
+                {unitS}
+              </Typography>
+            }
+            sx={{
+              ...numberInputSx,
+              ...(locked && { opacity: 0.5, pointerEvents: "none" }),
+            }}
           />
         </Box>
       </Box>

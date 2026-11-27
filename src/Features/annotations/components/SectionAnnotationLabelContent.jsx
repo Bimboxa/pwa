@@ -3,6 +3,7 @@ import { useDispatch } from "react-redux";
 import { triggerAnnotationsUpdate } from "Features/annotations/annotationsSlice";
 
 import { Box, Typography } from "@mui/material";
+import { Lock as LockIcon } from "@mui/icons-material";
 
 import db from "App/db/db";
 import FieldCheck from "Features/form/components/FieldCheck";
@@ -29,6 +30,10 @@ export default function SectionAnnotationLabelContent({ annotation }) {
   const templateLabel =
     annotation?.templateLabel ?? annotation?.annotationTemplate?.label;
   const overrideFields = annotation?.annotationTemplate?.overrideFields;
+  // Padlock of the template's "Afficher l'étiquette": the template value is
+  // forced at read time, the switch is read-only.
+  const showLabelLocked =
+    Array.isArray(overrideFields) && overrideFields.includes("showLabel");
 
   // handlers
 
@@ -44,12 +49,30 @@ export default function SectionAnnotationLabelContent({ annotation }) {
     <Box
       sx={{ p: 1, width: 1, display: "flex", flexDirection: "column", gap: 1 }}
     >
-      <FieldCheck
-        value={showLabel}
-        onChange={(checked) => updateAnnotationFields({ showLabel: checked })}
-        label="Afficher l'étiquette"
-        options={{ type: "switch", showAsField: true }}
-      />
+      <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+        <Box
+          sx={{
+            flex: 1,
+            ...(showLabelLocked && { opacity: 0.5, pointerEvents: "none" }),
+          }}
+        >
+          <FieldCheck
+            value={showLabel}
+            onChange={(checked) =>
+              updateAnnotationFields({ showLabel: checked })
+            }
+            label="Afficher l'étiquette"
+            options={{ type: "switch", showAsField: true }}
+          />
+        </Box>
+        {showLabelLocked && (
+          <LockIcon
+            fontSize="small"
+            titleAccess="Verrouillé par le modèle"
+            sx={{ color: "text.disabled" }}
+          />
+        )}
+      </Box>
 
       <Box
         sx={{
