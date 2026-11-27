@@ -14,6 +14,10 @@ export default function FieldNumberCompact({
   // otherwise the round-trip through a parsed number would eat intermediate
   // states like "2." on the way back through `value`.
   onChangeText,
+  // Optional: raw text handed over once, when the field loses focus (blur,
+  // or Enter when the caller blurs on it) — for values whose every
+  // intermediate keystroke must not be applied (a costly 3D preview).
+  onCommitText,
   unit,
   disabled = false,
 }) {
@@ -42,6 +46,13 @@ export default function FieldNumberCompact({
     onChangeText?.(text);
     const parsed = parseFloat(text.replace(",", "."));
     if (Number.isFinite(parsed)) onChange?.(parsed);
+  }
+
+  function handleBlur() {
+    if (!onCommitText) return;
+    onCommitText(localValue);
+    // A rejected or unchanged text leaves `value` as it was: show it again.
+    setLocalValue(value != null ? String(value) : "");
   }
 
   function handleKeyDown(e) {
@@ -90,6 +101,7 @@ export default function FieldNumberCompact({
         <InputBase
           value={localValue}
           onChange={handleChange}
+          onBlur={handleBlur}
           onKeyDown={handleKeyDown}
           readOnly={disabled}
           fullWidth
