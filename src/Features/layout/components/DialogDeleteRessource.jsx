@@ -13,8 +13,12 @@ export default function DialogDeleteRessource({
   onClose,
   onConfirmAsync,
   message,
+  title: titleProp,
+  confirmColor = "error",
 }) {
-  const title = "Confirmer la suppression";
+  // `title` / `confirmColor` let a non-destructive batch action reuse the
+  // dialog (e.g. merging overlapping openings).
+  const title = titleProp ?? "Confirmer la suppression";
   const confirmS = "Confirmer";
   const cancelS = "Annuler";
 
@@ -52,7 +56,7 @@ export default function DialogDeleteRessource({
         <Button
           ref={confirmBtnRef}
           onClick={handleConfirm}
-          color="error"
+          color={confirmColor}
           variant="contained"
         >
           <Typography variant="body2">{confirmS}</Typography>

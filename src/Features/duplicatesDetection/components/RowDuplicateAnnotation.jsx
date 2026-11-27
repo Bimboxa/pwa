@@ -9,6 +9,8 @@ import AnnotationTemplateIcon from "Features/annotations/components/AnnotationTe
 // label, overlap line (plus the layer when the duplicates sit on different
 // layers). Clicking the row selects the
 // annotation on the map (the parent passes useSelectAnnotationFromPanel).
+// A row can bring its own detail line (`detailText`, e.g. the overlapping
+// openings of a polygon) and ask for the warning colour (`warning`).
 // ---------------------------------------------------------------------------
 
 export default function RowDuplicateAnnotation({ row, selected, onClick }) {
@@ -22,7 +24,9 @@ export default function RowDuplicateAnnotation({ row, selected, onClick }) {
   const partners = row.partnerIds?.length ?? 0;
   const linkedS = partners > 1 ? ` · ${partners} doublons liés` : "";
   const layerS = row.layerText ? ` · ${row.layerText}` : "";
-  const detailS = `${row.overlapText} · ${row.isTotal ? totalS : partialS}${linkedS}${layerS}`;
+  const detailS =
+    row.detailText ??
+    `${row.overlapText} · ${row.isTotal ? totalS : partialS}${linkedS}${layerS}`;
 
   // render
 
@@ -70,7 +74,8 @@ export default function RowDuplicateAnnotation({ row, selected, onClick }) {
             display: "block",
             fontFamily: "monospace",
             fontWeight: 500,
-            color: row.isTotal ? "warning.main" : "text.secondary",
+            color:
+              row.isTotal || row.warning ? "warning.main" : "text.secondary",
           }}
         >
           {detailS}

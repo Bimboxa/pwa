@@ -10,6 +10,7 @@ import { setToaster } from "Features/layout/layoutSlice";
 
 import runDuplicatesDetection from "../services/duplicatesDetectionService";
 import getDuplicateCandidates from "../utils/getDuplicateCandidates";
+import getCutOverlapCandidates from "../utils/getCutOverlapCandidates";
 import serializeAnnotationsForDetection from "../utils/serializeAnnotationsForDetection";
 import {
   MIN_OVERLAP_M,
@@ -35,7 +36,16 @@ export default function useRunDuplicatesDetection() {
   return useCallback(
     async (annotations, { meterByPx, baseMapId } = {}) => {
       const candidates = getDuplicateCandidates(annotations, { baseMapId });
-      if (candidates.length < 2) {
+      // polygons checked for their own overlapping cuts, on top of the
+      // candidates compared between them
+      const compareIds = new Set(candidates.map((a) => a.id));
+      const cutsOnly = getCutOverlapCandidates(annotations, {
+        baseMapId,
+      }).filter((a) => !compareIds.has(a.id));
+      const hasCutCandidates =
+        cutsOnly.length > 0 ||
+        getCutOverlapCandidates(candidates, { baseMapId }).length > 0;
+      if (candidates.length < 2 && !hasCutCandidates) {
         dispatch(
           setToaster({
             message: "Aucune annotation à comparer",
@@ -71,7 +81,10 @@ export default function useRunDuplicatesDetection() {
       try {
         const { promise } = runDuplicatesDetection({
           runId,
-          annotations: serializeAnnotationsForDetection(candidates),
+          annotations: serializeAnnotationsForDetection(
+            [...candidates, ...cutsOnly],
+            { cutsOnlyIds: new Set(cutsOnly.map((a) => a.id)) }
+          ),
           options: { thresholdPx, minOverlapPx },
         });
         const result = await promise;

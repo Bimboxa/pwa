@@ -1,5 +1,21 @@
 import { DUPLICATE_TYPES } from "../constants/duplicatesDetectionConstants";
 
+// Generated / foreign annotations never enter the detection, whatever is
+// compared (annotations between them, or the cuts of one polygon).
+export function isExcludedFromDetection(a, { baseMapId = null } = {}) {
+  if (baseMapId && a.baseMapId !== baseMapId) return true;
+  // generated elements of a system instance (treads, posts, ...) overlap by
+  // construction and are rebuilt by useSystemsSync: only the source counts.
+  if (a.systemSourceAnnotationId) return true;
+  return Boolean(
+    a.isBaseMapAnnotation ||
+    a.isMeshCell ||
+    a.isMesh3d ||
+    a.isForeignFootprint ||
+    a.isRevolutionFootprint
+  );
+}
+
 // Annotations the duplicates detection compares, out of a resolved
 // useAnnotationsV2 set (pixel-space points). Shared by the command's getState
 // (candidates count) and the run hook, so the toolbar context (not filtered by
@@ -15,18 +31,6 @@ export default function getDuplicateCandidates(
     if (!Array.isArray(a.points) || a.points.length < minPoints) return false;
     // « même type » = same template: templateless / orphan lines have none.
     if (!a.annotationTemplateId || a._isOrphan) return false;
-    if (baseMapId && a.baseMapId !== baseMapId) return false;
-    // generated elements of a system instance (treads, posts, ...) overlap by
-    // construction and are rebuilt by useSystemsSync: only the source counts.
-    if (a.systemSourceAnnotationId) return false;
-    if (
-      a.isBaseMapAnnotation ||
-      a.isMeshCell ||
-      a.isMesh3d ||
-      a.isForeignFootprint ||
-      a.isRevolutionFootprint
-    )
-      return false;
-    return true;
+    return !isExcludedFromDetection(a, { baseMapId });
   });
 }
