@@ -16,7 +16,8 @@ import db from "App/db/db";
  * exterior ring verbatim; several polygons go through the frontier
  * classification (shared edges dropped, exterior chains stitched) — one
  * closed contour per spatially connected cluster, exterior perimeter only.
- * Cuts/holes are ignored.
+ * Every cut (hole) of every polygon adds its own closed contour, so a single
+ * polygon yields the same rings as a clone to POLYLINE.
  */
 export default function usePolygonContours() {
   const dispatch = useDispatch();
@@ -47,13 +48,18 @@ export default function usePolygonContours() {
       if (!meterByPx || meterByPx <= 0)
         throw new Error("meterByPx is required");
 
-      // ── 1. Resolve exterior rings (px, typed) — cuts ignored ──────────
+      // ── 1. Resolve exterior rings + cut rings (px, typed) ─────────────
       const allPointIds = [];
+      const collectPointIds = (points) => {
+        if (!Array.isArray(points)) return;
+        for (const p of points)
+          if (p.id && (p.x === undefined || p.y === undefined))
+            allPointIds.push(p.id);
+      };
       for (const ann of polygonAnnotations) {
-        if (ann.points)
-          for (const p of ann.points)
-            if (p.id && (p.x === undefined || p.y === undefined))
-              allPointIds.push(p.id);
+        collectPointIds(ann.points);
+        if (Array.isArray(ann.cuts))
+          for (const cut of ann.cuts) collectPointIds(cut?.points);
       }
       const pointRecords = allPointIds.length
         ? await db.points.bulkGet(allPointIds)
@@ -61,11 +67,12 @@ export default function usePolygonContours() {
       const pointsById = {};
       for (const pt of pointRecords) if (pt) pointsById[pt.id] = pt;
 
-      const rings = [];
-      for (const ann of polygonAnnotations) {
-        if (!ann.points || ann.points.length < 3) continue;
+      // Returns the ring in px (point `type` kept for S-C-S arcs), or null
+      // when fewer than 3 points resolve.
+      const resolveRing = (points) => {
+        if (!Array.isArray(points) || points.length < 3) return null;
         const pts = [];
-        for (const p of ann.points) {
+        for (const p of points) {
           if (p.x !== undefined && p.y !== undefined) {
             pts.push({ x: p.x, y: p.y, type: p.type });
           } else {
@@ -74,7 +81,20 @@ export default function usePolygonContours() {
               pts.push({ x: rec.x * width, y: rec.y * height, type: p.type });
           }
         }
-        if (pts.length >= 3) rings.push(pts);
+        return pts.length >= 3 ? pts : null;
+      };
+
+      const rings = [];
+      const holeRings = [];
+      for (const ann of polygonAnnotations) {
+        const ring = resolveRing(ann.points);
+        if (!ring) continue;
+        rings.push(ring);
+        if (Array.isArray(ann.cuts))
+          for (const cut of ann.cuts) {
+            const holeRing = resolveRing(cut?.points);
+            if (holeRing) holeRings.push(holeRing);
+          }
       }
 
       if (rings.length === 0)
@@ -90,10 +110,14 @@ export default function usePolygonContours() {
       if (contours.length === 0) throw new Error("No contour produced");
 
       // ── 3. Persist ─────────────────────────────────────────────────────
-      const groups = contours.map((typedPoints) => ({
-        typedPoints,
-        closed: true,
-      }));
+      const groups = [
+        ...contours.map((typedPoints) => ({ typedPoints, closed: true })),
+        ...holeRings.map((typedPoints) => ({
+          typedPoints,
+          closed: true,
+          isHole: true,
+        })),
+      ];
 
       const { count } = await createContourAnnotationsService({
         groups,
