@@ -1,4 +1,4 @@
-import { Box, Typography } from "@mui/material";
+import { Box, Button, Typography } from "@mui/material";
 import { alpha } from "@mui/material/styles";
 
 import AnnotationTemplateIcon from "Features/annotations/components/AnnotationTemplateIcon";
@@ -11,9 +11,16 @@ import AnnotationTemplateIcon from "Features/annotations/components/AnnotationTe
 // annotation on the map (the parent passes useSelectAnnotationFromPanel).
 // A row can bring its own detail line (`detailText`, e.g. the overlapping
 // openings of a polygon) and ask for the warning colour (`warning`).
+// `action` ({ label, onClick(row), disabled }) adds a small button at the end
+// of the row (e.g. « Réparer »); clicking it does not select the row.
 // ---------------------------------------------------------------------------
 
-export default function RowDuplicateAnnotation({ row, selected, onClick }) {
+export default function RowDuplicateAnnotation({
+  row,
+  selected,
+  onClick,
+  action,
+}) {
   // strings
 
   const totalS = "total";
@@ -27,6 +34,13 @@ export default function RowDuplicateAnnotation({ row, selected, onClick }) {
   const detailS =
     row.detailText ??
     `${row.overlapText} · ${row.isTotal ? totalS : partialS}${linkedS}${layerS}`;
+
+  // handlers
+
+  function handleActionClick(e) {
+    e.stopPropagation();
+    action?.onClick?.(row);
+  }
 
   // render
 
@@ -81,6 +95,24 @@ export default function RowDuplicateAnnotation({ row, selected, onClick }) {
           {detailS}
         </Typography>
       </Box>
+      {action && (
+        <Button
+          size="small"
+          variant="outlined"
+          onClick={handleActionClick}
+          disabled={action.disabled}
+          sx={{
+            textTransform: "none",
+            flexShrink: 0,
+            minWidth: 0,
+            py: 0,
+            px: 1,
+            fontSize: "0.75rem",
+          }}
+        >
+          {action.label}
+        </Button>
+      )}
     </Box>
   );
 }

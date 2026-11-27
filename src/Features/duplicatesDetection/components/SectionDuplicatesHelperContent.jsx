@@ -20,7 +20,6 @@ import {
 } from "@mui/material";
 import Refresh from "@mui/icons-material/Refresh";
 import DeleteSweep from "@mui/icons-material/DeleteSweep";
-import MergeType from "@mui/icons-material/MergeType";
 
 import RowDuplicateAnnotation from "./RowDuplicateAnnotation";
 import DialogDeleteRessource from "Features/layout/components/DialogDeleteRessource";
@@ -48,8 +47,8 @@ import isEditableTarget from "Features/commandsToolbar/utils/isEditableTarget";
 // copies with the very same geometry on the same layer (the oldest of each
 // group is kept), then relaunches the run. A second list, « Ouvertures
 // superposées », shows the polygons whose own openings (cuts) overlap each
-// other — their area comes off the surface more than once — with « Fusionner
-// les ouvertures superposées » replacing each overlapping group by its union.
+// other — their area comes off the surface more than once — each row with a
+// « Réparer » button replacing its overlapping groups by their union.
 // Only mounted while a run exists (status !== "idle"), so its
 // own annotations query (same scope as the « Doublons » card) runs only then.
 // Escape closes the helper (clearDetection).
@@ -68,7 +67,7 @@ export default function SectionDuplicatesHelperContent() {
   const hintS = "Cliquez une ligne pour la sélectionner sur le plan";
   const deleteExactS = "Supprimer les doublons exacts";
   const cutOverlapsS = "Ouvertures superposées";
-  const mergeCutsS = "Fusionner les ouvertures superposées";
+  const repairS = "Réparer";
 
   // data
 
@@ -114,7 +113,7 @@ export default function SectionDuplicatesHelperContent() {
   });
 
   // polygons whose own openings overlap each other
-  const { rows: cutRows, totalText: cutTotalText } = useCutOverlapsHelperRows({
+  const { rows: cutRows } = useCutOverlapsHelperRows({
     result,
     annotations,
     templateById,
@@ -137,7 +136,6 @@ export default function SectionDuplicatesHelperContent() {
 
   const [openDelete, setOpenDelete] = useState(false);
   const [deleting, setDeleting] = useState(false);
-  const [openMergeCuts, setOpenMergeCuts] = useState(false);
   const [mergingCuts, setMergingCuts] = useState(false);
 
   // helpers
@@ -160,21 +158,17 @@ export default function SectionDuplicatesHelperContent() {
   const exactCount = exactDuplicateIds.length;
   const deleteMessageS = `Supprimer ${exactCount} doublon${exactCount > 1 ? "s" : ""} exact${exactCount > 1 ? "s" : ""} (même calque, géométrie identique) ? L'annotation la plus ancienne de chaque groupe est conservée.`;
 
-  const cutSummaryS = `${cutOverlapsCount} annotation${cutOverlapsCount > 1 ? "s" : ""} · ${cutTotalText} soustraits en trop`;
-  const mergeCutsMessageS = `Fusionner les ouvertures superposées de ${cutOverlapsCount} annotation${cutOverlapsCount > 1 ? "s" : ""} ? Chaque groupe d'ouvertures qui se recouvrent est remplacé par une seule ouverture (leur union).`;
-
   // effect - Escape closes the helper (not while typing in the field)
 
   useEffect(() => {
     const onKeyDown = (e) => {
       if (e.key !== "Escape" || isEditableTarget(e.target)) return;
-      // Escape only closes the confirmation dialog
-      if (openDelete || openMergeCuts) return;
+      if (openDelete) return; // Escape only closes the confirmation dialog
       dispatch(clearDetection());
     };
     window.addEventListener("keydown", onKeyDown, true);
     return () => window.removeEventListener("keydown", onKeyDown, true);
-  }, [dispatch, openDelete, openMergeCuts]);
+  }, [dispatch, openDelete]);
 
   // handlers
 
@@ -204,15 +198,16 @@ export default function SectionDuplicatesHelperContent() {
     }
   }
 
-  async function handleMergeOverlappingCuts() {
-    if (mergingCuts || cutOverlapsCount === 0) return;
+  // repairs one row: each group of overlapping openings of the annotation
+  // becomes one opening (their union) — one transaction, one undo step
+  async function handleRepairCuts(row) {
+    if (mergingCuts || running) return;
     setMergingCuts(true);
     try {
-      // one batch: single transaction, single undo step
       const { mergedAnnotationIds, skippedClusters } =
         await mergeOverlappingCutsService({
           annotations,
-          cutOverlaps: cutRows,
+          cutOverlaps: [row],
           baseMap,
         });
       if (skippedClusters > 0) {
@@ -244,7 +239,6 @@ export default function SectionDuplicatesHelperContent() {
       );
     } finally {
       setMergingCuts(false);
-      setOpenMergeCuts(false);
     }
   }
 
@@ -389,23 +383,6 @@ export default function SectionDuplicatesHelperContent() {
               >
                 {cutOverlapsS}
               </Typography>
-              <Typography
-                variant="caption"
-                color="warning.main"
-                sx={{ px: 0.5 }}
-              >
-                {cutSummaryS}
-              </Typography>
-              <Button
-                size="small"
-                variant="outlined"
-                startIcon={<MergeType fontSize="small" />}
-                onClick={() => setOpenMergeCuts(true)}
-                disabled={running || mergingCuts}
-                sx={{ textTransform: "none", alignSelf: "flex-start" }}
-              >
-                {`${mergeCutsS} (${cutOverlapsCount})`}
-              </Button>
               <Paper
                 elevation={0}
                 sx={{
@@ -420,6 +397,11 @@ export default function SectionDuplicatesHelperContent() {
                     row={row}
                     selected={row.annotationId === selectedAnnotationId}
                     onClick={handleRowClick}
+                    action={{
+                      label: repairS,
+                      onClick: handleRepairCuts,
+                      disabled: running || mergingCuts,
+                    }}
                   />
                 ))}
               </Paper>
@@ -433,14 +415,6 @@ export default function SectionDuplicatesHelperContent() {
         onClose={() => setOpenDelete(false)}
         onConfirmAsync={handleDeleteExactDuplicates}
         message={deleteMessageS}
-      />
-      <DialogDeleteRessource
-        open={openMergeCuts}
-        onClose={() => setOpenMergeCuts(false)}
-        onConfirmAsync={handleMergeOverlappingCuts}
-        message={mergeCutsMessageS}
-        title={mergeCutsS}
-        confirmColor="primary"
       />
     </Box>
   );
