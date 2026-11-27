@@ -86,6 +86,11 @@ const MOUSE_BUTTON_NAMES = ["left", "middle", "right"];
 function isMaterialSeeThrough(material) {
   if (!material) return false;
   if (Array.isArray(material)) return material.some(isMaterialSeeThrough);
+  // A material that writes no colour is not drawn at all: the Zmap relief of
+  // a scan base map stays in the scene that way (`visible` true, so the
+  // altimetry raycast still reads it) while it is not shown. The orbit point
+  // must land on what is on screen — the cloud or the base map plane.
+  if (material.colorWrite === false) return true;
   // `transparent: true` alone says nothing about visibility (every
   // translucent annotation and every fat line sets it): only the opacity does.
   return (
@@ -1389,6 +1394,9 @@ export default class ControlsManager {
       for (const id of Object.keys(imagesMap)) {
         const group = imagesMap[id];
         if (!group) continue;
+        // A hidden base map is not on screen: its infinite plane must not
+        // catch the orbit point.
+        if (!isObjectChainVisible(group)) continue;
         group.getWorldPosition(this._pivotHit);
         group.getWorldQuaternion(this._pivotQuat);
         this._pivotPlaneNormal.set(0, 0, 1).applyQuaternion(this._pivotQuat);
